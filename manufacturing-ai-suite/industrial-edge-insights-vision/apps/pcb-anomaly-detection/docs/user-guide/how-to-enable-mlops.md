@@ -6,7 +6,7 @@ With this feature, during runtime, you can download a new model from the registr
 
 ### Steps
 
-> The following steps assume a pipeline is already running on DLStreamer Pipeline Server that you wish to update with a new model. If you would like to launch a sample pipeline for this demonstration, see [here](#launch-a-pipeline-in-dlstreamer-pipeline-server).
+> The following steps assume a pipeline is already running on DLStreamer Pipeline Server that you wish to update with a new model. If you would like to launch a sample pipeline for this demonstration, see [here](#launch-a-pipeline-in-dlstreamer-pipeline-server). Note the instance ID. You would need it in the steps below while restarting the pipeline with a newer model.
 
 1. Update the following variables in `.env` file
     ``` sh
