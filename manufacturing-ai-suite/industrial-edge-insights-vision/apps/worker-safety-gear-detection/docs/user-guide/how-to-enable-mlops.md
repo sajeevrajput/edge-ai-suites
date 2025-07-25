@@ -41,9 +41,8 @@ With this feature, during runtime, you can download a new model from the registr
     > NOTE- The data above assumes there is a model in the registry that contains these properties. Also, the pipeline name that follows `user_defined_pipelines/`, will affect the `deployment` folder name.
 
 4. View the WebRTC streaming on `http://<HOST_IP>:<mediamtx-port>/<peer-str-id>` by replacing `<peer-str-id>` with the value used in the original cURL command to start the pipeline.
-    <div style="text-align: center;">
-        <img src=images/webrtc-streaming.png width=800>
-    </div>
+
+    ![WebRTC streaming](./images/webrtc-streaming.png)
 
 5. You can also stop any running pipeline by using the pipeline instance "id"
    ```sh
