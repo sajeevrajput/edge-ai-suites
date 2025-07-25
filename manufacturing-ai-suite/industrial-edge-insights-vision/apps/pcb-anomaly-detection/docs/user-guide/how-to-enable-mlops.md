@@ -36,11 +36,11 @@ With this feature, during runtime, you can download a new model from the registr
     --data '{
     "project_name": "pcb-anomaly-detection",
     "version": "v1",
-    "category": "Detection",
+    "category": "Classification",
     "architecture": "YOLO",
     "precision": "fp32",
     "deploy": true,
-    "pipeline_element_name": "detection",
+    "pipeline_element_name": "classification",
     "origin": "Geti",
     "name": "YOLO_Test_Model"
     }'
@@ -94,7 +94,7 @@ With this feature, during runtime, you can download a new model from the registr
                 }
                 },
                 "parameters": {
-                    "detection-properties": {
+                    "classification-properties": {
                         "model": "/home/pipeline-server/resources/models/pcb-anomaly-detection/deployment/Anomaly classification/model/model.xml",
                         "device": "CPU"
                     }
@@ -135,7 +135,7 @@ With this feature, during runtime, you can download a new model from the registr
     -F 'file=@<model_file_path.zip>;type=application/zip' \
     -F 'project_name="pcb-anomaly-detection"' \
     -F 'architecture="YOLO"' \
-    -F 'category="Detection"'
+    -F 'category="Classification"'
     ```
 3. Check if the model is uploaded successfully.
 
