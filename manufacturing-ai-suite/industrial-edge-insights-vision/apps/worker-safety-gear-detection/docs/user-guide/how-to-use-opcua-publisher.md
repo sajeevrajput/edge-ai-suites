@@ -29,7 +29,7 @@ Follow this procedure to test the DL Streamer Pipeline Server OPC UA publishing 
 
 4. To use an AI model of your own please follow the steps as mentioned in this [document](./how-to-use-an-ai-model-and-video-file-of-your-own.md)
 
-5. To use docker based deployment follow this [document](./get-started.md).
+5. Setup the application to use the docker based deployment following this [document](./get-started.md#setup-the-application).
 
 6. Start the pipeline with the following cURL command. Ensure to give the correct path to the model as seen below. This example starts an AI pipeline.
 

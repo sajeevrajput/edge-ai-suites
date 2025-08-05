@@ -6,12 +6,7 @@ Applications can take advantage of S3 publish feature from DLStreamer Pipeline S
 
 > **Note** For the purpose of this demonstration, we'll be using MinIO as the S3 storage. The necessary compose configuration for MinIO microservice is already part of the docker compose file.
 
-1. Update the following variables related to minio S3 storage in `.env` file
-    ``` sh
-    HOST_IP= # <IP Adress of the host machine>
-    MR_MINIO_ACCESS_KEY= # <DATABASE USERNAME> example: minioadmin
-    MR_MINIO_SECRET_KEY= # <DATABASE PASSWORD> example: minioadmin
-    ```
+1. Setup the application to use the docker based deployment following this [document](./get-started.md#setup-the-application).
 
 2. Bring up the containers.
     ```sh
