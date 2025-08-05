@@ -65,7 +65,7 @@ With this feature, during runtime, you can download a new model from the registr
 
 1.  Download and prepare the model.
     ```sh
-    export MODEL_URL='<URL to MODEL.zip>'
+    export MODEL_URL='https://github.com/open-edge-platform/edge-ai-resources/raw/2d63ba48e2ac3c09339f27c32267bb026e146175/models/pcb-anomaly-detection.zip'
     
     curl -L "$MODEL_URL" -o "$(basename $MODEL_URL)"
     ```

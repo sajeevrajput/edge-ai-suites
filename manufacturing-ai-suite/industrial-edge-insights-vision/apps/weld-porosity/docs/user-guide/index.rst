@@ -1,3 +1,6 @@
+Weld Porosity Detection
+==============================
+
 .. toctree::
    :hidden:
 

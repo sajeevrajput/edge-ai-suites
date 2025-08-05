@@ -1,3 +1,6 @@
+PCB Anomaly Detection
+==============================
+
 .. toctree::
    :hidden:
 

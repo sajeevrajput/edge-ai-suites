@@ -27,28 +27,11 @@ Follow this procedure to test the DL Streamer Pipeline Server OPC UA publishing 
         },
     ```
 
-4. Bring up the containers for docker or deploy helm chart.
-    * Step to bring up the containers.
-        ```sh
-        docker compose up -d
-        ```
-    or
-    * Step to install the helm chart
-        ```sh
-        helm install app-deploy helm -n apps --create-namespace
-        ```
-        After installation, check the status of the running pods:
-        ```sh
-        kubectl get pods -n apps
-        ```
-        To view logs of a specific pod, replace `<pod_name>` with the actual pod name from the output above:
-        ```sh
-        kubectl logs -n apps -f <pod_name>
-        ```
+4. To use an AI model of your own please follow the steps as mentioned in this [document](./how-to-use-an-ai-model-and-video-file-of-your-own.md)
 
-5. Start the pipeline with the following cURL command. Ensure to give the correct path to the model as seen below. This example starts an AI pipeline.
+5. To use docker based deployment follow this [document](./get-started.md).
 
-   **Note: Update the port to `30107` for helm or `8080` if you are using docker environment**
+6. Start the pipeline with the following cURL command. Ensure to give the correct path to the model as seen below. This example starts an AI pipeline.
 
    ```sh
     curl http://<HOST_IP>:<port>/pipelines/user_defined_pipelines/pcb_anomaly_detection_opcua -X POST -H 'Content-Type: application/json' -d '{
@@ -79,7 +62,7 @@ Follow this procedure to test the DL Streamer Pipeline Server OPC UA publishing 
     }'
    ```
 
-6. Run the following sample OPC UA subscriber on the different machine by updating the `<IP-Address of OPCUA Server>` to read the meta-data written to server variable from DL Streamer Pipeline Server.
+7. Run the following sample OPC UA subscriber on the different machine by updating the `<IP-Address of OPCUA Server>` to read the meta-data written to server variable from DL Streamer Pipeline Server.
    ```python
    import asyncio
    from asyncua import Client, Node

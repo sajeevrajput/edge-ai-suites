@@ -1,3 +1,6 @@
+Worker Safety Gear Detection
+==============================
+
 .. toctree::
    :hidden:
 

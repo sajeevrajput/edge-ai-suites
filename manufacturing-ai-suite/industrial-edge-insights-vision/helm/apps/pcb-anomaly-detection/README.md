@@ -14,7 +14,7 @@
 1. Clone the **edge-ai-suites** repository and change into industrial-edge-insights-vision directory. The directory contains the utility scripts required in the instructions that follows.
     ```sh
     git clone https://github.com/open-edge-platform/edge-ai-suites.git
-    cd manufacturing-ai-suite/industrial-edge-insights-vision
+    cd edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision/
     ```
 2. Set app specific values.yaml file.
     ```sh
@@ -24,8 +24,12 @@
     ```yaml
     env:        
         HOST_IP: <HOST_IP>   # host IP address
+        MINIO_ACCESS_KEY: <DATABASE USERNAME> #  example: minioadmin
+        MINIO_SECRET_KEY: <DATABASE PASSWORD> #  example: minioadmin
         http_proxy: <http proxy> # proxy details if behind proxy
         https_proxy: <https proxy>
+        POSTGRES_PASSWORD: <POSTGRES PASSWORD> #  example: intel1234
+        MR_URL: <PROTOCOL>://<HOST_IP>:32002 # example: http://<ip-addr>:32002
         SAMPLE_APP: pcb-anomaly-detection # application directory
     webrtcturnserver:
         username: <username>  # WebRTC credentials e.g. intel1234

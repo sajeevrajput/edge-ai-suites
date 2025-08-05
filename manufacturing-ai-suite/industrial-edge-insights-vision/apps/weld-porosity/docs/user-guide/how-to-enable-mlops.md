@@ -99,6 +99,12 @@ With this feature, during runtime, you can download a new model from the registr
                         "peer-id": "weld"
                     }
                 },
+                "destination": {
+                "frame": {
+                    "type": "webrtc",
+                    "peer-id": "weld"
+                }
+                },
                 "parameters": {
                     "classification-properties": {
                         "model": "/home/pipeline-server/resources/models/weld-porosity/deployment/Classification/model/model.xml",
@@ -123,7 +129,7 @@ With this feature, during runtime, you can download a new model from the registr
 
 1.  Download and prepare the model.
     ```sh
-    export MODEL_URL='https://github.com/open-edge-platform/edge-ai-suites/raw/9b679287cb6650619b4d1dd01f993ae793f8ec04/manufacturing-ai-suite/industrial-edge-insights-vision/weld_porosity_classification.zip'
+    export MODEL_URL='https://github.com/open-edge-platform/edge-ai-resources/raw/c13b8dbf23d514c2667d39b66615bd1400cb889d/models/weld_porosity_classification.zip'
     
     curl -L "$MODEL_URL" -o "$(basename $MODEL_URL)"
     ```

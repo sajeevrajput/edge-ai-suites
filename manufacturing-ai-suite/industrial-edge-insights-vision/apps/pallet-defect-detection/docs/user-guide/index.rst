@@ -1,3 +1,6 @@
+Pallet Defect Detection
+==============================
+
 .. toctree::
    :hidden:
 
