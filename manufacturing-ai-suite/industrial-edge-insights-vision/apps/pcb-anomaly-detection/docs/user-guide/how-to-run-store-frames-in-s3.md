@@ -18,9 +18,9 @@ Applications can take advantage of S3 publish feature from DLStreamer Pipeline S
     docker compose up -d
     ```
 
-3. Install the package boto3 in your python environment if not installed.
+3. Install the package `boto3` in your python environment if not installed.
     
-    It is recommended to create a virtual environment and install it there. You can run the following commands to install create and activate the environment
+    It is recommended to create a virtual environment and install it there. You can run the following commands to add the necessary dependencies as well as create and activate the environment.
         
     ```sh
     sudo apt update && \
@@ -31,7 +31,7 @@ Applications can take advantage of S3 publish feature from DLStreamer Pipeline S
     source venv/bin/activate
     ```
 
-    Once the environment is ready, install boto3 with the following command
+    Once the environment is ready, install `boto3` with the following command
     ```sh
     pip3 install --upgrade pip && \
     pip3 install boto3==1.36.17
