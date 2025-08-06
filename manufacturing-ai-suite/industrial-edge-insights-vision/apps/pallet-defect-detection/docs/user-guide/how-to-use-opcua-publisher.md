@@ -1,6 +1,6 @@
 # How to use OPC UA publisher
 
-Follow this procedure to test the DL Streamer Pipeline Server OPC UA publishing using the docker or helm.
+Follow this procedure to test the DL Streamer Pipeline Server OPC UA publishing using the docker.
 
 1. Configure and start the OPC UA Server
    If you already have a functioning OPC UA server, you can skip this step. Otherwise, this section provides instructions for using the OPC UA server provided by [Unified Automation](https://www.unified-automation.com).
@@ -10,7 +10,7 @@ Follow this procedure to test the DL Streamer Pipeline Server OPC UA publishing 
       * Open the Start menu on your Windows machine and search for **UaCPPServer**.
       * Launch the application to start the server.
 
-2. Update the following variables related to the OPC UA server in `.env` for docker or `helm/values.yml` for helm.
+2. Update the following variables related to the OPC UA server in `.env`.
     ``` sh
     OPCUA_SERVER_IP= # <IP-Adress of the OPCUA server>
     OPCUA_SERVER_PORT= # example: 48010
@@ -18,7 +18,7 @@ Follow this procedure to test the DL Streamer Pipeline Server OPC UA publishing 
     OPCUA_SERVER_PASSWORD= # example: secret
     ```
 
-3. Update the OPC UA `variable` to appropriate value for the pipeline `pallet_defect_detection_opcua` in ``configs/pipeline-server-config.json`` for docker or `helm/config.json` for helm.
+3. Update the OPC UA `variable` to appropriate value for the pipeline `pallet_defect_detection_opcua` in `apps/pallet-defect-detection/configs/pipeline-server-config.json`.
 
     ```shell
         "opcua_publisher": {
@@ -31,10 +31,10 @@ Follow this procedure to test the DL Streamer Pipeline Server OPC UA publishing 
 
 5. Setup the application to use the docker based deployment following this [document](./get-started.md#setup-the-application).
 
-6. Start the pipeline with the following cURL command. Ensure to give the correct path to the model as seen below. This example starts an AI pipeline.
+6. Start the pipeline using the following cURL command. Update the `HOST_IP` and ensure the correct path to the model is provided as shown below. This example starts an AI pipeline.
 
    ```sh
-    curl http://<HOST_IP>:<port>/pipelines/user_defined_pipelines/pallet_defect_detection_opcua -X POST -H 'Content-Type: application/json' -d '{
+    curl http://<HOST_IP>:8080/pipelines/user_defined_pipelines/pallet_defect_detection_opcua -X POST -H 'Content-Type: application/json' -d '{
         "source": {
             "uri": "file:///home/pipeline-server/resources/videos/warehouse.avi",
             "type": "uri"

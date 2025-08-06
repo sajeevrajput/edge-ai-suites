@@ -6,7 +6,7 @@ The DLStreamer Pipeline Server config supports multiple pipelines that you can u
 
 ## Steps
 
- The following demonstrates running two AI pipelines and observing telemetry data from Prometheus* UI.
+ The following demonstrates running two AI pipelines.
 > **Note** We assume that the model and sample video is already available in the application directory under `resources/`.
 
 1. Bring up the containers.
@@ -63,6 +63,8 @@ The DLStreamer Pipeline Server config supports multiple pipelines that you can u
    Figure 1: WebRTC streaming
 
    You can see boxes, shipping labels, and defects being detected. You have successfully run the sample application.
+
+   > NOTE: You can also observe telemetry data from the Prometheus UI. Refer [this](./how-to-view-telemetry-data.md) document to learn more.
 
 5. Stop the 2nd pipeline using the instance ID noted in point #3 above, before proceeding with this documentation.
    ```shell

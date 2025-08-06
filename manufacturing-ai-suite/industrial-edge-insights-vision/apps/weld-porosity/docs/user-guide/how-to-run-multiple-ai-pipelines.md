@@ -6,7 +6,7 @@ The DLStreamer Pipeline Server config supports multiple pipelines that you can u
 
 ## Steps
 
- The following demonstrates running two AI pipelines and observing telemetry data from Prometheus* UI.
+ The following demonstrates running two AI pipelines.
 > **Note** We assume that the model and sample video is already available in the application directory under `resources/`.
 
 1. Bring up the containers.
@@ -54,13 +54,15 @@ The DLStreamer Pipeline Server config supports multiple pipelines that you can u
         }
     }'
     ```
-    Note the instance ID of this pipeline.
+    **Note the instance ID of this pipeline**
 
 4. View the WebRTC streaming on `http://<HOST_IP>:<mediamtx-port>/<peer-str-id>` and `http://<HOST_IP>:<mediamtx-port>/<different-peer-str-id>`. `mediamtx-port` in this case would be 8889 as configured in .env file
 
    ![Example of a WebRTC streaming using default mediamtx-port 8889](./images/webrtc-streaming.png)
 
    Figure 1: WebRTC streaming
+
+   > NOTE: You can also observe telemetry data from the Prometheus UI. Refer [this](./how-to-view-telemetry-data.md) document to learn more.
 
 5. Stop the 2nd pipeline using the instance ID noted in point #3 above, before proceeding with this documentation.
    ```shell
