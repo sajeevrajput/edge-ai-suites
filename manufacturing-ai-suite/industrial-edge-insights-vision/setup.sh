@@ -500,6 +500,12 @@ init_instance_helm() {
         err "Chart file $CHART_SRC_FILE not found."
         return 1
     fi
+    
+    # Set permissions for the source app directory
+    SOURCE_APP_DIR="$SCRIPT_DIR/helm/apps/$SAMPLE_APP"
+    if [[ -d "$SOURCE_APP_DIR" ]]; then
+        set_permissions "$SOURCE_APP_DIR"
+    fi
 }
 
 
@@ -647,6 +653,12 @@ init_helm() {
             err "Chart file $CHART_SRC_FILE not found."
             exit 1
         fi
+        
+        # Set permissions for single instance helm
+        APP_DIR="$SCRIPT_DIR/helm/apps/$SAMPLE_APP"
+        if [[ -d "$APP_DIR" ]]; then
+            set_permissions "$APP_DIR"
+        fi
     fi
 }
 
@@ -656,13 +668,6 @@ main() {
         echo "Setting up helm"
         # initialize the sample app for helm, load env from values.yml
         init_helm
-        APP_DIR="$SCRIPT_DIR/helm/apps/$SAMPLE_APP"
-        echo "Using helm directory: $APP_DIR"
-        # check if helm/apps directory exists
-        if [[ ! -d "$APP_DIR" ]]; then
-            err "Helm apps directory $APP_DIR does not exist."
-            exit 1
-        fi
     else
         # initialize the compose based sample app, load env from config.yml or .env
         init
