@@ -4,7 +4,7 @@ services:
       model_registry:
         condition: service_healthy
     image: ${DLSTREAMER_PIPELINE_SERVER_IMAGE}
-    container_name: dlstreamer-pipeline-server
+    # container_name: dlstreamer-pipeline-server
     hostname: dlstreamer-pipeline-server
     networks:
     - mraas
@@ -48,7 +48,7 @@ services:
     - vol_pipeline_root:/var/cache/pipeline_root:uid=1999,gid=1999
     - /var/tmp:/var/tmp
     - ./resources/${SAMPLE_APP}/:/home/pipeline-server/resources/
-    - ./apps/${SAMPLE_APP}/configs/pipeline-server-config.json:/home/pipeline-server/config.json
+    - ${APP_DIR}/configs/pipeline-server-config.json:/home/pipeline-server/config.json
       # Following devices under /dev filesystem will be needed based on usecase
       # dri - GPU
       # USB camera devices
@@ -83,7 +83,8 @@ services:
 
   mediamtx:
     image: bluenviron/mediamtx:1.11.3
-    container_name: mediamtx-server
+    # container_name: mediamtx-server
+    hostname: mediamtx-server
     environment:
       - MTX_LOGLEVEL=debug
       - MTX_RTSP=no
@@ -100,7 +101,7 @@ services:
 
   coturn:
     image: coturn/coturn:latest
-    container_name: coturn
+    # container_name: coturn
     ports:
       - "${COTURN_UDP_PORT}:3478/udp"
     networks:
@@ -108,21 +109,21 @@ services:
 
   mqtt-broker:
     image: eclipse-mosquitto
-    container_name: mqtt-broker
+    # container_name: mqtt-broker
     networks:
       - mraas
     volumes:
-      - ./apps/${SAMPLE_APP}/configs/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ${APP_DIR}/configs/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       
   nginx:
     image: nginx:1.27-alpine
-    container_name: nginx-reverse-proxy
+    # container_name: nginx-reverse-proxy
     ports:
-      - "80:80"
-      - "443:443"
+      - "${NGINX_HTTP_PORT}:80"
+      - "${NGINX_HTTPS_PORT}:443"
     volumes:
-      - "./apps/${SAMPLE_APP}/configs/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"
-      - "./apps/${SAMPLE_APP}/configs/nginx/ssl:/etc/nginx/ssl:ro"
+      - "${APP_DIR}/configs/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"
+      - "${APP_DIR}/configs/nginx/ssl:/etc/nginx/ssl:ro"
     networks:
       - mraas
     depends_on:
@@ -140,7 +141,7 @@ services:
 
   model_registry:
     image: ${DOCKER_REGISTRY}intel/model-registry:1.0.3
-    container_name: model_registry
+    # container_name: model_registry
     hostname: model_registry
     ipc: "none"
     restart: unless-stopped
@@ -176,14 +177,14 @@ services:
       no_proxy: ${MR_MINIO_HOSTNAME}
       NO_PROXY: ${MR_MINIO_HOSTNAME}
     volumes:
-      - ./Certificates/ssl/:/run/secrets/ModelRegistry_Server:ro
+      - ${APP_DIR}/Certificates/ssl/:/run/secrets/ModelRegistry_Server:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       - mraas
   mraas_postgres:
     image: postgres:13
-    container_name: mraas_postgres
+    # container_name: mraas_postgres
     hostname: mraas_postgres
     restart: unless-stopped
     security_opt:
@@ -202,13 +203,13 @@ services:
       - mraas
   mraas-minio:
     image: minio/minio:RELEASE.2020-12-12T08-39-07Z
-    container_name: ${MR_MINIO_HOSTNAME}
+    # container_name: ${MR_MINIO_HOSTNAME}
     hostname: ${MR_MINIO_HOSTNAME}
     ipc: "none"
     expose:
       - ${MR_MINIO_SERVER_PORT}
     volumes:
-      - ./Certificates/ssl/:/certs/:rw
+      - ${APP_DIR}/Certificates/ssl/:/certs/:rw
       - "vol_minio_data:/data"
     networks:
       - mraas
@@ -216,7 +217,7 @@ services:
     security_opt:
       - no-new-privileges
     ports:
-      - '8000:8000'
+      - '${MINIO_EXTERNAL_PORT}:8000'
     environment:
       AppName: "ModelRegistry"
       MINIO_ACCESS_KEY: ${MR_MINIO_ACCESS_KEY}
@@ -227,13 +228,13 @@ services:
 
   prometheus:
     image: prom/prometheus:latest
-    container_name: prometheus
+    # container_name: prometheus
     environment:
       - HTTP_PROXY=${http_proxy}
       - HTTPS_PROXY=${https_proxy}
       - NO_PROXY=$no_proxy,otel-collector,localhost,127.0.0.1
     volumes:
-      - ./apps/${SAMPLE_APP}/configs/open_telemetry/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ${APP_DIR}/configs/open_telemetry/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command: >
       --config.file=/etc/prometheus/prometheus.yml
@@ -245,13 +246,13 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.94.0
-    container_name: otel-collector
+    # container_name: otel-collector
     environment:
       HTTP_PROXY: ${http_proxy}
       HTTPS_PROXY: ${https_proxy}
       NO_PROXY: $no_proxy,prometheus,dlstreamer-pipeline-server,localhost,127.0.0.1
     volumes:
-      - ./apps/${SAMPLE_APP}/configs/open_telemetry/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml  # OpenTelemetry Collector config
+      - ${APP_DIR}/configs/open_telemetry/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml  # OpenTelemetry Collector config
     restart: always
     networks:
       - mraas
