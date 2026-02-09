@@ -1,4 +1,4 @@
-# Publish Frames to S3 Storage
+# Publish Frames To S3 Storage
 
 Applications can take advantage of S3 publish feature from DL Streamer Pipeline Server and use it to save frames to an S3 compatible storage.
 
@@ -11,7 +11,7 @@ Applications can take advantage of S3 publish feature from DL Streamer Pipeline 
 2. Bring up the containers.
 
    ```sh
-   docker compose up -d
+   ./run.sh up
    ```
 
 3. Install the package `boto3` in your python environment if not installed.
@@ -28,22 +28,22 @@ Applications can take advantage of S3 publish feature from DL Streamer Pipeline 
    source venv/bin/activate
    ```
 
-   Once the environment is ready, install `boto3` with the following command:
+   Once the environment is ready, install `boto3` with the following command.
 
    ```sh
    pip3 install --upgrade pip && \
    pip3 install boto3==1.36.17
    ```
 
-   > **Note** DL Streamer Pipeline Server expects the bucket to be already present in the database. The next step will help you create one.
+   > **Note:** DL Streamer Pipeline Server expects the bucket to be already present in the database. The next step will help you create one.
 
 4. Create a S3 bucket using the following script.
 
-   Update the `HOST_IP` and credentials with that of the running MinIO server. Name the file as `create_bucket.py`.
+   Update the `HOST_IP`, `MINIO_SERVER_PORT` and credentials with that of the running MinIO server. Name the file as `create_bucket_instance_name.py`for each instance.
 
    ```python
    import boto3
-   url = "http://<HOST_IP>:8000"
+   url = "http://<HOST_IP>:<MINIO_SERVER_PORT>"
    user = "<value of MINIO_ACCESS_KEY used in .env>"
    password = "<value of MINIO_SECRET_KEY used in .env>"
    bucket_name = "ecgdemo"
@@ -65,29 +65,29 @@ Applications can take advantage of S3 publish feature from DL Streamer Pipeline 
    python3 create_bucket.py
    ```
 
-5. Start the pipeline with the following cURL command  with `<HOST_IP>` set to system IP. Ensure to give the correct path to the model as seen below. This example starts an AI pipeline.
+5. Start the pipeline with the following cURL command  with `<HOST_IP>:<NGINX_HTTPS_PORT>` set to system IP. Ensure to give the correct path to the model as seen below. This example starts an AI pipeline for pallet_defect_detection:
 
    ```sh
-   curl -k https://<HOST_IP>/api/pipelines/user_defined_pipelines/weld_porosity_classification_s3write -X POST -H 'Content-Type: application/json' -d '{
+   curl -k https://<HOST_IP>:<NGINX_HTTPS_PORT>/api/pipelines/user_defined_pipelines/pallet_defect_detection_s3write -X POST -H 'Content-Type: application/json' -d '{
        "source": {
-           "uri": "file:///home/pipeline-server/resources/videos/welding.avi",
+           "uri": "file:///home/pipeline-server/resources/videos/warehouse.avi",
            "type": "uri"
        },
        "destination": {
            "frame": {
                "type": "webrtc",
-               "peer-id": "welds3"
+               "peer-id": "pdds3"
            }
        },
        "parameters": {
-           "classification-properties": {
-               "model": "/home/pipeline-server/resources/models/weld-porosity/deployment/Classification/model/model.xml",
+           "detection-properties": {
+               "model": "/home/pipeline-server/resources/models/pallet-defect-detection/deployment/Detection/model/model.xml",
                "device": "CPU"
            }
        }
    }'
    ```
 
-6. Go to MinIO console on `https://<HOST_IP>/minio` and login with `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` provided in `.env` file. After logging into console, you can go to `ecgdemo` bucket and check the frames stored.
+6. Go to MinIO console on `https://<HOST_IP>:<NGINX_HTTPS_PORT>/minio` and login with `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` provided in the respective instance's`.env` file. After logging into console, you can go to `ecgdemo` bucket and check the frames stored.
 
-   ![S3 minio image storage](../_assets/s3-minio-storage.png)
+   ![S3 minio image storage](../_assets/s3_minio_storage.png)

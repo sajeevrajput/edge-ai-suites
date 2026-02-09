@@ -68,8 +68,8 @@ class utils:
                 "MTX_WEBRTCICESERVERS2_0_USERNAME": "test1234",
                 "MTX_WEBRTCICESERVERS2_0_PASSWORD": "test1234",
                 "MTX_WEBRTCICESERVERS2_0_USERNAME": "test1234", 
-                "MR_MINIO_ACCESS_KEY": "minioadmin", 
-                "MR_MINIO_SECRET_KEY": "minioadmin", 
+                "MINIO_ACCESS_KEY": "minioadmin", 
+                "MINIO_SECRET_KEY": "minioadmin", 
                 "MR_PSQL_PASSWORD": "test1234"
             })
             
@@ -390,7 +390,7 @@ class utils:
             print(docker_ps_output)
             lines = docker_ps_output.strip().split('\n')[1:]
             running_containers = []
-            project_containers = ['dlstreamer-pipeline-server', 'prometheus', 'coturn', 'model-registry', 'otel-collector', 'mediamtx-server', 'mraas_postgres', 'mraas-minio', 'industrial-edge-insights-vision_vol_minio_data', 'industrial-edge-insights-vision_mr_postgres_data', 'industrial-edge-insights-vision_vol_pipeline_root']
+            project_containers = ['dlstreamer-pipeline-server', 'prometheus', 'coturn', 'model-registry', 'otel-collector', 'mediamtx-server', 'mraas_postgres', 'minio', 'industrial-edge-insights-vision_vol_minio_data', 'industrial-edge-insights-vision_mr_postgres_data', 'industrial-edge-insights-vision_vol_pipeline_root']
                 
             for line in lines:
                 if line.strip():
