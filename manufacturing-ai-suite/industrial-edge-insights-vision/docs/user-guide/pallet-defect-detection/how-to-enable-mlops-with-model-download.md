@@ -1,6 +1,6 @@
 # MLOps using Model Downloader
 
-Applications for industrial vision can also be used to demonstrate MLOps workflow using Model Downloader microservice.
+Applications for industrial edge insights vision can also be used to demonstrate MLOps workflow using Model Downloader microservice.
 With this feature, during runtime, you can download a new model using the microservice and restart the pipeline with the new model.
 
 >To simplify this demonstration, we assume that models have already been downloaded to an accessible location (`/tmp/models`) using the Model Downloader from a running Geti server before restarting the pipeline.
@@ -86,7 +86,7 @@ With this feature, during runtime, you can download a new model using the micros
 
 8. Verify the pipeline is running. You can View the WebRTC streaming on `http://<HOST_IP>:<mediamtx-port>/<peer-str-id>` by replacing `<peer-str-id>` with the value used in the original cURL command to start the pipeline.
 
-   ![WebRTC streaming](./images/webrtc-streaming.png)
+   ![WebRTC streaming](./_assets/webrtc-streaming.png)
 
 ### Downloading model with Model Downloader 
 
@@ -101,7 +101,7 @@ We will assume model has been downloaded to /tmp/tmp-models directory. `/tmp`dir
    ```sh
    curl -k --location -X DELETE https://<HOST_IP>/api/pipelines/{instance_id}
    ```
-4. Start a new pipeline with this new model. Before that modify the payload.json to use this new model in `apps/pallet-defect-detection/payload.json`
+4. Start a new pipeline with this new model. Before that modify the payload.json to use this new model in `apps/pallet-defect-detection/payload.json`. Notice the model path has changed in the payload.
 
    ```json
    [
@@ -131,73 +131,13 @@ We will assume model has been downloaded to /tmp/tmp-models directory. `/tmp`dir
 
 5. View the WebRTC streaming on `http://<HOST_IP>:<mediamtx-port>/<peer-str-id>` by replacing `<peer-str-id>` with the value used in the original cURL command to start the pipeline.
 
-   ![WebRTC streaming](./images/webrtc-streaming.png)
 
 ## Additional resources
-### Downloading models from Model Downloader
-To learn how to setup and downloader models from Geti server, see [here](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/model-download/docs/user-guide/get-started.md#quick-start)
+### Setting up Model Downloader
+To learn how to setup Model Downloader, see [here](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/model-download/docs/user-guide/get-started.md#quick-start)
 
-1. **Clone the Repository**:
-    - Clone the model-download repository:
-      ```bash
-      # Clone the latest on mainline
-        git clone https://github.com/open-edge-platform/edge-ai-libraries.git edge-ai-libraries
-      # Alternatively, Clone a specific release branch
-        git clone https://github.com/open-edge-platform/edge-ai-libraries.git edge-ai-libraries -b <release-tag>
-      ```
-2. **Navigate to the directory**:
-    - Go to the model-download microservice directory
-      ```bash
-      cd edge-ai-libraries/microservices/model-download
-      ```
-3. **Configure the environment variables**
-    - Set the below environment variables
-      ```bash
-      export REGISTRY="intel/"
-      export TAG=1.0.1
-
-      export GETI_HOST=<GETI_HOST_ADDRESS>
-      export GETI_ORGANIZATION_ID=<YOUR_GETI_ORGANIZATION_ID>
-      export GETI_WORKSPACE_ID=<YOUR_GETI_WORKSPACE_ID>
-      export GETI_TOKEN=<GETI_ACCESS_TOKEN>
-      export GETI_SERVER_API_VERSION=v1
-      export GETI_SERVER_SSL_VERIFY=False  #DEFAULT is FALSE
-      ```
+### Downloading models from Geti Server
+To learn how to download models from a running Geti server, see [here](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/model-download/docs/user-guide/get-started.md#sample-usage-with-curl-command)
 
 
-4. **Launch the service**
-    - Use the run script to start the service and enable the plugins
-      ```bash
-      source scripts/run_service.sh up --plugins geti,ultralytics,huggingface --model-path /tmp/models # there is a bug that would not allow only ultralytics plugin to install
-   
-   >NOTE The --model-path location is where models are downloaded. In this case, its /tmp/models. Ensure that DLSPS has access to this path. You can check the volumes section of DLSPS compose file fo this.
-
-1. Download the model.
-
-   ```sh
-   export HOST_IP=<HOST_IP_ADDRESS>
-   curl --location 'http://$HOST_IP:8200/api/v1/models/download?download_path=openvino_folder' \
-   --header 'Content-Type: application/json' \
-   --data '{
-      "models": [
-         {
-               "name": "yolox-tiny",
-               "hub": "geti",
-               "type": "vision",
-               "precision": "int8",
-               "model_group_id": "691bfb86c7b9a6d48b162af3",
-               "project_id": "691bfa6c0a9b332eadf1d28c",
-               "export_type": "optimized"
-         }
-      ],
-      "parallel_downloads": true
-   }'
-   ```
-   >NOTE The above command returns a job id. Note it so that you may use it to check download status. See below
-2. Run the following curl command to check for model download status. Depending upon the speed and size of the model, you may have to wait for longer duration
-
-   ```sh
-   curl -X GET "http://$HOST_IP:8200/api/v1/jobs/<job_id>"
-   ```
-
-   > **Note:**: The model is already available in /tmp/models. Check if the /tmp is accessible to DLSPS container. If not, please add it to volumes section of DLSPS in compose file, and restart the DLSPS service.
+> **Note:**: The downloaded model(s) must be accessible to the DLStreamer pipeline server container. If not, please add it to volumes section of dltreamer-pipeline-server in compose file, and restart the DLSPS service.
