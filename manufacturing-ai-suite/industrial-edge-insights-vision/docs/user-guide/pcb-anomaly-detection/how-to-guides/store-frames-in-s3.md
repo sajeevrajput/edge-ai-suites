@@ -44,8 +44,8 @@ Applications can take advantage of S3 publish feature from DL Streamer Pipeline 
    ```python
    import boto3
    url = "http://<HOST_IP>:8000"
-   user = "<value of MR_MINIO_ACCESS_KEY used in .env>"
-   password = "<value of MR_MINIO_SECRET_KEY used in .env>"
+   user = "<value of MINIO_ACCESS_KEY used in .env>"
+   password = "<value of MINIO_SECRET_KEY used in .env>"
    bucket_name = "ecgdemo"
 
    client= boto3.client(
@@ -88,6 +88,6 @@ Applications can take advantage of S3 publish feature from DL Streamer Pipeline 
    }'
    ```
 
-6. Go to MinIO console on `https://<HOST_IP>/minio` and login with `MR_MINIO_ACCESS_KEY` and `MR_MINIO_SECRET_KEY` provided in `.env` file. After logging into console, you can go to `ecgdemo` bucket and check the frames stored.
+6. Go to MinIO console on `https://<HOST_IP>/minio` and login with `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` provided in `.env` file. After logging into console, you can go to `ecgdemo` bucket and check the frames stored.
 
    ![S3 minio image storage](../_assets/s3-minio-storage.png)

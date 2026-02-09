@@ -38,19 +38,19 @@ This tutorial demonstrates how to simultaneously deploy and manage multiple indu
         NGINX_HTTP_PORT: 8080
         NGINX_HTTPS_PORT: 8443
         COTURN_UDP_PORT: 3478
-        MINIO_EXTERNAL_PORT: 8001
+        MINIO_SERVER_PORT: 8001
       pdd2:
         NGINX_HTTP_PORT: 9080
         NGINX_HTTPS_PORT: 9443
         COTURN_UDP_PORT: 3479
-        MINIO_EXTERNAL_PORT: 9001
+        MINIO_SERVER_PORT: 9001
 
     weld-porosity:
       weld1:
         NGINX_HTTP_PORT: 10080
         NGINX_HTTPS_PORT: 10443
         COTURN_UDP_PORT: 3480
-        MINIO_EXTERNAL_PORT: 10001
+        MINIO_SERVER_PORT: 10001
     ```
     >NOTE: A sample configuration file `sample_config.yml` is provided to help users understand the multi-instance setup and get started. This configuration defines three example instances with identifiers: pdd1, pdd2, and weld1. The accompanying sample scripts utilize these identifiers to perform operations on individual application instances.
     
@@ -60,10 +60,8 @@ This tutorial demonstrates how to simultaneously deploy and manage multiple indu
     ```bash
     HOST_IP=<HOST_IP>   # IP address of server where DL Streamer Pipeline Server is running.
 
-    MR_PSQL_PASSWORD=  #PostgreSQL service & client adapter e.g. intel1234
-
-    MR_MINIO_ACCESS_KEY=   # MinIO service & client access key e.g. intel1234
-    MR_MINIO_SECRET_KEY=   # MinIO service & client secret key e.g. intel1234
+    MINIO_ACCESS_KEY=   # MinIO service & client access key e.g. intel1234
+    MINIO_SECRET_KEY=   # MinIO service & client secret key e.g. intel1234
 
     MTX_WEBRTCICESERVERS2_0_USERNAME=<username>  # WebRTC credentials e.g. intel1234
     MTX_WEBRTCICESERVERS2_0_PASSWORD=<password>
