@@ -256,8 +256,19 @@ init_instance() {
 }
 
 # Helm-related functions (preserved for helm mode)
+# in values.yaml file
+# config:
+    # nginx:
+    #     name: nginx-reverse-proxy
+    #     int:
+    #       http_port: "80"
+    #       https_port: "443"
+    #     ext:
+    #       http_port: "30080"
+    #       https_port: "30443"
+# copy the value 30443 that is the NGINX_HTTPS_PORT to the variable NGINX_HTTPS_PORT in the .env file
 YAML_FILE="helm/values.yaml"
-VARS_TO_EXPORT=("HOST_IP" "REST_SERVER_PORT" "SAMPLE_APP")
+VARS_TO_EXPORT=("HOST_IP" "REST_SERVER_PORT" "SAMPLE_APP" )
 
 # Function to extract values from 'env:' section of YAML
 get_env_value() {
@@ -281,21 +292,21 @@ get_env_value() {
 update_env_file() {
     # check if the .env file exists, if not create it
     # and update it with values from the arg listed in VARS_TO_EXPORT
-    if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
-        touch "$SCRIPT_DIR/.env"
+    if [[ ! -f "$ENV_PATH/.env" ]]; then
+        touch "$ENV_PATH/.env"
     fi
     # loop through the variables to export
     for var in "${VARS_TO_EXPORT[@]}"; do
         value=$(get_env_value "$var")
         if [[ -n "$value" ]]; then
             # check if the variable is already in the .env file
-            if grep -q "^$var=" "$SCRIPT_DIR/.env"; then
+            if grep -q "^$var=" "$ENV_PATH/.env"; then
                 # update the variable in the .env file
-                sed -i "s/^$var=.*/$var=$value/" "$SCRIPT_DIR/.env"
+                sed -i "s/^$var=.*/$var=$value/" "$ENV_PATH/.env"
                 echo "Updated $var in .env file"
             else
                 # add the variable to the .env file
-                echo "$var=$value" >>"$SCRIPT_DIR/.env"
+                echo "$var=$value" >>"$ENV_PATH/.env"
                 echo "Added $var to .env file"
             fi
         else
@@ -303,51 +314,339 @@ update_env_file() {
         fi
     done
 
-    # update APP_DIR in $SCRIPT_DIR/.env to $SAMPLE_APP
-    if grep -q "^APP_DIR=" "$SCRIPT_DIR/.env"; then
-        sed -i "s|^APP_DIR=.*|APP_DIR=$SCRIPT_DIR/helm/apps/$SAMPLE_APP|" "$SCRIPT_DIR/.env"
+    # update APP_DIR in $ENV_PATH/.env to $SAMPLE_APP
+    if grep -q "^APP_DIR=" "$ENV_PATH/.env"; then
+        if [[ "$ENV_PATH" == *"/helm/temp_apps/"* ]]; then
+            sed -i "s|^APP_DIR=.*|APP_DIR=$ENV_PATH|" "$ENV_PATH/.env"
+        else
+            sed -i "s|^APP_DIR=.*|APP_DIR=$ENV_PATH/helm/apps/$SAMPLE_APP|" "$ENV_PATH/.env"
+        fi
     else
         # add APP_DIR to .env file in new line
-        if [[ -s "$SCRIPT_DIR/.env" && $(tail -c1 "$SCRIPT_DIR/.env" | wc -l) -eq 0 ]]; then
+        if [[ -s "$ENV_PATH/.env" && $(tail -c1 "$ENV_PATH/.env" | wc -l) -eq 0 ]]; then
             # Add a newline first
-            echo "" >>"$SCRIPT_DIR/.env"
+            echo "" >>"$ENV_PATH/.env"
         fi
-        echo "APP_DIR=$SCRIPT_DIR/helm/apps/$SAMPLE_APP" >>"$SCRIPT_DIR/.env"
+        echo "APP_DIR=$ENV_PATH/helm/apps/$SAMPLE_APP" >>"$ENV_PATH/.env"
     fi
-    echo "Environment variables updated in $SCRIPT_DIR/.env"
+    echo "Environment variables updated in $ENV_PATH/.env"
 
 }
 
-init_helm() {
-    # load environment variables from helm/values.yaml if it exists inside SCRIPT_DIR
-    if [[ -f "$SCRIPT_DIR/helm/values.yaml" ]]; then
-        for var in "${VARS_TO_EXPORT[@]}"; do
-            value=$(get_env_value "$var")
-            if [[ -n "$value" ]]; then
-                export "$var=$value"
-                echo "Exported $var=$value"
-                update_env_file
-            else
-                echo "Variable $var not found in YAML"
-            fi
-        done
-        echo "Environment variables loaded from $SCRIPT_DIR/helm/values.yaml"
+init_instance_helm() {
+    # With the existance of config.yml, this function is used to init each instance for helm mode
+    local SAMPLE_APP=$1
+    local INSTANCE_NAME=$2
+    local ENV_VARS=$3
+    echo "Setting up (helm): $SAMPLE_APP / $INSTANCE_NAME"
+    # Create helm/temp_apps/SAMPLE_APP/INSTANCE_NAME directory structure
+    TEMP_APP_DIR="$SCRIPT_DIR/helm/temp_apps/$SAMPLE_APP/$INSTANCE_NAME"
+    if [[ ! -d "$TEMP_APP_DIR" ]]; then
+        mkdir -p "$TEMP_APP_DIR"
+        echo "Created directory: $TEMP_APP_DIR"
     else
-        echo "$SCRIPT_DIR/helm/values.yml"
-        err "No helm/values.yml file found in $SCRIPT_DIR"
-        exit 1
+        echo "Directory already exists: $TEMP_APP_DIR"
+    fi
+    # Check if source app directory exists
+    SOURCE_APP_DIR="$SCRIPT_DIR/helm/apps/$SAMPLE_APP"
+    if [[ ! -d "$SOURCE_APP_DIR" ]]; then
+        err "Source app directory $SOURCE_APP_DIR does not exist."
+        return 1
+    fi
+    # Copy configs from helm/apps/SAMPLE_APP/configs to helm/temp_apps/SAMPLE_APP/INSTANCE_ID/configs
+    if [[ -d "$SOURCE_APP_DIR/configs" ]]; then
+        cp -r "$SOURCE_APP_DIR/configs" "$TEMP_APP_DIR/"
+        echo "Copied configs from $SOURCE_APP_DIR/configs to $TEMP_APP_DIR/configs"
+    else
+        echo "Warning: No configs directory found in $SOURCE_APP_DIR"
+    fi
+    # Copy payload.json from helm/apps/SAMPLE_APP/payload.json to helm/temp_apps/SAMPLE_APP/INSTANCE_ID/payload.json
+    if [[ -f "$SOURCE_APP_DIR/payload.json" ]]; then
+        cp "$SOURCE_APP_DIR/payload.json" "$TEMP_APP_DIR/payload.json"
+        echo "Copied payload.json to $TEMP_APP_DIR/payload.json"
+    else        
+        echo "Warning: No payload.json found in $SOURCE_APP_DIR"
+    fi  
+    # Copy pipeline-server-config.json from helm/apps/SAMPLE_APP/pipeline-server-config.json to helm/temp_apps/SAMPLE_APP/INSTANCE_ID/pipeline-server-config.json
+    if [[ -f "$SOURCE_APP_DIR/pipeline-server-config.json" ]]; then
+        cp "$SOURCE_APP_DIR/pipeline-server-config.json" "$TEMP_APP_DIR/pipeline-server-config.json"
+        echo "Copied pipeline-server-config.json to $TEMP_APP_DIR/pipeline-server-config.json"
+    else        
+        echo "Warning: No pipeline-server-config.json found in $SOURCE_APP_DIR"
+    fi
+    # Copy base values_<sample_app>.yaml file to instance directory as values.yaml
+    if [[ -f "$SCRIPT_DIR/helm/values_$SAMPLE_APP.yaml" ]]; then
+        cp "$SCRIPT_DIR/helm/values_$SAMPLE_APP.yaml" "$TEMP_APP_DIR/values.yaml"
+        echo "Copied values_$SAMPLE_APP.yaml file to $TEMP_APP_DIR/values.yaml"
+    else
+        # Throw error if base doesn't exist
+        err "Base values file not found at $SCRIPT_DIR/helm/values_$SAMPLE_APP.yaml"
+        return 1
+    fi
+    
+    # Set ENV_PATH to helm/temp_apps/SAMPLE_APP/INSTANCE_NAME
+    ENV_PATH="$TEMP_APP_DIR"
+    YAML_FILE="$TEMP_APP_DIR/values.yaml"
+    # load environment variables from helm/temp_apps/SAMPLE_APP/INSTANCE_NAME/values.yaml
+    # load environment variables from helm/temp_apps/SAMPLE_APP/INSTANCE_NAME/values.yaml if it exists inside SCRIPT_DIR/helm/temp_apps/SAMPLE_APP/INSTANCE_NAME/values.yaml
+    # set ENV_PATH to SCRIPT_DIR
+    # Update environment variables in the instance values.yaml file
+    for var in "${VARS_TO_EXPORT[@]}"; do
+        value=$(get_env_value "$var")
+        if [[ -n "$value" ]]; then
+            export "$var=$value"
+            echo "Exported $var=$value"
+            update_env_file
+        else
+            echo "Variable $var not found in YAML"
+        fi
+    done
+    # Extract NGINX_HTTPS_PORT from config.yml ENV_VARS and add to .env file
+
+    IFS=',' read -ra VARS <<< "$ENV_VARS"
+    for var in "${VARS[@]}"; do
+        key=$(echo "$var" | cut -d'=' -f1)
+        value=$(echo "$var" | cut -d'=' -f2-)
+        if [[ "$key" == "NGINX_HTTPS_PORT" ]]; then
+            if grep -q "^NGINX_HTTPS_PORT=" "$TEMP_APP_DIR/.env"; then
+                sed -i "s|^NGINX_HTTPS_PORT=.*|NGINX_HTTPS_PORT=$value|" "$TEMP_APP_DIR/.env"
+                echo "Updated NGINX_HTTPS_PORT in .env"
+            else
+                echo "NGINX_HTTPS_PORT=$value" >> "$TEMP_APP_DIR/.env"
+                echo "Added NGINX_HTTPS_PORT to .env"
+            fi
+            break
+        fi
+    done
+    #call update_values_yaml_from_config to update values.yaml with ENV_VARS
+    update_values_yaml_from_config "$ENV_VARS" "$TEMP_APP_DIR/values.yaml" "$INSTANCE_NAME"
+
+    # Ensure default internal ports for nginx and coturn AFTER applying config overrides
+    # This guarantees internal ports are always set correctly regardless of config.yml
+    if [[ -f "$TEMP_APP_DIR/values.yaml" ]]; then
+        awk '
+            BEGIN { in_config=0; in_service=""; in_subsec="" }
+
+            # Top-level key resets everything
+            /^[^[:space:]]/ { 
+                if ($1 == "config:") {
+                    in_config = 1
+                    print
+                    next
+                }
+                in_config = 0
+                in_service = ""
+                in_subsec = ""
+                print
+                next
+            }
+
+            # Service detection (2-space indent under config)
+            in_config && /^  [a-zA-Z_][a-zA-Z0-9_-]*:/ {
+                srv = $1
+                gsub(/:/, "", srv)
+                if (srv == "nginx" || srv == "coturn") {
+                    in_service = srv
+                } else {
+                    in_service = ""
+                }
+                in_subsec = ""
+                print
+                next
+            }
+
+            # Subsection detection (4-space indent under service)
+            in_config && in_service != "" && /^    (int|ext):/ {
+                if ($1 == "int:") {
+                    in_subsec = "int"
+                } else if ($1 == "ext:") {
+                    in_subsec = "ext"
+                }
+                print
+                next
+            }
+
+            # Port value replacement (6-space indent under int subsection)
+            in_config && in_service == "nginx" && in_subsec == "int" && /^      http_port:/ {
+                print "      http_port: \"80\""
+                next
+            }
+            in_config && in_service == "nginx" && in_subsec == "int" && /^      https_port:/ {
+                print "      https_port: \"443\""
+                next
+            }
+            in_config && in_service == "coturn" && in_subsec == "int" && /^      coturn_tcp_port:/ {
+                print "      coturn_tcp_port: \"3478\""
+                next
+            }
+            in_config && in_service == "coturn" && in_subsec == "int" && /^      coturn_udp_port:/ {
+                print "      coturn_udp_port: \"3478\""
+                next
+            }
+
+            # Default: print line as-is
+            { print }
+        ' "$TEMP_APP_DIR/values.yaml" > "$TEMP_APP_DIR/values.yaml.tmp" && mv "$TEMP_APP_DIR/values.yaml.tmp" "$TEMP_APP_DIR/values.yaml"
     fi
 
-    # Copy Chart_<app>.yaml as Chart.yaml
+    # Copy Chart_<sample_app>.yaml as Chart.yaml to the folder /helm/temp_apps/SAMPLE_APP/INSTANCE_NAME
     CHART_SRC_FILE="$SCRIPT_DIR/helm/Chart-${SAMPLE_APP}.yaml"
-    CHART_DEST_FILE="$SCRIPT_DIR/helm/Chart.yaml"
+    CHART_DEST_FILE="$TEMP_APP_DIR/Chart.yaml"
 
     if [[ -f "$CHART_SRC_FILE" ]]; then
         cp "$CHART_SRC_FILE" "$CHART_DEST_FILE"
         echo "Copied $CHART_SRC_FILE to $CHART_DEST_FILE"
     else
         err "Chart file $CHART_SRC_FILE not found."
-        exit 1
+        return 1
+    fi
+}
+
+
+update_values_yaml_from_config() {
+    local env_vars="$1"
+    local values_file="$2"
+    local instance_name="$3"
+    
+    [[ -f "$values_file" ]] || return 0
+    
+    # Step 1: Update namespace if instance_name is provided
+    if [[ -n "$instance_name" ]]; then
+        awk -v ns="$instance_name" '
+            /^namespace:/ { print "namespace: " ns; next }
+            { print }
+        ' "$values_file" > "${values_file}.tmp" && mv "${values_file}.tmp" "$values_file"
+    fi
+    
+    # Step 2: Parse port configuration from env_vars
+    local s3="" coturn="" nhttp="" nhttps=""
+    IFS=',' read -ra pairs <<< "$env_vars"
+    for pair in "${pairs[@]}"; do
+        local key="${pair%%=*}"
+        local val="${pair#*=}"
+        case "$key" in
+            S3_STORAGE_PORT)  s3="$val" ;;
+            COTURN_PORT)      coturn="$val" ;;
+            NGINX_HTTP_PORT)  nhttp="$val" ;;
+            NGINX_HTTPS_PORT) nhttps="$val" ;;
+        esac
+    done
+    
+    # Step 3: Update values in YAML structure
+    awk -v s3="$s3" -v nhttp="$nhttp" -v nhttps="$nhttps" -v coturn="$coturn" '
+        function quote(v) { return "\"" v "\"" }
+        
+        BEGIN { section=""; subsec=""; service="" }
+        
+        # Reset context on top-level keys
+        /^[^[:space:]]/ { section=""; subsec=""; service="" }
+        
+        # Track sections
+        /^env:/    { section="env"; print; next }
+        /^config:/ { section="config"; service=""; print; next }
+        
+        # Track services within config
+        section == "config" && /^  nginx:/  { service="nginx"; print; next }
+        section == "config" && /^  coturn:/ { service="coturn"; print; next }
+        
+        # Track subsections within services
+        section == "config" && service == "nginx"  && /^    ext:/ { subsec="ext"; print; next }
+        section == "config" && service == "coturn" && /^    ext:/ { subsec="ext"; print; next }
+        
+        # Update values in appropriate sections
+        section == "env" && /^  S3_STORAGE_PORT:/ && s3 != "" {
+            sub(/:.*/, ": " quote(s3)); print; next
+        }
+        section == "config" && service == "nginx" && subsec == "ext" && /^      http_port:/ && nhttp != "" {
+            sub(/:.*/, ": " quote(nhttp)); print; next
+        }
+        section == "config" && service == "nginx" && subsec == "ext" && /^      https_port:/ && nhttps != "" {
+            sub(/:.*/, ": " quote(nhttps)); print; next
+        }
+        section == "config" && service == "coturn" && subsec == "ext" && /^      coturn_tcp_port:/ && coturn != "" {
+            sub(/:.*/, ": " quote(coturn)); print; next
+        }
+        section == "config" && service == "coturn" && subsec == "ext" && /^      coturn_udp_port:/ && coturn != "" {
+            sub(/:.*/, ": " quote(coturn)); print; next
+        }
+        
+        # Default: print line as-is
+        { print }
+    ' "$values_file" > "${values_file}.tmp" && mv "${values_file}.tmp" "$values_file"
+}
+
+
+
+init_helm() {
+    # check if config.yml exists
+    if [[ -f "$CONFIG_FILE" ]]; then
+    # Multi-instance setup for helm
+    # Parse config.yml to set up for all instances
+    # Initialize counters and arrays for summary
+        local instance_count=0
+        local instance_names=()
+        local sample_app_names=()
+    # Parse config.yml and initialize each instance for helm by calling init_instance_helm
+        while IFS='|' read -r sample_app instance_name env_vars; do
+            if init_instance_helm "$sample_app" "$instance_name" "$env_vars"; then
+                ((instance_count++))
+                instance_names+=("$instance_name")
+                # Add to sample_app_names if not already present
+                if [[ ! " ${sample_app_names[@]} " =~ " ${sample_app} " ]]; then
+                    sample_app_names+=("$sample_app")
+                fi
+            else
+                err "Failed to initialize instance $sample_app/$instance_name for helm"
+            fi
+        done < <(parse_config_yml)
+        
+        # Validate at least one instance was initialized
+        if [[ $instance_count -eq 0 ]]; then
+            err "No instances were initialized from config file. Check config.yml format."
+            exit 1
+        fi
+        
+        # Print summary
+        echo "Setup Summary for multi instances (helm):"
+        echo "  Number of Sample Apps: ${#sample_app_names[@]}"
+        echo "  Number of Instances in config.yml: $instance_count"
+        echo "All instances setup completed for helm!"
+        return
+    else 
+        # Single instance setup for helm
+        # load environment variables from helm/values.yaml
+        # load environment variables from helm/values.yaml if it exists inside SCRIPT_DIR/helm/values.yaml
+        # set ENV_PATH to SCRIPT_DIR
+        ENV_PATH="$SCRIPT_DIR"
+        if [[ -f "$SCRIPT_DIR/helm/values.yaml" ]]; then
+            for var in "${VARS_TO_EXPORT[@]}"; do
+                value=$(get_env_value "$var")
+                if [[ -n "$value" ]]; then
+                    export "$var=$value"
+                    echo "Exported $var=$value"
+                    update_env_file
+                else
+                    echo "Variable $var not found in YAML"
+                fi
+            done
+            echo "Environment variables loaded from $SCRIPT_DIR/helm/values.yaml"
+        else
+            echo "$SCRIPT_DIR/helm/values.yml"
+            err "No helm/values.yml file found in $SCRIPT_DIR"
+            exit 1
+        fi
+
+        # Copy Chart_<app>.yaml as Chart.yaml
+        CHART_SRC_FILE="$SCRIPT_DIR/helm/Chart-${SAMPLE_APP}.yaml"
+        CHART_DEST_FILE="$SCRIPT_DIR/helm/Chart.yaml"
+
+        if [[ -f "$CHART_SRC_FILE" ]]; then
+            cp "$CHART_SRC_FILE" "$CHART_DEST_FILE"
+            echo "Copied $CHART_SRC_FILE to $CHART_DEST_FILE"
+        else
+            err "Chart file $CHART_SRC_FILE not found."
+            exit 1
+        fi
     fi
 }
 

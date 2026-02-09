@@ -36,10 +36,11 @@ init() {
     fi
 
     # Set the appropriate HOST_IP with port for curl commands based on deployment type
-    # IF config.yml file exists, then set CURL_HOST_IP as HOST_IP:NGINX_HTTPS_PORT otherwise set CURL_HOST_IP as HOST_IP:30443 for helm deployment and HOST_IP for default 
+    # IF config.yml file exists, then set CURL_HOST_IP as HOST_IP:NGINX_HTTPS_PORT for default and helm deployment based on NGINX_HTTPS_PORT 
+    # otherwise set CURL_HOST_IP as HOST_IP:30443 for helm deployment and HOST_IP for default 
     if [[ -f "$CONFIG_FILE" ]]; then
         if [[ "$DEPLOYMENT_TYPE" == "helm" ]]; then
-            CURL_HOST_IP="${HOST_IP}:30443"
+            CURL_HOST_IP="${HOST_IP}:$NGINX_HTTPS_PORT"
             echo "Using Helm deployment - curl commands will use: $CURL_HOST_IP"
         else
             CURL_HOST_IP="$HOST_IP:$NGINX_HTTPS_PORT"
@@ -59,7 +60,12 @@ init() {
 list_pipelines() {
     if [[ -f "$CONFIG_FILE" && -n "$INSTANCE_NAME" ]]; then
         get_sample_app
-        ENV_PATH="$SCRIPT_DIR/temp_apps/$SAMPLE_APP/$INSTANCE_NAME/.env"
+        # if deployment type is helm, then set ENV_PATH as SCRIPT_DIR/helm/temp_apps/SAMPLE_APP/INSTANCE_NAME/.env
+        if [[ "$DEPLOYMENT_TYPE" == "helm" ]]; then
+            ENV_PATH="$SCRIPT_DIR/helm/temp_apps/$SAMPLE_APP/$INSTANCE_NAME/.env"
+        else
+            ENV_PATH="$SCRIPT_DIR/temp_apps/$SAMPLE_APP/$INSTANCE_NAME/.env"
+        fi
         init
         # check if dlstreamer-pipeline-server is running
         get_status
@@ -76,7 +82,11 @@ list_pipelines() {
             echo "Status of: $instance_name (SAMPLE_APP: $sample_app)"
             echo "-------------------------------------------"
             
-            ENV_PATH="$SCRIPT_DIR/temp_apps/$sample_app/$instance_name/.env"
+            if [[ "$DEPLOYMENT_TYPE" == "helm" ]]; then
+                ENV_PATH="$SCRIPT_DIR/helm/temp_apps/$sample_app/$instance_name/.env"
+            else
+                ENV_PATH="$SCRIPT_DIR/temp_apps/$sample_app/$instance_name/.env"
+            fi
             init
             
             # check if dlstreamer-pipeline-server is running
