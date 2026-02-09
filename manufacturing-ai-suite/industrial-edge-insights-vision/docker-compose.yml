@@ -1,8 +1,8 @@
 services:
   dlstreamer-pipeline-server:
-    depends_on:
-      model_registry:
-        condition: service_healthy
+    # depends_on:
+    #   model_registry:
+    #     condition: service_healthy
     image: ${DLSTREAMER_PIPELINE_SERVER_IMAGE}
     # container_name: dlstreamer-pipeline-server
     hostname: dlstreamer-pipeline-server
