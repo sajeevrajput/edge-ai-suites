@@ -130,14 +130,3 @@ We will assume model has been downloaded to /tmp/tmp-models directory. `/tmp`dir
    ```
 
 5. View the WebRTC streaming on `http://<HOST_IP>:<mediamtx-port>/<peer-str-id>` by replacing `<peer-str-id>` with the value used in the original cURL command to start the pipeline.
-
-
-## Additional resources
-### Setting up Model Download
-To learn how to setup Model Download, see [here](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/model-download/docs/user-guide/get-started.md#quick-start)
-
-### Downloading models from Geti Server
-To learn how to download models from a running Geti server, see [here](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/model-download/docs/user-guide/get-started.md#sample-usage-with-curl-command)
-
-
-> **Note:**: The downloaded model(s) must be accessible to the DLStreamer pipeline server container. If not, please add it to volumes section of dltreamer-pipeline-server in compose file, and restart the DLSPS service.
