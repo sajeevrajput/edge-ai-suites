@@ -16,11 +16,7 @@
     git clone https://github.com/open-edge-platform/edge-ai-suites.git
     cd edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision/
     ```
-2. Create a `config.yml` file that includes the sample_apps, instances of each of the sample_apps and their corresponding unique ports :
-    
-     ```bash
-    touch config.yml && code config.yml
-    ```
+2. Create a `config.yml` file to define your application instances and their unique port configurations. Add the following sample contents and save.
 
     Example:
 
@@ -44,29 +40,28 @@
         COTURN_PORT: 30480
         S3_STORAGE_PORT: 30802
     ```
+    >NOTE: A sample configuration file `sample_config.yml` is provided to help users understand the multi-instance setup and get started. This configuration defines three example instances with identifiers: pdd1, pdd2, and weld1. The accompanying sample scripts utilize these identifiers to perform operations on individual application instances.
 
-3.  Edit the HOST_IP, proxy and other environment variables in all the `helm/values_<SAMPLE_APP>.yaml` as follows
+3.  Edit the below mentioned environment variables in all the `helm/values_<SAMPLE_APP>.yaml` files:
     ```yaml
-    env:
-        HOST_IP: <HOST_IP>   # host IP address
-        MINIO_ACCESS_KEY: <DATABASE USERNAME> #  example: minioadmin
-        MINIO_SECRET_KEY: <DATABASE PASSWORD> #  example: minioadmin
-        http_proxy: <http proxy> # proxy details if behind proxy
-        https_proxy: <https proxy>
-        POSTGRES_PASSWORD: <POSTGRES PASSWORD> #  example: intel1234
-        MR_URL: https://<HOST_IP>:30443/registry/ # Model reigstry URL
-        SAMPLE_APP: pallet-defect-detection # application directory
-    webrtcturnserver:
-        username: <username>  # WebRTC credentials e.g. intel1234
-        password: <password>
+    HOST_IP=<HOST_IP>   # IP address of server where DL Streamer Pipeline Server is running.
+
+    MINIO_ACCESS_KEY=   # MinIO service & client access key e.g. intel1234
+    MINIO_SECRET_KEY=   # MinIO service & client secret key e.g. intel1234
+
+    MTX_WEBRTCICESERVERS2_0_USERNAME=<username>  # WebRTC credentials e.g. intel1234
+    MTX_WEBRTCICESERVERS2_0_PASSWORD=<password>
     ```
-4.  Install pre-requisites. 
+4.  Install pre-requisites for all instances
     ```sh
     ./setup.sh helm
     ```
-    - This sets up application pre-requisites, download artifacts, sets executable permissions for scripts etc. Downloaded resource directories.
-    - It creates folders in helm/temp_apps/<SAMPLE_APP>/<INSTANCE_NAME> that contains the configs folder, .env file, payload.json, pipeline-server-config.json and values.yaml.
-    - Updates the ports mentioned in config.yml to the values.yaml in its respective places.
+    This does the following:
+    - Parses through the config.yml
+    - Downloads resources for each instance
+    - Creates a folder helm/temp_apps/<SAMPLE_APP>/<INSTANCE_NAME> that contains configs folder, .env file, payload.json, Chart.yaml, pipeline-server-config.json and values.yaml.
+    - Updates and adds the ports mentioned in config.yml to the respective values.yaml file
+    - Sets executable permissions for scripts
 
 ## Deploy the application
 
@@ -82,7 +77,7 @@
     ```
     To view logs of a specific pod, replace `<pod_name>` with the actual pod name from the output above:
     ```sh
-    kubectl logs -n apps -f <pod_name>
+    kubectl logs -n <INSTANCE_NAME> -f <pod_name>
     ```
 
 6.  Copy the resources such as video and model from local directory to the to the `dlstreamer-pipeline-server` pod to make them available for application while launching pipelines.
@@ -95,6 +90,11 @@
 
     kubectl cp resources/pallet-defect-detection/models/* $POD_NAME:/home/pipeline-server/resources/models/ -c dlstreamer-pipeline-server -n <INSTANCE_NAME>
     ```
+
+### Start AI pipelines
+
+#### Start pipeline for all instances
+
 7.  Fetch the list of pipeline loaded available to launch for all instances
     ```sh
     ./sample_list.sh helm
@@ -177,10 +177,6 @@
     ]
     ```
 
-### Start AI pipelines
-
-#### Start pipeline for all instances
-
 8.  Start the pipeline for all instances in the config.yml file
     ```sh
     ./sample_start.sh helm 
@@ -240,8 +236,14 @@
     ```
 9. Access the WebRTC stream
 
-    ```bash
-    https://<HOST_IP>:<NGINX_HTTPS_PORT>/mediamtx/<peer-id>
+   The inference stream can be viewed on WebRTC, in a browser, at the following url depending on the SAMPLE_APP: 
+    >Note that the `NGINX_HTTPS_PORT` is different for each instance of the sample app. For example, for the sample config mentioned previously, the instance pdd1 has nginx port set to 30443, pdd2 set to 30444 & weld1 set to 30445.
+    ```
+    https://<HOST_IP>:<NGINX_HTTPS_PORT>/mediamtx/pdd/              # Pallet Defect Detection
+    https://<HOST_IP>:<NGINX_HTTPS_PORT>/mediamtx/anomaly/          # PCB Anomaly Detection
+    https://<HOST_IP>:<NGINX_HTTPS_PORT>/mediamtx/weld/             # Weld Porosity
+    https://<HOST_IP>:<NGINX_HTTPS_PORT>/mediamtx/worker_safety/    # Worker Safety Gear detection
+
     ```
 
 #### Start pipeline for a particular instance only
@@ -308,12 +310,74 @@
     Open a browser and navigate to 
 
     ```bash
-    https://<HOST_IP>:<NGINX_HTTPS_PORT>/mediamtx/<peer-id>/
+    https://<HOST_IP>:<NGINX_HTTPS_PORT>/mediamtx/<peer-id of SAMPLE_APP>/
     ```
 
-### Monitor Applications
+### Start pipeline for a particular instance from a custom payload.json
 
-13.  Get status of pipeline instance(s) of all instances.
+13. Fetch the list of pipeline for <INSTANCE_NAME>:
+
+    ```bash
+    ./sample_list.sh -i <INSTANCE_NAME>
+    ```
+
+    Example Output:
+    ```bash
+    Environment variables loaded from .env
+    Running sample app: pallet-defect-detection
+    Checking status of dlstreamer-pipeline-server...
+    Server reachable. HTTP Status Code: 200
+    Loaded pipelines:
+    [
+        ...
+        {
+            "description": "DL Streamer Pipeline Server pipeline",
+            "name": "user_defined_pipelines",
+            "version": "pallet_defect_detection"
+        }
+        ...
+    ]
+    ```
+
+14. Start the pipeline for <INSTANCE_NAME> where pipeline is loaded from <file>:
+
+    ```bash
+    ./sample_start.sh helm -i <INSTANCE_NAME> --payload <file> -p <PIPELINE_NAME>
+    ```
+
+    Output:
+    ```bash
+    Instance name set to: pdd1
+    Custom payload file set to: custom_payload_corrected.json
+    Starting specified pipeline(s)...
+    Found SAMPLE_APP: pallet-defect-detection for INSTANCE_NAME: pdd1
+    Environment variables loaded from /home/intel/IRD/edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision/helm/temp_apps/pallet-defect-detection/pdd1/.env
+    Running sample app: pallet-defect-detection
+    Using Helm deployment - curl commands will use: <HOST_IP>:<NGINX_HTTPS_PORT>
+    Checking status of dlstreamer-pipeline-server...
+    Server reachable. HTTP Status Code: 200
+    Loading payload from custom_payload_corrected.json
+    Payload loaded successfully.
+    Starting pipeline: pallet_defect_detection_gpu
+    Launching pipeline: pallet_defect_detection_gpu
+    Extracting payload for pipeline: pallet_defect_detection_gpu
+    Found 1 payload(s) for pipeline: pallet_defect_detection_gpu
+    Payload for pipeline 'pallet_defect_detection_gpu'. Response: "3bd097ec065b11f1a30d3101230a4967"
+    ```
+
+15. Access WebRTC stream:
+
+    Open a browser and navigate to:
+    ```
+    https://<HOST_IP>:<NGINX_HTTPS_PORT>/mediamtx/<peer-id of SAMPLE_APP>/
+    ```
+
+
+
+## Monitor Applications
+### Check Pipeline Status
+
+16.  Get status of pipeline instance(s) of all instances.
 
         ```bash
         ./sample_status.sh helm
@@ -394,22 +458,22 @@
             ]
             ```
 
-14. Check status of only a particular instance:
+17. Check status of only a particular instance:
 
     ```bash
     ./sample_status.sh helm -i <INSTANCE_NAME>
     ```
 
-15. Check status of a particular instance_id of an instance
+18. Check status of a particular instance_id of an instance
 
     ```bash
     ./sample_status.sh helm -i <INSTANCE_NAME> --id <INSTANCE_ID>
     ```
 
-### Stop Applications
+## Stop Applications
+### Stop Pipeline Instances
 
-
-16. Stop all pipelines of all instances
+16. Stop all pipelines of all instances:
 
     ```bash
     ./sample_stop.sh helm
@@ -480,7 +544,7 @@
     }
     ```
 
-17. Stop pipelines of given instance
+17. Stop pipelines of given instance:
 
     ```bash
     ./sample_stop.sh helm -i <INSTANCE_NAME>
@@ -530,14 +594,14 @@
     "state": "RUNNING"
     }
     ```
+## Uninstall Helm Charts
 
 19. Uninstall the helm chart.
      ```sh
      ./run.sh helm_uninstall
      ```
 
-
-## Storing frames to S3 storage
+# Storing frames to S3 storage
 
 Applications can take advantage of S3 publish feature from DL Streamer Pipeline Server and use it to save frames to an S3 compatible storage.
 
@@ -642,5 +706,5 @@ Applications can take advantage of S3 publish feature from DL Streamer Pipeline 
 8. Uninstall the helm chart.
 
    ```sh
-   helm uninstall app-deploy -n apps
+   ./run.sh helm_uninstall
    ```
