@@ -1,26 +1,26 @@
-# Launching Multiple Instance of IRD Apps
+# Launching Multiple Instances of Apps
 
 -   **Time to Complete:** 30 minutes
 -   **Programming Language:**  Python 3
 
 ## Prerequisites
 
-- [System Requirements](system-requirements.md)
+- [System Requirements](./get-started/system-requirements.md)
 
 ## Overview
 
-This tutorial shows you how to deploy and run multiple IRD applications simultaneously using Docker Compose. You'll learn how to run multiple same apps or different apps using separate DLSPS with unique ports.
+This tutorial demonstrates how to simultaneously deploy and manage multiple industrial edge AI vision applications using Docker Compose. You'll learn to configure and run multiple instances of the same application or different applications in parallel, with each instance operating its own isolated DLStreamer Pipeline Server and associated services, all accessible through dedicated NGINX proxy configurations.
 
 **What you'll learn:**
-- How to configure multiple applications with unique ports
-- How to manage multiple running applications independently
-- How to access each application via different ports
+- How to configure multiple application instances with unique port assignments
+- How to independently deploy, start, stop, and monitor multiple running applications
+- How to access and view streams from each application instance
 
 
 ## Set up the Applications
 
 
-1. Clone the **edge-ai-suites** repository and navigate to the industrial-edge-insights-vision directory:
+1. Clone the **edge-ai-suites** repository and navigate to the `industrial-edge-insights-vision` directory:
 
     ```bash
     git clone https://github.com/open-edge-platform/edge-ai-suites.git
@@ -28,11 +28,7 @@ This tutorial shows you how to deploy and run multiple IRD applications simultan
     ```
 
 
-2. Create a `config.yml` file that includes the sample_apps, instances of each of the sample_apps and their corresponding unique ports :
-    
-     ```bash
-    touch config.yml && code config.yml
-    ```
+2. Create a `config.yml` file to define your application instances and their unique port configurations. Add the following sample contents and save.
 
     Example:
 
@@ -42,30 +38,30 @@ This tutorial shows you how to deploy and run multiple IRD applications simultan
         NGINX_HTTP_PORT: 8080
         NGINX_HTTPS_PORT: 8443
         COTURN_UDP_PORT: 3478
-        MINIO_EXTERNAL_PORT: 8001
+        MINIO_SERVER_PORT: 8001
       pdd2:
         NGINX_HTTP_PORT: 9080
         NGINX_HTTPS_PORT: 9443
         COTURN_UDP_PORT: 3479
-        MINIO_EXTERNAL_PORT: 9001
+        MINIO_SERVER_PORT: 9001
 
     weld-porosity:
       weld1:
         NGINX_HTTP_PORT: 10080
         NGINX_HTTPS_PORT: 10443
         COTURN_UDP_PORT: 3480
-        MINIO_EXTERNAL_PORT: 10001
+        MINIO_SERVER_PORT: 10001
     ```
+    >NOTE: A sample configuration file `sample_config.yml` is provided to help users understand the multi-instance setup and get started. This configuration defines three example instances with identifiers: pdd1, pdd2, and weld1. The accompanying sample scripts utilize these identifiers to perform operations on individual application instances.
+    
 
-2. Edit the below mentioned environment variables in all the .env_<SAMPLE_APP> files:
+2. Edit the below mentioned environment variables in all the `.env_<SAMPLE_APP>` files:
 
     ```bash
     HOST_IP=<HOST_IP>   # IP address of server where DL Streamer Pipeline Server is running.
 
-    MR_PSQL_PASSWORD=  #PostgreSQL service & client adapter e.g. intel1234
-
-    MR_MINIO_ACCESS_KEY=   # MinIO service & client access key e.g. intel1234
-    MR_MINIO_SECRET_KEY=   # MinIO service & client secret key e.g. intel1234
+    MINIO_ACCESS_KEY=   # MinIO service & client access key e.g. intel1234
+    MINIO_SECRET_KEY=   # MinIO service & client secret key e.g. intel1234
 
     MTX_WEBRTCICESERVERS2_0_USERNAME=<username>  # WebRTC credentials e.g. intel1234
     MTX_WEBRTCICESERVERS2_0_PASSWORD=<password>
@@ -93,9 +89,7 @@ This tutorial shows you how to deploy and run multiple IRD applications simultan
    ```bash
    ./run.sh up
    ```
-
-   **What this does:**
-   - It starts all the containers for each instance in config.yml
+    It starts all the containers for each instance in `config.yml`
 
 8. Verify all containers are running:
 
@@ -147,7 +141,7 @@ This tutorial shows you how to deploy and run multiple IRD applications simultan
     ./sample_start.sh
     ```
 
-    > **IMPORTANT**: Before you run `sample_start.sh` script, make sure that `jq` is installed on your system. See the [troubleshooting guide](./troubleshooting-guide.md#unable-to-parse-json-payload-due-to-missing-jq-package) for more details.
+    > **IMPORTANT**: Before you run `sample_start.sh` script, make sure that `jq` is installed on your system. See the [troubleshooting guide](./troubleshooting.md#unable-to-parse-json-payload-due-to-missing-jq-package) for more details.
 
     Output:
     ```bash
@@ -204,7 +198,8 @@ This tutorial shows you how to deploy and run multiple IRD applications simultan
 
 11. Access WebRTC stream:
 
-    The inference stream can be viewed on WebRTC, in a browser, at the following url depending on the SAMPLE_APP:
+    The inference stream can be viewed on WebRTC, in a browser, at the following url depending on the SAMPLE_APP: 
+    >Note that the `NGINX_HTTPS_PORT` is different for each instance of the sample app. For example, for the sample config mentioned previously, the instance pdd1 has nginx port set to 8443, pdd2 set to 9443 & weld1 set to 10443.
     ```
     https://<HOST_IP>:<NGINX_HTTPS_PORT>/mediamtx/pdd/              # Pallet Defect Detection
     https://<HOST_IP>:<NGINX_HTTPS_PORT>/mediamtx/anomaly/          # PCB Anomaly Detection
@@ -370,13 +365,13 @@ This tutorial shows you how to deploy and run multiple IRD applications simultan
     ]
     ```
 
-16. Check status of only a particular instance:
+16. Check status of only a particular instance. You may refer to the config.yml for the instance names
 
     ```bash
     ./sample_status.sh -i <INSTANCE_NAME>
     ```
 
-17. Check status of a particula instance_id of an instance
+17. Check status of a particular instance_id of an instance
 
     ```bash
     ./sample_status.sh -i <INSTANCE_NAME> --id <INSTANCE_ID>
@@ -384,7 +379,7 @@ This tutorial shows you how to deploy and run multiple IRD applications simultan
 
 ### View Container Logs
 
-18. View dlsps logs of an instance :
+18. View dlsps logs of an instance.
 
     ```bash
     docker compose -p <INSTANCE_NAME> logs -f dlstreamer-pipeline-server

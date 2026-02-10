@@ -30,10 +30,8 @@ If not, follow the [installation guide for docker engine](https://docs.docker.co
    ```bash
    HOST_IP=<HOST_IP>   # IP address of server where DL Streamer Pipeline Server is running.
 
-   MR_PSQL_PASSWORD=  #PostgreSQL service & client adapter e.g. intel1234
-
-   MR_MINIO_ACCESS_KEY=   # MinIO service & client access key e.g. intel1234
-   MR_MINIO_SECRET_KEY=   # MinIO service & client secret key e.g. intel1234
+   MINIO_ACCESS_KEY=   # MinIO service & client access key e.g. intel1234
+   MINIO_SECRET_KEY=   # MinIO service & client secret key e.g. intel1234
 
    MTX_WEBRTCICESERVERS2_0_USERNAME=<username>  # WebRTC credentials e.g. intel1234
    MTX_WEBRTCICESERVERS2_0_PASSWORD=<password>

@@ -610,7 +610,12 @@ set_permissions(){
         done
 
         # set permissions for the setup.sh script
+        echo "Setting executable permission for setup.sh in $APP_DIR"
         chmod +x "$APP_DIR/setup.sh"
+
+        # set permission for run.sh
+        echo "Setting executable permission for run.sh"
+        chmod +x "$SCRIPT_DIR/run.sh"
 
         # check if setup.sh exists in the sample app directory
         if [[ -f "$APP_DIR/setup.sh" ]]; then
