@@ -60,7 +60,7 @@ main() {
     fi
     
     case "$1" in
-        up)
+        up) 
             echo "Starting all instances..."
             while IFS='|' read -r sample_app instance_name; do
                 env_file="$SCRIPT_DIR/temp_apps/$sample_app/$instance_name/.env"

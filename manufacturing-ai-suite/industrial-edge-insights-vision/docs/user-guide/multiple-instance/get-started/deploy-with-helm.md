@@ -177,9 +177,9 @@
     ]
     ```
 
-## Start AI pipelines
+### Start AI pipelines
 
-### Start pipeline for all instannces
+#### Start pipeline for all instances
 
 8.  Start the pipeline for all instances in the config.yml file
     ```sh
@@ -244,7 +244,7 @@
     https://<HOST_IP>:<NGINX_HTTPS_PORT>/mediamtx/<peer-id>
     ```
 
-### Start pipeline for a particular instance only
+#### Start pipeline for a particular instance only
 
 10. Fetch the list of pipeline for <INSTANCE_NAME>:
 
@@ -311,9 +311,7 @@
     https://<HOST_IP>:<NGINX_HTTPS_PORT>/mediamtx/<peer-id>/
     ```
 
-## Monitor Applications
-
-### Check Pipeline Status of all instances
+### Monitor Applications
 
 13.  Get status of pipeline instance(s) of all instances.
 
@@ -408,7 +406,7 @@
     ./sample_status.sh helm -i <INSTANCE_NAME> --id <INSTANCE_ID>
     ```
 
-## Stop Applications
+### Stop Applications
 
 
 16. Stop all pipelines of all instances
@@ -533,13 +531,116 @@
     }
     ```
 
-## Uninstall helm charts
-
 19. Uninstall the helm chart.
      ```sh
      ./run.sh helm_uninstall
      ```
 
 
-## Troubleshooting
-- [Troubleshooting Guide](../../../docs/pallet-defect-detection/troubleshooting-guide.md)
+## Storing frames to S3 storage
+
+Applications can take advantage of S3 publish feature from DL Streamer Pipeline Server and use it to save frames to an S3 compatible storage.
+
+1. Run all the steps mentioned in above [section](#setup-the-application) to setup the application.
+
+2. Install the helm chart.
+
+   ```sh
+   ./run.sh helm_install
+   ```
+
+3. Copy the resources such as video and model from local directory to the `dlstreamer-pipeline-server` pod to make them available for application while launching pipelines.
+
+   ```sh
+   # Below is an example for Pallet Defect Detection. Please adjust the source path of models and videos appropriately for other sample applications.
+
+   POD_NAME=$(kubectl get pods -n <INSTANCE_NAME> -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep deployment-dlstreamer-pipeline-server | head -n 1)
+
+   kubectl cp resources/pallet-defect-detection/videos/warehouse.avi $POD_NAME:/home/pipeline-server/resources/videos/ -c dlstreamer-pipeline-server -n <INSTANCE_NAME>
+
+   kubectl cp resources/pallet-defect-detection/models/* $POD_NAME:/home/pipeline-server/resources/models/ -c dlstreamer-pipeline-server -n <INSTANCE_NAME>
+   ```
+
+4. Install the package `boto3` in your python environment if not installed.
+
+   It is recommended to create a virtual environment and install it there. You can run the following commands to add the necessary dependencies as well as create and activate the environment.
+
+   ```sh
+   sudo apt update && \
+   sudo apt install -y python3 python3-pip python3-venv
+   ```
+
+   ```sh
+   python3 -m venv venv && \
+   source venv/bin/activate
+   ```
+
+   Once the environment is ready, install `boto3` with the following command
+
+   ```sh
+   pip3 install --upgrade pip && \
+   pip3 install boto3==1.36.17
+   ```
+
+   > **Note:** DL Streamer Pipeline Server expects the bucket to be already present in the database. The next step will help you create one.
+
+5. Create a S3 bucket using the following script.
+
+   Update the `HOST_IP` and `S3_STORAGE_PORT` mentioned in config.yml for each instance and credentials with that of the running MinIO server. Name the file as `create_bucket_<INSTANCE_NAME>.py`.
+
+   ```python
+   import boto3
+   url = "http://<HOST_IP>:<S3_STORAGE_PORT>"
+   user = "<value of MINIO_ACCESS_KEY used in helm/temp_apps/SAMPLE_APP/INSTANCE_NAME/values.yaml>"
+   password = "<value of MINIO_SECRET_KEY used in helm/temp_apps/SAMPLE_APP/INSTANCE_NAME/values.yaml>"
+   bucket_name = "ecgdemo"
+
+   client= boto3.client(
+               "s3",
+               endpoint_url=url,
+               aws_access_key_id=user,
+               aws_secret_access_key=password
+   )
+   client.create_bucket(Bucket=bucket_name)
+   buckets = client.list_buckets()
+   print("Buckets:", [b["Name"] for b in buckets.get("Buckets", [])])
+   ```
+
+   Run the above script to create the bucket.
+
+   ```sh
+   python3 create_bucket_<INSTANCE_NAME>.py
+   ```
+
+6. Start the pipeline with the following cURL command  with `<HOST_IP>` set to system IP and the `<NGINX_HTTPS_PORT>` mentioned in the config.yml for each instance. Ensure to give the correct path to the model as seen below. This example starts an AI pipeline for pallet_defect_detection.  Please adjust the source path of models and videos appropriately for other sample applications.
+
+   ```sh
+   curl -k https://<HOST_IP>:<NGINX_HTTPS_PORT>/api/pipelines/user_defined_pipelines/pallet_defect_detection_s3write -X POST -H 'Content-Type: application/json' -d '{
+       "source": {
+           "uri": "file:///home/pipeline-server/resources/videos/warehouse.avi",
+           "type": "uri"
+       },
+       "destination": {
+           "frame": {
+               "type": "webrtc",
+               "peer-id": "pdds3"
+           }
+       },
+       "parameters": {
+           "detection-properties": {
+               "model": "/home/pipeline-server/resources/models/pallet-defect-detection/deployment/Detection/model/model.xml",
+               "device": "CPU"
+           }
+       }
+   }'
+   ```
+
+7. Go to MinIO console on `https://<HOST_IP>:<NGINX_HTTPS_PORT>/minio/` and login with `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` provided in `helm/temp_apps/SAMPLE_APP/INSTANCE_NAME/values.yaml` file. After logging into console, you can go to `ecgdemo` bucket and check the frames stored.
+
+   ![S3 minio image storage](../_assets/s3_minio_storage.png)
+
+8. Uninstall the helm chart.
+
+   ```sh
+   helm uninstall app-deploy -n apps
+   ```
