@@ -100,31 +100,31 @@ With this feature, during runtime, you can download a new model using the micros
    curl -k --location -X DELETE https://<HOST_IP>/api/pipelines/{instance_id}
    ```
 10. Start a new pipeline with this new model. Before that modify the payload.json to use this new model in `apps/pallet-defect-detection/payload.json`. Notice the model path in the payload has changed to the new model.
+    
+    ```json
+    [
+        {
+            "pipeline": "pallet_defect_detection_mlops",
+            "payload":{
+                "source": {
+                    "uri": "file:///home/pipeline-server/resources/videos/warehouse.avi",
+                    "type": "uri"
+                },
+                "destination": {
+                "frame": {
+                    "type": "webrtc",
+                    "peer-id": "pdd-new"
+                }
+                },
+                "parameters": {
+                    "detection-properties": {
+                        "model": "/tmp/models/pallet-defect-detection/deployment/Detection/model/model.xml",
+                        "device": "CPU"
+                    }
+                }
+            }
+        }
+    ]
+    ```
 
-   ```json
-   [
-       {
-           "pipeline": "pallet_defect_detection_mlops",
-           "payload":{
-               "source": {
-                   "uri": "file:///home/pipeline-server/resources/videos/warehouse.avi",
-                   "type": "uri"
-               },
-               "destination": {
-               "frame": {
-                   "type": "webrtc",
-                   "peer-id": "pdd-new"
-               }
-               },
-               "parameters": {
-                   "detection-properties": {
-                       "model": "/tmp/models/pallet-defect-detection/deployment/Detection/model/model.xml",
-                       "device": "CPU"
-                   }
-               }
-           }
-       }
-   ]
-   ```
-
-5. View the WebRTC streaming on `http://<HOST_IP>:<mediamtx-port>/<peer-str-id>` by replacing `<peer-str-id>` with the value used in the original cURL command to start the pipeline i.e. `pdd-new`
+11. View the WebRTC streaming on `http://<HOST_IP>:<mediamtx-port>/<peer-str-id>` by replacing `<peer-str-id>` with the value used in the original cURL command to start the pipeline i.e. `pdd-new`
