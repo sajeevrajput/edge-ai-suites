@@ -22,7 +22,7 @@ If not, follow the [installation guide for docker engine](https://docs.docker.co
 2. Set app specific environment variable file
 
    ```bash
-   cp .env_worker_safety_gear_detection .env
+   cp .env_worker-safety-gear-detection .env
    ```
 
 3. Edit the below mentioned environment variables in the `.env` file as follows:

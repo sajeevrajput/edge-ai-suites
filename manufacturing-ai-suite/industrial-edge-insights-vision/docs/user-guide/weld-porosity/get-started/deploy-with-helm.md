@@ -21,7 +21,7 @@
 2. Set app specific values.yaml file.
 
    ```sh
-   cp helm/values_weld_porosity_classification.yaml helm/values.yaml
+   cp helm/values_weld-porosity.yaml helm/values.yaml
    ```
 
 3. Optional: Pull the helm chart and replace the existing helm folder with it

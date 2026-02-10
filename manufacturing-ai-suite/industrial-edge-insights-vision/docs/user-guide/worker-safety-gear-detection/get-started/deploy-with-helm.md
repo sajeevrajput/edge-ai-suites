@@ -19,7 +19,7 @@
     ```
 2. Set app specific values.yaml file.
     ```sh
-    cp helm/values_worker_safety_gear_detection.yaml helm/values.yaml
+    cp helm/values_worker-safety-gear-detection.yaml helm/values.yaml
     ```
 3. Optional: Pull the helm chart and replace the existing helm folder with it
     - Note: The helm chart should be downloaded when you are not using the helm chart provided in `edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision/helm`
