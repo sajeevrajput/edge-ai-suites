@@ -24,8 +24,8 @@ defects before they impact operations.
 ## How It Works
 
 This sample application consists of the following microservices:
-DL Streamer Pipeline Server, Model Registry Microservice(MRaaS), MediaMTX server,
-Coturn server, Open Telemetry Collector, Prometheus, Postgres and Minio.
+DL Streamer Pipeline Server, MediaMTX server,Coturn server, 
+Open Telemetry Collector, Prometheus, Postgres and Minio.
 
 You start the pallet defect detection pipeline with a REST request using Client URL (cURL).
 The REST request will return a pipeline instance ID. DL Streamer Pipeline Server then sends
@@ -35,9 +35,10 @@ facilitate NAT traversal and ensure that the webrtc stream is accessible on a no
 browser client and helps in cases where firewall is enabled. DL Streamer Pipeline Server
 also sends the images to S3 compliant storage. The Open Telemetry Data exported by
 DL Streamer Pipeline Server to Open Telemetry Collector is scraped by Prometheus and can
-be seen on Prometheus UI. Any desired AI model from the Model Registry Microservice
-(which can interact with Postgres, Minio and Geti Server for getting the model) can be
-pulled into DL Streamer Pipeline Server and used for inference in the sample application.
+be seen on Prometheus UI. Any desired AI model from Supported OpenVINO public models and 
+Geti trained models can be  downloaded withe the help of Model Download Microservice
+which can be made available to DL Streamer Pipeline Server and used for inference in the 
+sample application.
 
 ![architecture and high-level representation of the flow of data through the architecture](./_assets/industrial-edge-insights-vision-architecture.drawio.svg)
 
@@ -46,8 +47,8 @@ This sample application is built with the following Intel Edge AI Stack Microser
 - [DL Streamer Pipeline Server](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer-pipeline-server/index.html)
   is an interoperable containerized microservice based on Python for video ingestion
   and deep learning inferencing functions.
-- [Model Registry Microservice](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/model-registry/index.html)
-  provides a centralized repository that facilitates the management of AI models
+- [Model Download Microservice](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/model-registry/index.html)
+  is a microservice to download AI models so that they may be used by DLStreamer Pipeline Server.
 
 It also consists of the below Third-party microservices:
 

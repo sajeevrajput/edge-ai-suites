@@ -347,7 +347,7 @@ Applications can take advantage of S3 publish feature from DL Streamer Pipeline 
    helm uninstall app-deploy -n apps
    ```
 
-## MLOps using Model Registry
+## MLOps using Model Download
 
 1. Run all the steps mentioned in above [section](#setup-the-application) to setup the application.
 
@@ -404,6 +404,7 @@ Applications can take advantage of S3 publish feature from DL Streamer Pipeline 
    ```
 
 6. Download and prepare the model.
+   >NOTE- For sake of simplicity, we assume that the new model has already been downloaded by Model Download microservice. The following curl command is only a simulation that just downloads the model. In production, however, they will be downloaded by the Model Download service.
 
    ```sh
    export MODEL_URL='https://github.com/open-edge-platform/edge-ai-resources/raw/a7c9522f5f936c47de8922046db7d7add13f93a0/models/INT8/pallet_defect_detection.zip'
@@ -411,7 +412,10 @@ Applications can take advantage of S3 publish feature from DL Streamer Pipeline 
    curl -L "$MODEL_URL" -o "$(basename $MODEL_URL)"
    ```
 
-7. Run the following curl command to upload the local model.
+7. Stop the existing pipeline before restarting it with a new model.
+
+
+Run the following curl command to upload the local model.
 
    ```sh
    curl -k -L -X POST "https://<HOST_IP>:30443/registry/models" \
