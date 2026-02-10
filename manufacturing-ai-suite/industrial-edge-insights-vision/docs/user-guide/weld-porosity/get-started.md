@@ -211,7 +211,7 @@ If not, follow the [installation guide for docker engine](https://docs.docker.co
 
 - [Deploy with Helm](./get-started/deploy-with-helm.md)
 - [Deploy with Edge Orchestrator](./get-started/deploy-with-edge-orchestrator.md)
-- [MLOps using Model Registry](./how-to-guides/enable-mlops.md)
+- [Enable MLOps](./how-to-guides/enable-mlops.md)
 - [Run multiple AI pipelines](./how-to-guides/run-multiple-ai-pipelines.md)
 - [Publish frames to S3 storage pipelines](./how-to-guides/store-frames-in-s3.md)
 - [View telemetry data in Open Telemetry](./how-to-guides/view-telemetry-data.md)

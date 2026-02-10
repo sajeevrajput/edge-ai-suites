@@ -1,4 +1,4 @@
-# MLOps using Model Download
+# Enable MLOps
 
 Applications for industrial edge insights vision can also be used to demonstrate MLOps workflow using Model Download microservice.
 With this feature, during runtime, you can download a new model using the microservice and restart the pipeline with the new model.
@@ -113,7 +113,7 @@ With this feature, during runtime, you can download a new model using the micros
                 "destination": {
                 "frame": {
                     "type": "webrtc",
-                    "peer-id": "pdd-new"
+                    "peer-id": "pdd"
                 }
                 },
                 "parameters": {
@@ -127,4 +127,15 @@ With this feature, during runtime, you can download a new model using the micros
     ]
     ```
 
-11. View the WebRTC streaming on `http://<HOST_IP>:<mediamtx-port>/<peer-str-id>` by replacing `<peer-str-id>` with the value used in the original cURL command to start the pipeline i.e. `pdd-new`
+11. View the WebRTC streaming on `http://<HOST_IP>:<mediamtx-port>/<peer-str-id>` by replacing `<peer-str-id>` with the value used in the original cURL command to start the pipeline.
+
+
+## Additional resources
+### Setting up Model Download
+To learn how to setup Model Download, see [here](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/model-download/docs/user-guide/get-started.md#quick-start)
+
+### Downloading models from Geti Server
+To learn how to download models from a running Geti server, see [here](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/model-download/docs/user-guide/get-started.md#sample-usage-with-curl-command)
+
+
+> **Note:**: The downloaded model(s) must be accessible to the DLStreamer pipeline server container. If not, please add it to volumes section of dltreamer-pipeline-server in compose file, and restart the DLSPS service.
