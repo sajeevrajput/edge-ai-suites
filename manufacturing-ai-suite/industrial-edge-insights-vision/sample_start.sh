@@ -41,8 +41,7 @@ init() {
         exit 1
     fi
 
-    # Set the appropriate HOST_IP with port for curl commands based on deployment type
-    # IF config.yml file exists, then set CURL_HOST_IP as HOST_IP:NGINX_HTTPS_PORT otherwise set CURL_HOST_IP as HOST_IP:30443 for helm deployment and HOST_IP for default 
+    # Set the appropriate HOST_IP with port for curl commands based on deployment type and config file presence  
     if [[ -f "$CONFIG_FILE" ]]; then
         if [[ "$DEPLOYMENT_TYPE" == "helm" ]]; then
             CURL_HOST_IP="${HOST_IP}:$NGINX_HTTPS_PORT"

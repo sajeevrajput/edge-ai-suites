@@ -255,18 +255,6 @@ init_instance() {
     echo ""
 }
 
-# Helm-related functions (preserved for helm mode)
-# in values.yaml file
-# config:
-    # nginx:
-    #     name: nginx-reverse-proxy
-    #     int:
-    #       http_port: "80"
-    #       https_port: "443"
-    #     ext:
-    #       http_port: "30080"
-    #       https_port: "30443"
-# copy the value 30443 that is the NGINX_HTTPS_PORT to the variable NGINX_HTTPS_PORT in the .env file
 YAML_FILE="helm/values.yaml"
 VARS_TO_EXPORT=("HOST_IP" "REST_SERVER_PORT" "SAMPLE_APP" )
 
@@ -334,7 +322,7 @@ update_env_file() {
 }
 
 init_instance_helm() {
-    # With the existance of config.yml, this function is used to init each instance for helm mode
+    # With the existance of config.yml, this function is used to initialize each instance for helm mode
     local SAMPLE_APP=$1
     local INSTANCE_NAME=$2
     local ENV_VARS=$3
@@ -421,74 +409,6 @@ init_instance_helm() {
     #call update_values_yaml_from_config to update values.yaml with ENV_VARS
     update_values_yaml_from_config "$ENV_VARS" "$TEMP_APP_DIR/values.yaml" "$INSTANCE_NAME"
 
-    # Ensure default internal ports for nginx and coturn AFTER applying config overrides
-    # This guarantees internal ports are always set correctly regardless of config.yml
-    if [[ -f "$TEMP_APP_DIR/values.yaml" ]]; then
-        awk '
-            BEGIN { in_config=0; in_service=""; in_subsec="" }
-
-            # Top-level key resets everything
-            /^[^[:space:]]/ { 
-                if ($1 == "config:") {
-                    in_config = 1
-                    print
-                    next
-                }
-                in_config = 0
-                in_service = ""
-                in_subsec = ""
-                print
-                next
-            }
-
-            # Service detection (2-space indent under config)
-            in_config && /^  [a-zA-Z_][a-zA-Z0-9_-]*:/ {
-                srv = $1
-                gsub(/:/, "", srv)
-                if (srv == "nginx" || srv == "coturn") {
-                    in_service = srv
-                } else {
-                    in_service = ""
-                }
-                in_subsec = ""
-                print
-                next
-            }
-
-            # Subsection detection (4-space indent under service)
-            in_config && in_service != "" && /^    (int|ext):/ {
-                if ($1 == "int:") {
-                    in_subsec = "int"
-                } else if ($1 == "ext:") {
-                    in_subsec = "ext"
-                }
-                print
-                next
-            }
-
-            # Port value replacement (6-space indent under int subsection)
-            in_config && in_service == "nginx" && in_subsec == "int" && /^      http_port:/ {
-                print "      http_port: \"80\""
-                next
-            }
-            in_config && in_service == "nginx" && in_subsec == "int" && /^      https_port:/ {
-                print "      https_port: \"443\""
-                next
-            }
-            in_config && in_service == "coturn" && in_subsec == "int" && /^      coturn_tcp_port:/ {
-                print "      coturn_tcp_port: \"3478\""
-                next
-            }
-            in_config && in_service == "coturn" && in_subsec == "int" && /^      coturn_udp_port:/ {
-                print "      coturn_udp_port: \"3478\""
-                next
-            }
-
-            # Default: print line as-is
-            { print }
-        ' "$TEMP_APP_DIR/values.yaml" > "$TEMP_APP_DIR/values.yaml.tmp" && mv "$TEMP_APP_DIR/values.yaml.tmp" "$TEMP_APP_DIR/values.yaml"
-    fi
-
     # Copy Chart_<sample_app>.yaml as Chart.yaml to the folder /helm/temp_apps/SAMPLE_APP/INSTANCE_NAME
     CHART_SRC_FILE="$SCRIPT_DIR/helm/Chart-${SAMPLE_APP}.yaml"
     CHART_DEST_FILE="$TEMP_APP_DIR/Chart.yaml"
@@ -510,13 +430,15 @@ init_instance_helm() {
 
 
 update_values_yaml_from_config() {
+    # This function updates the values.yaml file for the instance based on the variables in config.yml for that instance. 
+    # It takes the ENV_VARS string, the path to the values.yaml file, and the instance name as arguments.
     local env_vars="$1"
     local values_file="$2"
     local instance_name="$3"
     
     [[ -f "$values_file" ]] || return 0
     
-    # Step 1: Update namespace if instance_name is provided
+    # Update namespace to instance_name 
     if [[ -n "$instance_name" ]]; then
         awk -v ns="$instance_name" '
             /^namespace:/ { print "namespace: " ns; next }
@@ -524,7 +446,7 @@ update_values_yaml_from_config() {
         ' "$values_file" > "${values_file}.tmp" && mv "${values_file}.tmp" "$values_file"
     fi
     
-    # Step 2: Parse port configuration from env_vars
+    # Parse port configuration from env_vars
     local s3="" coturn="" nhttp="" nhttps=""
     IFS=',' read -ra pairs <<< "$env_vars"
     for pair in "${pairs[@]}"; do
@@ -538,7 +460,7 @@ update_values_yaml_from_config() {
         esac
     done
     
-    # Step 3: Update values in YAML structure
+    # Update values in YAML structure
     awk -v s3="$s3" -v nhttp="$nhttp" -v nhttps="$nhttps" -v coturn="$coturn" '
         function quote(v) { return "\"" v "\"" }
         
@@ -552,11 +474,14 @@ update_values_yaml_from_config() {
         /^config:/ { section="config"; service=""; print; next }
         
         # Track services within config
-        section == "config" && /^  nginx:/  { service="nginx"; print; next }
-        section == "config" && /^  coturn:/ { service="coturn"; print; next }
+        section == "config" && /^  nginx:/  { service="nginx"; subsec=""; print; next }
+        section == "config" && /^  coturn:/ { service="coturn"; subsec=""; print; next }
+        section == "config" && /^  [a-zA-Z_][a-zA-Z0-9_-]*:/ { service=""; subsec=""; print; next }
         
         # Track subsections within services
+        section == "config" && service == "nginx"  && /^    int:/ { subsec="int"; print; next }
         section == "config" && service == "nginx"  && /^    ext:/ { subsec="ext"; print; next }
+        section == "config" && service == "coturn" && /^    int:/ { subsec="int"; print; next }
         section == "config" && service == "coturn" && /^    ext:/ { subsec="ext"; print; next }
         
         # Update values in appropriate sections
