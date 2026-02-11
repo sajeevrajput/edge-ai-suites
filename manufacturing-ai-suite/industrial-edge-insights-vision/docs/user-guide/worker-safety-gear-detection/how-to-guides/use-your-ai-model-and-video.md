@@ -30,7 +30,7 @@ For compose based deployment, the entire resources directory is volume mounted a
 
    ```sh
    volumes:
-   - ${APP_DIR}/:/home/pipeline-server/resources/
+   - ./resources/${SAMPLE_APP}/:/home/pipeline-server/resources/
    ```
 
    > **Note:** The value of `${SAMPLE_APP}` is fetched from the `.env` file specifying the particular sample app you are running.
@@ -41,7 +41,7 @@ For compose based deployment, the entire resources directory is volume mounted a
 
    ```sh
    volumes:
-   - ./apps/${SAMPLE_APP}/configs/pipeline-server-config.json:/home/pipeline-server/config.json
+   - ${APP_DIR}/configs/pipeline-server-config.json:/home/pipeline-server/config.json
    ```
 
 5. Provide the model path and video file path in the REST/curl command for starting an inferencing workload. Example:
