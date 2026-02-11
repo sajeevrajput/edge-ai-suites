@@ -94,4 +94,6 @@ Applications can take advantage of S3 publish feature from DL Streamer Pipeline 
 
 6. Go to MinIO console on `https://<HOST_IP>:<NGINX_HTTPS_PORT>/minio` and login with `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` provided in `.env` file. After logging into console, you can go to `ecgdemo` bucket and check the frames stored.
 
+    >If you're running multiple instances of app, ensure to provide `NGINX_HTTPS_PORT` number in the url for the app instance i.e. replace `<HOST_IP>` with `<HOST_IP>:<NGINX_HTTPS_PORT>`
+
    ![S3 minio image storage](../_assets/s3-minio-storage.png)
