@@ -22,6 +22,9 @@ Follow this procedure to stop the sample application and end this demonstration.
 
 1. Stop the sample application with the following command.
 
+
+    >If you're running multiple instances of app, stop the services using `./run.sh down` instead.
+
    ```sh
    docker compose down -v
    ```

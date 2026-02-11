@@ -2,6 +2,7 @@
 
 Bring the services up.
 
+>If you're running multiple instances of app, start the services using `./run.sh up` instead.
 ```sh
 docker compose up -d
 ```

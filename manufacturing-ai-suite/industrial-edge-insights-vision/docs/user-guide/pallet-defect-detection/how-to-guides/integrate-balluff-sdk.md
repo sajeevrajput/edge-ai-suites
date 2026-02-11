@@ -173,6 +173,7 @@ Additionally, add the following entries to the `/etc/hosts` file on the host mac
 
 Start all required services using Docker Compose:
 
+>If you're running multiple instances of app, start the services using `./run.sh up` instead.
 ```bash
 docker compose up -d
 ```
@@ -221,7 +222,7 @@ https://<HOST_IP>/mediamtx/pdd/
 ```
 
 Replace `<HOST_IP>` with the IP address configured in your `.env` file.
-
+>If you're running multiple instances of app, ensure to provide `NGINX_HTTPS_PORT` number in the url for the app instance i.e. replace <HOST_IP> with <HOST_IP>:<NGINX_HTTPS_PORT>
 ## Troubleshooting
 
 - For initial configuration and advanced configuration of the Balluff camera, please use the company-provided visualization tool **ImpactAcquire**, which is part of the **Balluff SDK**.

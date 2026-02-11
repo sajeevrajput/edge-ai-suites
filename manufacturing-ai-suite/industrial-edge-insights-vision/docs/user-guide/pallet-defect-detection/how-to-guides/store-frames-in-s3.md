@@ -10,6 +10,8 @@ Applications can take advantage of S3 publish feature from DL Streamer Pipeline 
 
 2. Bring up the containers.
 
+    >If you're running multiple instances of app, start the services using `./run.sh up` instead.
+    
    ```sh
    docker compose up -d
    ```
