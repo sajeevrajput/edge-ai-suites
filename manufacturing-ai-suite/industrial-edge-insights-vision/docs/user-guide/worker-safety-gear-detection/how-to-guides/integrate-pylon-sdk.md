@@ -103,7 +103,7 @@ It covers environment setup, configuration updates, and validation steps to ensu
 ```bash
 git clone https://github.com/open-edge-platform/edge-ai-suites.git
 cd edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision
-cp .env_worker_safety_gear_detection .env
+cp .env_worker-safety-gear-detection .env
 ```
 
 ---
@@ -181,6 +181,8 @@ Additionally, add the following entries to the `/etc/hosts` file on the host mac
 
 Start all required services using Docker Compose:
 
+>If you're running multiple instances of app, start the services using `./run.sh up` instead.
+
 ```bash
 docker compose up -d
 ```
@@ -232,6 +234,8 @@ https://<HOST_IP>/mediamtx/wsgd/
 ```
 
 Replace `<HOST_IP>` with the IP address configured in your `.env` file.
+
+>If you're running multiple instances of app, ensure to provide `NGINX_HTTPS_PORT` number in the url for the app instance i.e. replace <HOST_IP> with <HOST_IP>:<NGINX_HTTPS_PORT>
 
 ## Troubleshooting
 

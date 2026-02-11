@@ -56,6 +56,7 @@ If not, follow the [installation guide for docker engine](https://docs.docker.co
    ```bash
    sudo systemctl start docker
    ```
+    >If you're running multiple instances of app, start the services using `./run.sh up` instead.
 
    ```bash
    docker compose up -d
@@ -136,6 +137,8 @@ If not, follow the [installation guide for docker engine](https://docs.docker.co
 
     > **NOTE:** This will start the pipeline. The inference stream can be viewed on WebRTC, in a browser, at the following url:
 
+    >If you're running multiple instances of app, ensure to provide `NGINX_HTTPS_PORT` number in the url for the app instance i.e. replace <HOST_IP> with <HOST_IP>:<NGINX_HTTPS_PORT>
+    
     ```bash
     https://<HOST_IP>/mediamtx/weld/
     ```
@@ -200,6 +203,8 @@ If not, follow the [installation guide for docker engine](https://docs.docker.co
     For example, `./sample_stop.sh --id 0714ca6e5c7611f091f03266c7df2abf`
 
 10. Stop the Docker application.
+
+    >If you're running multiple instances of app, stop the services using `./run.sh down` instead.
 
     ```bash
     docker compose down -v
