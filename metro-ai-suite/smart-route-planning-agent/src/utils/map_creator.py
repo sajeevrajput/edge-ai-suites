@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import math
 import random
 from typing import Any, Dict, List, Optional, Tuple
@@ -173,12 +176,14 @@ class MapCreator:
         """
 
         # Iterate through all intersections and add location markers/popup based on weather, incident and traffic
-        for intersection in all_routes:
+        for intersection in all_routes or []:
             intersection_name = intersection.intersection_name
             latitude = intersection.location_coordinates.latitude
             longitude = intersection.location_coordinates.longitude
 
-            logger.debug(f"Adding marker for intersection: {intersection_name} at ({latitude}, {longitude})")
+            logger.debug(
+                f"Adding marker for intersection: {intersection_name} at ({latitude}, {longitude})"
+            )
 
             # Create popup content with traffic data
             popup_html = f"""
@@ -222,7 +227,7 @@ class MapCreator:
                     <div style="margin: 0 0 6px 0; font-size: 14px; color: #d90b64;">
                         Weather Alert: <strong>{intersection.weather_status.value.title()}</strong>
                     </div>
-                    """ 
+                    """
                 else:
                     popup_html += f"""
                     <div style="margin: 0 0 6px 0; font-size: 14px;">
@@ -234,7 +239,7 @@ class MapCreator:
             if incident_location and intersection_name == incident_location.get("name"):
                 icon_html = incident_icon_html
                 # Add some description about high traffic congestion
-                popup_html += f"""
+                popup_html += """
                 <div style="margin: 0 0 6px 0; font-size: 15px; color: #d90b64;">
                     <strong>Route affected due to high traffic congestion!</strong>
                 </div>
@@ -254,7 +259,6 @@ class MapCreator:
                     html=icon_html, icon_size=(10, 10), icon_anchor=(5, 5)
                 ),
             ).add_to(map_obj)
-
 
     def add_location_markers(
         self,
@@ -443,7 +447,7 @@ class MapCreator:
         if len(route_points) <= 1:
             return 0.0
 
-        total_distance = 0
+        total_distance = 0.0
         for i in range(len(route_points) - 1):
             lat1, lon1 = route_points[i]
             lat2, lon2 = route_points[i + 1]
