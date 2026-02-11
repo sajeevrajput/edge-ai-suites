@@ -22,7 +22,7 @@ If not, follow the [installation guide for docker engine](https://docs.docker.co
 2. Set app specific environment variable file:
 
    ```bash
-   cp .env_pcb_anomaly_detection .env
+   cp .env_pcb-anomaly-detection .env
    ```
 
 3. Edit the below mentioned environment variables in the `.env` file as follows:

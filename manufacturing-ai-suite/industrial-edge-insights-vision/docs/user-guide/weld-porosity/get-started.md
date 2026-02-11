@@ -22,7 +22,7 @@ If not, follow the [installation guide for docker engine](https://docs.docker.co
 2.  Set app specific environment variable file
 
     ```bash
-    cp .env_weld_porosity_classification .env
+    cp .env_weld-porosity .env
     ```
 
 3.  Edit the below mentioned environment variables in `.env` file, as follows:
