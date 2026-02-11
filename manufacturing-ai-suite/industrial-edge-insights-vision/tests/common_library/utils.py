@@ -54,13 +54,13 @@ class utils:
             logging.info('\n**********Setting up Docker environment**********')
             os.chdir(self.base_dir)
             if value.get("app") == "pdd":
-                subprocess.check_output("cp .env_pallet_defect_detection .env", shell=True, executable='/bin/bash')
+                subprocess.check_output("cp .env_pallet-defect-detection .env", shell=True, executable='/bin/bash')
             elif value.get("app") == "weld":
-                subprocess.check_output("cp .env_weld_porosity_classification .env", shell=True, executable='/bin/bash')
+                subprocess.check_output("cp .env_weld-porosity .env", shell=True, executable='/bin/bash')
             elif value.get("app") == "pcb":
-                subprocess.check_output("cp .env_pcb_anomaly_detection .env", shell=True, executable='/bin/bash')
+                subprocess.check_output("cp .env_pcb-anomaly-detection .env", shell=True, executable='/bin/bash')
             elif value.get("app") == "wsg":
-                subprocess.check_output("cp .env_worker_safety_gear_detection .env", shell=True, executable='/bin/bash')
+                subprocess.check_output("cp .env_worker-safety-gear-detection .env", shell=True, executable='/bin/bash')
 
             # Update .env file with required variables
             self._update_env_file({
@@ -432,10 +432,10 @@ class utils:
             
             # Direct path mapping without app_configs
             app_paths = {
-                "pdd": "helm/values_pallet_defect_detection.yaml",
-                "weld": "helm/values_weld_porosity_classification.yaml", 
-                "pcb": "helm/values_pcb_anomaly_detection.yaml",
-                "wsg": "helm/values_worker_safety_gear_detection.yaml"
+                "pdd": "helm/values_pallet-defect-detection.yaml",
+                "weld": "helm/values_weld-porosity.yaml", 
+                "pcb": "helm/values_pcb-anomaly-detection.yaml",
+                "wsg": "helm/values_worker-safety-gear-detection.yaml"
             }
             
             app_names = {

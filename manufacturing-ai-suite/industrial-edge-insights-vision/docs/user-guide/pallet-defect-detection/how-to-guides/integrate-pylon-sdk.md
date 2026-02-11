@@ -89,7 +89,7 @@ It covers environment setup, configuration updates, and validation steps to ensu
 ```bash
 git clone https://github.com/open-edge-platform/edge-ai-suites.git
 cd edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision
-cp .env_pallet_defect_detection .env
+cp .env_pallet-defect-detection .env
 ```
 
 ### Step 2: Configure the .env File

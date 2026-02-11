@@ -103,7 +103,7 @@ It covers environment setup, configuration updates, and validation steps to ensu
 ```bash
 git clone https://github.com/open-edge-platform/edge-ai-suites.git
 cd edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision
-cp .env_worker_safety_gear_detection .env
+cp .env_worker-safety-gear-detection .env
 ```
 
 ---
