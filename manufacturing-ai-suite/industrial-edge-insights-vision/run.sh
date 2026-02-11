@@ -1,5 +1,6 @@
 #!/bin/bash
-# Start and stop all containers for the instances defined in config.yml
+# Start and stop all containers for the instances defined in config.yml file for compose
+
 
 SCRIPT_DIR=$(dirname $(readlink -f "$0"))
 CONFIG_FILE="$SCRIPT_DIR/config.yml"
@@ -9,10 +10,15 @@ err() {
 }
 
 usage() {
-    echo "Usage: $0 <up|down>"
+    echo "Usage: $0 <command> [subcommand]"
     echo ""
-    echo "  up       - Start all instances"
-    echo "  down     - Stop all instances"
+    echo "Docker Compose commands:"
+    echo "  up             - Start all instances"
+    echo "  down           - Stop all instances"
+    echo ""
+    echo "Helm commands:"
+    echo "  helm_install   - Install helm releases for all instances"
+    echo "  helm uninstall - Uninstall helm releases for all instances"
     exit 1
 }
 
@@ -54,7 +60,7 @@ main() {
     fi
     
     case "$1" in
-        up)
+        up) 
             echo "Starting all instances..."
             while IFS='|' read -r sample_app instance_name; do
                 env_file="$SCRIPT_DIR/temp_apps/$sample_app/$instance_name/.env"
@@ -75,6 +81,27 @@ main() {
                 docker compose -p "$instance_name" down -v
             done < <(get_all_instances)
             echo "All instances stopped!"
+            ;;
+        helm_install)
+            echo "Installing helm releases for all instances..."
+            while IFS='|' read -r sample_app instance_name; do
+            values_file="$SCRIPT_DIR/helm/temp_apps/$sample_app/$instance_name/values.yaml"
+            if [[ ! -f "$values_file" ]]; then
+                err "Values file not found: $values_file"
+                exit 1
+            fi
+            echo "Installing $instance_name..."
+            helm install "$instance_name" helm -n "$instance_name" --create-namespace -f "$values_file"
+            done < <(get_all_instances)
+            echo "All helm releases installed!"
+            ;;
+        helm_uninstall)
+            echo "Uninstalling helm releases for all instances..."
+            while IFS='|' read -r sample_app instance_name; do
+            echo "Uninstalling $instance_name..."
+            helm uninstall "$instance_name" -n "$instance_name"
+            done < <(get_all_instances)
+            echo "All helm releases uninstalled!"
             ;;
         *)
             usage
