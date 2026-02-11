@@ -403,7 +403,7 @@ Applications can take advantage of S3 publish feature from DL Streamer Pipeline 
    
    POD_NAME=$(kubectl get pods -n apps -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep deployment-dlstreamer-pipeline-server | head -n 1)
 
-   kubectl cp new-model/* $POD_NAME:/home/pipeline-server/resources/models/ -c dlstreamer-pipeline-server -n apps
+   kubectl cp new-model $POD_NAME:/home/pipeline-server/resources/models/ -c dlstreamer-pipeline-server -n apps
    ```
 
 7. Stop the existing pipeline before restarting it with a new model. Use the instance-id generated from step 5.

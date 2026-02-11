@@ -25,7 +25,7 @@ anomalies before they can impact operations.
 
 This sample application consists of the following microservices:
 DL Streamer Pipeline Server, MediaMTX server,Coturn server, 
-Open Telemetry Collector, Prometheus, Postgres and Minio.
+Open Telemetry Collector, Prometheus and Minio.
 
 You start the PCB anomaly detection pipeline with a REST request using Client URL (cURL).
 The REST request will return a pipeline instance ID. DL Streamer Pipeline Server then
@@ -35,9 +35,9 @@ facilitate NAT traversal and ensure that the webrtc stream is accessible on a no
 browser client and helps in cases where firewall is enabled. DL Streamer Pipeline Server
 also sends the images to S3 compliant storage. The Open Telemetry Data exported by
 DL Streamer Pipeline Server to Open Telemetry Collector is scraped by Prometheus and can
-be seen on Prometheus UI. Any desired AI model from Supported OpenVINO public models and 
-Geti trained models can be  downloaded withe the help of Model Download Microservice
-which can be made available to DL Streamer Pipeline Server and used for inference in the 
+be seen on Prometheus UI. Any desired AI model from supported 
+OpenVINO public models and Geti trained models can be downloaded with the help of Model Download 
+Microservice and can be made available to DL Streamer Pipeline Server for inference in the 
 sample application.
 
 ![architecture and high-level representation of the flow of data through the architecture](./_assets/industrial-edge-insights-vision-architecture.drawio.svg)
@@ -62,8 +62,6 @@ It also consists of the below Third-party microservices:
   is a set of receivers, exporters, processors, connectors for Open Telemetry.
 - [Prometheus](https://hub.docker.com/r/prom/prometheus)
   is a systems and service monitoring system used for viewing Open Telemetry.
-- [Postgres](https://hub.docker.com/_/postgres)
-  is object-relational database system that provides reliability and data integrity.
 - [Minio](https://hub.docker.com/r/minio/minio)
   is high performance object storage that is API compatible with
   Amazon S3 cloud storage service.
