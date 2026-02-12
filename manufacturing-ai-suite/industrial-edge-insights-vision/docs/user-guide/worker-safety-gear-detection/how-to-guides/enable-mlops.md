@@ -18,7 +18,7 @@ With this feature, during runtime, you can download a new model using the micros
 
     Navigate to the `[WORKDIR]/edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision` directory and set up the app.
     ```sh
-    cp .env_worker_safety_gear_detection .env
+    cp .env_worker-safety-gear-detection .env
     ```
 2. Update the following variables in `.env` file
     ``` sh

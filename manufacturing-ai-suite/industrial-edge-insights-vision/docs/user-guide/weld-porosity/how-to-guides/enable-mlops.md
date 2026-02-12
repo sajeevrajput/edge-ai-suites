@@ -19,7 +19,7 @@ With this feature, during runtime, you can download a new model using the micros
    Navigate to the `[WORKDIR]/edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision` directory and set up the app.
 
    ```sh
-   cp .env_weld_porosity_classification .env
+   cp .env_weld-porosity .env
    ```
 
 2. Update the following variables in `.env` file
