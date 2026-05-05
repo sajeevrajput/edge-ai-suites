@@ -55,7 +55,7 @@ def test_registry_contains_lvc(app_config):
     assert isinstance(registry["live_captioning"], LiveCaptioningCoreAppShim)
 
 
-def test_legacy_core_app_singular_migrates_to_list():
+def test_legacy_core_app_singular_converts_to_list():
     cfg = AppConfig.model_validate({
         "core_app": {
             "type": "live_captioning",

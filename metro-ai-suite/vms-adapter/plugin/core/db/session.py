@@ -13,10 +13,14 @@ _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
 async def init_db(database_url: str) -> None:
-    """Initialize the async engine and session factory."""
+    """Initialize the async engine, session factory, and create tables."""
     global _engine, _session_factory
     _engine = create_async_engine(database_url, echo=False, pool_size=5, max_overflow=5)
     _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
+
+    from plugin.core.models.db import Base
+    async with _engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 async def close_db() -> None:

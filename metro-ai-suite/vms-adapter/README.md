@@ -38,7 +38,6 @@ vms-adapter-plugin/
 │   └── core_app/               #  LiveCaptioningCoreAppShim
 │   └── core_app/               #  LiveCaptioningCoreAppShim
 ├── ui/                         # React/Vite frontend, served by nginx
-├── alembic/                    # DB migrations
 ├── config/                     # Default + dev YAML configs
 ├── tests/                      # pytest unit + integration tests
 ├── Dockerfile                  # Backend image
@@ -77,7 +76,6 @@ endpoint to the `backend` service in the same Docker network.
 ```bash
 uv pip install -e ".[dev]"           # or: pip install -e ".[dev]"
 export VMS_PLUGIN_CONFIG_PATH=$PWD/config/config.dev.yaml
-alembic upgrade head
 uvicorn plugin.core.main:app --reload --port 8082
 pytest tests/ -v
 ```
@@ -123,6 +121,6 @@ Only the `live_captioning` Core App is supported.
 ## Tech Stack
 
 - **Backend:** Python 3.10+, FastAPI, Uvicorn, SQLAlchemy 2 (async), PostgreSQL 15,
-  Pydantic v2, Alembic, Watchdog, httpx, structlog.
+  Pydantic v2, Watchdog, httpx, structlog.
 - **Frontend:** React 19, Vite 8, Tailwind 4, shadcn/base-ui, sonner.
 - **Infra:** Docker Compose (backend + nginx + postgres).
