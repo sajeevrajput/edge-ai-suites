@@ -35,4 +35,4 @@ testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["plugin*", "vms_shim*", "core_app_sim*"]
+include = ["plugin*", "vms_shim*", "core_app_shim*"]

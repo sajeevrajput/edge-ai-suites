@@ -14,7 +14,7 @@ from plugin.base.interfaces import ICoreAppShim, IVmsShim
 from plugin.core.config import AppConfig, AnyCorAppConfig, NvrInstanceConfig
 from vms_shim.frigate.shim import FrigateVmsShim
 from vms_shim.nxwitness.shim import NxWitnessVmsShim
-from core_app_sim.lvc.live_captioning import LiveCaptioningCoreAppShim
+from core_app_shim.lvc.live_captioning import LiveCaptioningCoreAppShim
 
 logger = structlog.get_logger(__name__)
 

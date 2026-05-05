@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from plugin.core.api.deps import get_core_app_shims, get_db_session
 from plugin.core.db import repository as repo
-from core_app_sim.lvc.live_captioning import LiveCaptioningCoreAppShim
+from core_app_shim.lvc.live_captioning import LiveCaptioningCoreAppShim
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/live-captioning")

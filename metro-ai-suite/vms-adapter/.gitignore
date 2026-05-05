@@ -24,7 +24,6 @@ ui/*.log
 
 # ── Env files (never commit) ───────────────────────────────────────────────
 .env
-.env.example
 .env.local
 .env.*.local
 
