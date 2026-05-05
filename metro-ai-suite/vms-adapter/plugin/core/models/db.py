@@ -20,10 +20,6 @@ class CameraRow(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     vendor: Mapped[str] = mapped_column(String(50), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="unknown")
-    # Legacy columns kept nullable for backward-compat with existing DBs;
-    # the plugin no longer reads or writes ingest_mode / watch_path.
-    ingest_mode: Mapped[str | None] = mapped_column(String(30), nullable=True)
-    watch_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     stream_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -41,7 +37,6 @@ class MetadataEventRow(Base):
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     labels: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
     clip_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    ingest_mode: Mapped[str | None] = mapped_column(String(30), nullable=True)
     vendor_meta: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     __table_args__ = (
