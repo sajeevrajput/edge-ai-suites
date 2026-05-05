@@ -1,0 +1,292 @@
+/**
+ * AnalyticsEnginePanel
+ * --------------------
+ * Schema-driven Core App selector + parameter form.
+ *
+ *   1. On mount → GET /v1/core-apps/discover
+ *      → list every Core App registered in the I/O plugin along with
+ *        its live `available` flag and Pydantic JSON Schema.
+ *   2. The user picks a Core App → render its schema as form inputs
+ *      (via <SchemaForm/>).
+ *   3. The user clicks **Start Analysis** → POST the validated payload
+ *      to /v1/core-apps/{appId}/start; backend Pydantic-validates the
+ *      payload and triggers the AI application's start endpoint.
+ *
+ * No Core App-specific code lives here — adding a new Core App in the
+ * backend (with a new `param_model`) is automatically picked up by this
+ * panel without any UI change.
+ */
+
+import { useEffect, useState, useCallback } from 'react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Settings2, PlayCircle, StopCircle, Loader2, AlertCircle, Cpu, ScanLine,
+} from 'lucide-react';
+import { t } from '@/utils/i18n';
+
+import {
+  discoverCoreApps,
+  startCoreApp,
+  getLvcModels,
+  getLvcPipelines,
+} from '@/services/api';
+import SchemaForm, { initialFormState } from './SchemaForm';
+
+export default function AnalyticsEnginePanel({
+  cameras = [],
+  onCoreAppChange,
+  isLvcRunning = false,
+  lvcStarting = false,
+  onStartAnalysis,   // (appId, runResult) => void  — invoked after a successful start
+  onStopAnalysis,
+}) {
+  const [discovered, setDiscovered] = useState([]);
+  const [discovering, setDiscovering] = useState(false);
+  const [hasDiscovered, setHasDiscovered] = useState(false);
+  const [discoverError, setDiscoverError] = useState(null);
+
+  const [selectedAppId, setSelectedAppId] = useState('');
+  const [formValue, setFormValue] = useState({});
+  const [errors, setErrors] = useState([]);
+  const [starting, setStarting] = useState(false);
+
+  const [dynamicOptions, setDynamicOptions] = useState({});
+
+  const enabledCameras = cameras.filter((c) => c.enabled);
+  const selectedApp = discovered.find((a) => a.app_id === selectedAppId);
+
+  // ── Discovery ────────────────────────────────────────────────────────────
+  const runDiscovery = useCallback(async () => {
+    setDiscovering(true);
+    setDiscoverError(null);
+    try {
+      const apps = await discoverCoreApps();
+      setDiscovered(apps);
+      // Don't auto-select — wait for user to click a Core App so the
+      // parameter form only appears after an explicit selection.
+      setSelectedAppId('');
+      setFormValue({});
+      setErrors([]);
+    } catch (err) {
+      setDiscoverError(err.message ?? String(err));
+      setDiscovered([]);
+    } finally {
+      setDiscovering(false);
+      setHasDiscovered(true);
+    }
+  }, []);
+
+  // No auto-discovery on mount — user must click "Discover Apps".
+
+  // ── When the selected app changes, refresh form state from its schema ───
+  useEffect(() => {
+    if (!selectedApp) return;
+    setFormValue(initialFormState(selectedApp.params_schema));
+    setErrors([]);
+    onCoreAppChange?.(selectedApp.display_name);
+  }, [selectedAppId]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Optionally fetch LVC dynamic option lists (models / pipelines) ──────
+  useEffect(() => {
+    if (!selectedApp) return;
+    const props = selectedApp.params_schema?.properties ?? {};
+    const sources = Object.values(props)
+      .map((p) => (p?.anyOf?.find((b) => b['x-vms-source'])?.['x-vms-source']) || p?.['x-vms-source'])
+      .filter(Boolean);
+
+    const next = { ...dynamicOptions };
+    if (sources.includes('lvc-models')) {
+      getLvcModels()
+        .then((d) => {
+          const list = Array.isArray(d) ? d : (d?.models ?? []);
+          next['lvc-models'] = list.map((m) => {
+            const name = typeof m === 'string' ? m : (m.model_name ?? m.name ?? String(m));
+            return { value: name, label: name };
+          });
+          setDynamicOptions({ ...next });
+        })
+        .catch(() => {});
+    }
+    if (sources.includes('lvc-pipelines')) {
+      getLvcPipelines()
+        .then((p) => {
+          const list = Array.isArray(p) ? p : [];
+          next['lvc-pipelines'] = list.map((x) => {
+            const name = x.pipeline_name ?? x;
+            return { value: name, label: String(name).replace('GenAI_Pipeline_on_', '') + ' Pipeline' };
+          });
+          setDynamicOptions({ ...next });
+        })
+        .catch(() => {});
+    }
+  }, [selectedAppId]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Start Analysis ──────────────────────────────────────────────────────
+  const handleStart = async () => {
+    if (!selectedApp) return;
+    // Strip empty strings so the backend can apply Pydantic defaults.
+    const payload = Object.fromEntries(
+      Object.entries(formValue).filter(([, v]) => v !== '' && v !== null && v !== undefined),
+    );
+    setStarting(true);
+    setErrors([]);
+    try {
+      const res = await startCoreApp(selectedApp.app_id, payload);
+      onStartAnalysis?.(selectedApp.app_id, res);
+    } catch (err) {
+      if (err.status === 422 && Array.isArray(err.fieldErrors)) {
+        setErrors(err.fieldErrors);
+      } else {
+        setErrors([{ loc: ['__root__'], msg: err.message ?? String(err), type: 'error' }]);
+      }
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  // ── Render ──────────────────────────────────────────────────────────────
+  return (
+    <Card className="vms-card flex flex-col py-0">
+      <CardHeader className="vms-panel-hdr">
+        <div className="flex flex-col gap-[5px]">
+          <h2 className="vms-panel-title">
+            <span className="vms-panel-icon"><Settings2 size={15} className="text-[#0071C5]" /></span>
+            {t('enginePanelTitle')}
+          </h2>
+          <p className="text-[0.72rem] text-[#A3B0CC] pl-[39px]">
+            {hasDiscovered && discovered.length > 0
+              ? `${discovered.length} core app${discovered.length === 1 ? '' : 's'} registered (${discovered.filter((a) => a.available).length} available)`
+              : 'Click Discover Apps to query the I/O plugin for available AI applications'}
+          </p>
+        </div>
+        <Button
+          size="sm"
+          className="btn-primary text-white shrink-0 text-[0.78rem] font-semibold px-4"
+          onClick={runDiscovery}
+          disabled={discovering}
+          title="Run Core App discovery"
+        >
+          <ScanLine size={13} className="mr-[6px]" />
+          {discovering
+            ? 'Discovering…'
+            : hasDiscovered ? 'Rediscover Apps' : 'Discover Apps'}
+        </Button>
+      </CardHeader>
+
+      <CardContent className="p-0 flex-1">
+        <div className="divide-y divide-[#EDF0F9] mx-[22px] mb-[22px] border border-[#EDF0F9] overflow-hidden">
+
+          {/* Engine row */}
+          <div className="vms-field-row bg-[#FAFBFF]">
+            <span className="vms-field-label">{t('enginePanelTitle')}</span>
+            <span className="vms-badge vms-badge-blue-dk">Intel OEP</span>
+          </div>
+
+          {/* Discovery error */}
+          {discoverError && (
+            <div className="vms-field-row bg-red-50 text-red-700 text-[0.78rem]">
+              <AlertCircle size={13} className="mr-1.5" />
+              Failed to discover Core Apps: {discoverError}
+            </div>
+          )}
+
+          {/* Empty state — before first discovery */}
+          {!hasDiscovered && !discovering && !discoverError && (
+            <div className="vms-field-row bg-[#FAFBFF]">
+              <div className="vms-empty py-6 w-full">
+                <ScanLine size={32} strokeWidth={1.2} className="text-[#C8D2E8]" />
+                <span>Click <strong className="text-[#6B7BA4]">Discover Apps</strong> to list available AI applications</span>
+              </div>
+            </div>
+          )}
+
+          {/* Core App selector — built from discovery */}
+          {!discoverError && hasDiscovered && (
+            <div className="vms-field-row items-start">
+              <span className="vms-field-label pt-[3px]">{t('engineCoreAppLabel')}</span>
+              <RadioGroup
+                value={selectedAppId}
+                onValueChange={setSelectedAppId}
+                className="flex flex-row gap-[8px] flex-1 flex-wrap"
+              >
+                {discovered.length === 0 && !discovering && (
+                  <p className="text-[0.78rem] text-[#8695B8]">
+                    No Core Apps registered in the I/O plugin.
+                  </p>
+                )}
+                {discovered.map((app) => {
+                  const isActive = selectedAppId === app.app_id;
+                  return (
+                    <Label key={app.app_id} htmlFor={`ca-${app.app_id}`}
+                      className={`vms-radio-option ${isActive ? 'vms-radio-option-active' : ''}`}>
+                      <RadioGroupItem id={`ca-${app.app_id}`} value={app.app_id} className="sr-only" />
+                      <span className={`vms-radio-dot ${isActive ? 'vms-radio-dot-active' : ''}`} />
+                      <Cpu size={13} className={`shrink-0 ${isActive ? 'text-[#0071C5]' : 'text-[#8695B8]'}`} />
+                      <span className={`text-[0.83rem] font-semibold flex-1 ${isActive ? 'text-[#0E1C47]' : 'text-[#4A5C80]'}`}>
+                        {app.display_name || app.app_id}
+                      </span>
+                      <span className={`vms-badge font-mono-vms ${app.available ? 'vms-badge-green' : 'vms-badge-yellow'}`}>
+                        {app.available ? 'available' : 'offline'}
+                      </span>
+                    </Label>
+                  );
+                })}
+              </RadioGroup>
+            </div>
+          )}
+
+          {/* Schema-driven parameter form */}
+          {selectedApp && (
+            <div className="px-[14px] py-[14px] bg-[#FAFBFF] flex flex-col gap-[14px]">
+              <span className="text-[0.72rem] font-bold uppercase tracking-[0.5px] text-[#6B7BA4]">
+                {selectedApp.display_name} — Parameters
+              </span>
+              <SchemaForm
+                schema={selectedApp.params_schema}
+                value={formValue}
+                onChange={setFormValue}
+                cameras={enabledCameras}
+                dynamicOptions={dynamicOptions}
+                errors={errors}
+              />
+              {errors.find((e) => Array.isArray(e.loc) && e.loc.includes('__root__')) && (
+                <p className="text-[0.78rem] text-red-600">
+                  {errors.find((e) => e.loc.includes('__root__')).msg}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Start / Stop row */}
+          {selectedApp && (
+            <div className="vms-field-row bg-[#F0F7FF]">
+              <span className="vms-field-label">Live Analysis</span>
+              {!isLvcRunning ? (
+                <Button
+                  size="sm"
+                  className="bg-[#0071C5] hover:bg-[#005BA0] text-white text-[0.78rem] font-semibold px-4"
+                  onClick={handleStart}
+                  disabled={starting || lvcStarting || !selectedApp.available}
+                  title={!selectedApp.available ? 'Core App backend is not reachable' : 'Validate parameters and trigger the Core App'}
+                >
+                  {(starting || lvcStarting)
+                    ? <><Loader2 size={13} className="mr-1.5 animate-spin" />Starting…</>
+                    : <><PlayCircle size={13} className="mr-1.5" />Start Analysis</>}
+                </Button>
+              ) : (
+                <Button size="sm" variant="destructive"
+                  className="text-[0.78rem] font-semibold px-4" onClick={onStopAnalysis}>
+                  <StopCircle size={13} className="mr-1.5" />Stop Analysis
+                </Button>
+              )}
+            </div>
+          )}
+
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

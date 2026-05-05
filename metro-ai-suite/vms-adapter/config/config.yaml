@@ -1,0 +1,35 @@
+# VMS Plugin Microservice : Default Configuration
+# All ${ENV_VAR} references are resolved from environment variables at startup.
+
+nvr_instances:
+  - name: frigate-main
+    vendor: frigate
+    base_url: "http://${FRIGATE_HOST}:5000"
+    auth:
+      auth_type: none
+
+  - name: nx-main
+    vendor: nx_witness
+    base_url: "https://${NX_HOST}:7001"
+    auth:
+      username: "${NX_USERNAME}"
+      password: "${NX_PASSWORD}"
+      auth_type: digest
+
+core_apps:
+  - type: live_captioning
+    base_url: "http://${LVC_HOST:-host.docker.internal}:${LVC_PORT:-4173}"
+    mediamtx_url: "http://${MEDIAMTX_HOST:-host.docker.internal}:${MEDIAMTX_PORT:-8889}"
+    default_model: "${LVC_DEFAULT_MODEL:-}"
+    default_prompt: "${LVC_DEFAULT_PROMPT:-Describe what is happening in this video.}"
+    max_tokens: ${LVC_MAX_TOKENS:-100}
+    delivery_timeout_seconds: 30
+    default_pipeline: "${LVC_DEFAULT_PIPELINE:-GenAI_Pipeline_on_CPU}"
+
+api:
+  host: "0.0.0.0"
+  port: 8080
+  api_key: "${VMS_PLUGIN_API_KEY:-}"
+
+database:
+  url: "postgresql+asyncpg://${PG_USER:-vms}:${PG_PASSWORD:-vms}@${PG_HOST:-postgres}:${PG_PORT:-5434}/vms_plugin"

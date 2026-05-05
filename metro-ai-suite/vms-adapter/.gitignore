@@ -1,0 +1,45 @@
+# ── Python ─────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# ── Node / Vite ────────────────────────────────────────────────────────────
+ui/node_modules/
+ui/dist/
+ui/dist-ssr/
+ui/.vite/
+ui/coverage/
+ui/*.log
+
+# ── Env files (never commit) ───────────────────────────────────────────────
+.env
+.env.example
+.env.local
+.env.*.local
+
+# ── Local dev config (may contain secrets) ─────────────────────────────────
+config/config.dev.yaml
+
+# ── DB / state ─────────────────────────────────────────────────────────────
+*.db
+*.sqlite3
+
+# ── Editor / OS ────────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
