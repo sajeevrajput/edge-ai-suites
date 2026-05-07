@@ -1,4 +1,4 @@
-"""Unit tests for the Nx Witness single-shim using standard /rest/v3 endpoints."""
+"""Unit tests for the Nx Witness single-shim using standard /rest/v4 endpoints."""
 
 import pytest
 
@@ -49,7 +49,7 @@ async def test_unsupported_when_disconnected(nx_config):
 
 @pytest.mark.asyncio
 async def test_acknowledge_is_unsupported(nx_config):
-    """Standard /rest/v3 has no event-acknowledge endpoint."""
+    """Standard /rest/v4 has no event-acknowledge endpoint."""
     shim = NxWitnessVmsShim(nx_config)
     cr = await shim.acknowledge_event("nx:cam1", "evt1")
     assert cr.status == "unsupported"
@@ -72,7 +72,7 @@ class _FakeClient:
 
 
 @pytest.mark.asyncio
-async def test_discover_cameras_uses_rest_v3_devices(nx_config):
+async def test_discover_cameras_uses_rest_v4_devices(nx_config):
     shim = NxWitnessVmsShim(nx_config)
     fake = _FakeClient([
         {"id": "device-1", "name": "Front Door", "url": "rtsp://nx/front-door",
@@ -82,6 +82,6 @@ async def test_discover_cameras_uses_rest_v3_devices(nx_config):
     ])
     shim._client = fake
     cams = await shim.discover_cameras()
-    assert fake.calls == [("/rest/v3/devices", None)]
+    assert fake.calls == [("/rest/v4/devices", None)]
     assert len(cams) == 1
     assert cams[0].camera_id == "nx:device-1"

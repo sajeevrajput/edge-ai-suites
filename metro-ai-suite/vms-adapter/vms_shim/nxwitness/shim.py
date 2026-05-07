@@ -1,16 +1,16 @@
-"""Nx Witness VMS shim — single class, standard REST API v3 only.
+"""Nx Witness VMS shim — single class, standard REST API v4 only.
 
 All endpoints used here are documented in the official Nx Meta API tool
 (https://meta.nxvms.com/doc/developers/api-tool):
 
-  * POST   /rest/v3/login/sessions               → create session token
-  * DELETE /rest/v3/login/sessions/{token}       → invalidate session
-  * GET    /rest/v3/servers/this/info            → reachability probe
-  * GET    /rest/v3/devices                      → list devices
-  * GET    /rest/v3/devices/{deviceId}           → device record
-  * POST   /rest/v3/devices/{deviceId}/bookmarks → create bookmark
-  * GET    /rest/v3/analytics/engines            → list engines
-  * PATCH  /rest/v3/devices/{deviceId}           → toggle recording
+  * POST   /rest/v4/login/sessions               → create session token
+  * DELETE /rest/v4/login/sessions/{token}       → invalidate session
+  * GET    /rest/v4/servers/*/info               → reachability probe (returns array)
+  * GET    /rest/v4/devices                      → list devices
+  * GET    /rest/v4/devices/{deviceId}           → device record
+  * POST   /rest/v4/devices/{deviceId}/bookmarks → create bookmark
+  * GET    /rest/v4/analytics/engines            → list engines
+  * PATCH  /rest/v4/devices/{deviceId}           → toggle recording
 
 No URL is hand-built outside the REST API. The live RTSP and clip URLs
 are taken from the device record's ``mediaStreams`` /  ``url`` fields
@@ -34,7 +34,7 @@ logger = structlog.get_logger(__name__)
 
 
 class NxWitnessVmsShim(IVmsShim):
-    """Single shim for Nx Witness using only standard /rest/v3 endpoints."""
+    """Single shim for Nx Witness using only standard /rest/v4 endpoints."""
 
     def __init__(self, config: NvrInstanceConfig):
         self._config = config
@@ -52,7 +52,7 @@ class NxWitnessVmsShim(IVmsShim):
         await self._login()
 
     async def _login(self) -> None:
-        """POST /rest/v3/login/sessions to obtain a Bearer token."""
+        """POST /rest/v4/login/sessions to obtain a Bearer token."""
         if not self._client:
             return
         auth = self._config.auth
@@ -61,7 +61,7 @@ class NxWitnessVmsShim(IVmsShim):
             return
         try:
             resp = await self._client.post(
-                "/rest/v3/login/sessions",
+                "/rest/v4/login/sessions",
                 json={"username": auth.username, "password": auth.password},
             )
             resp.raise_for_status()
@@ -69,7 +69,7 @@ class NxWitnessVmsShim(IVmsShim):
             if self._token:
                 self._client.headers["Authorization"] = f"Bearer {self._token}"
             # Probe reachability with a documented endpoint.
-            info = await self._client.get("/rest/v3/servers/this/info")
+            info = await self._client.get("/rest/v4/servers/*/info")
             self._connected = info.status_code == 200
             logger.info("nx_connected", status=info.status_code)
         except httpx.HTTPError as e:
@@ -79,7 +79,7 @@ class NxWitnessVmsShim(IVmsShim):
     async def disconnect(self) -> None:
         if self._client and self._token:
             try:
-                await self._client.delete(f"/rest/v3/login/sessions/{self._token}")
+                await self._client.delete(f"/rest/v4/login/sessions/{self._token}")
             except httpx.HTTPError:
                 pass
         if self._client:
@@ -96,7 +96,7 @@ class NxWitnessVmsShim(IVmsShim):
         if not self._client:
             return []
         try:
-            resp = await self._client.get("/rest/v3/devices")
+            resp = await self._client.get("/rest/v4/devices")
             resp.raise_for_status()
             devices = resp.json()
         except httpx.HTTPError as e:
@@ -116,7 +116,7 @@ class NxWitnessVmsShim(IVmsShim):
             return None
         device_id = camera_id.removeprefix("nx:")
         try:
-            resp = await self._client.get(f"/rest/v3/devices/{device_id}")
+            resp = await self._client.get(f"/rest/v4/devices/{device_id}")
             resp.raise_for_status()
             return _to_camera(resp.json())
         except httpx.HTTPError:
@@ -140,7 +140,7 @@ class NxWitnessVmsShim(IVmsShim):
         self, camera_id: str, from_dt: datetime, to_dt: datetime,
     ) -> str | None:
         # The standard Nx REST API does not expose a single "clip URL"
-        # endpoint. Footage retrieval is handled by /rest/v3/devices/{id}
+        # endpoint. Footage retrieval is handled by /rest/v4/devices/{id}
         # /footage which returns segment metadata; clients then fetch
         # via HLS. We surface that endpoint URL for the caller.
         if not self._client:
@@ -148,7 +148,7 @@ class NxWitnessVmsShim(IVmsShim):
         device_id = camera_id.removeprefix("nx:")
         return (
             f"{self._config.base_url.rstrip('/')}"
-            f"/rest/v3/devices/{device_id}/footage"
+            f"/rest/v4/devices/{device_id}/footage"
             f"?startTimeMs={int(from_dt.timestamp() * 1000)}"
             f"&endTimeMs={int(to_dt.timestamp() * 1000)}"
         )
@@ -162,7 +162,7 @@ class NxWitnessVmsShim(IVmsShim):
             # registration is per-engine and out of scope of this
             # shim's required surface. Acknowledge the call and return
             # the engine list so callers can introspect what's available.
-            resp = await self._client.get("/rest/v3/analytics/engines")
+            resp = await self._client.get("/rest/v4/analytics/engines")
             return {
                 "status": "ok" if resp.status_code == 200 else "error",
                 "http_status": resp.status_code,
@@ -176,9 +176,9 @@ class NxWitnessVmsShim(IVmsShim):
         self, camera_id: str, event_id: str, message: str = "",
     ) -> CommandResult:
         # Acknowledgement of analytics events is not part of the standard
-        # /rest/v3 surface — it is plugin-specific in Nx. Return unsupported.
+        # /rest/v4 surface — it is plugin-specific in Nx. Return unsupported.
         return _unsupported("acknowledge_event", camera_id,
-                            "Standard Nx v3 REST API has no event-acknowledgement endpoint")
+                            "Standard Nx v4 REST API has no event-acknowledgement endpoint")
 
     async def set_bookmark(
         self, camera_id: str, timestamp: datetime, label: str,
@@ -188,7 +188,7 @@ class NxWitnessVmsShim(IVmsShim):
         device_id = camera_id.removeprefix("nx:")
         try:
             resp = await self._client.post(
-                f"/rest/v3/devices/{device_id}/bookmarks",
+                f"/rest/v4/devices/{device_id}/bookmarks",
                 json={
                     "name": label,
                     "description": f"VMS Plugin: {label}",
@@ -219,10 +219,11 @@ class NxWitnessVmsShim(IVmsShim):
             return _unsupported("trigger_recording", camera_id, "Not connected")
         device_id = camera_id.removeprefix("nx:")
         try:
-            # PATCH the device record to enable recording. Standard v3 surface.
+            # PATCH the device record to enable recording. Standard v4 surface.
+            # v4 uses schedule.isEnabled rather than the v3 isRecording field.
             resp = await self._client.patch(
-                f"/rest/v3/devices/{device_id}",
-                json={"isRecording": True},
+                f"/rest/v4/devices/{device_id}",
+                json={"schedule": {"isEnabled": True}},
             )
             return _result(camera_id, "trigger_recording",
                            "accepted" if resp.status_code in (200, 204) else "rejected",
