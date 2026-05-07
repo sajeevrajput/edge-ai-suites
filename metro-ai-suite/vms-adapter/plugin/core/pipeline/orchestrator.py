@@ -64,6 +64,8 @@ class Orchestrator:
         from plugin.core.api.deps import set_shims
         set_shims(self.nvr_shim_sets, self.core_app_shims, self.config)
 
+        await self._reconcile_sessions()
+
         logger.info("orchestrator_started", nvr_count=len(self.nvr_shim_sets))
 
     def _wire_core_app_resolvers(self) -> None:
@@ -84,6 +86,58 @@ class Orchestrator:
         for shim in self.core_app_shims.values():
             if hasattr(shim, "set_rtsp_resolver"):
                 shim.set_rtsp_resolver(resolve_rtsp)
+
+    async def _reconcile_sessions(self) -> None:
+        """On startup, verify active sessions are still alive on their apps.
+
+        Sessions whose app instance no longer exists are marked stopped.
+        """
+        from plugin.core.db.session import get_session_factory
+        from plugin.core.db import repository as repo
+
+        try:
+            factory = get_session_factory()
+        except RuntimeError:
+            logger.warning("reconcile_skipped_no_db")
+            return
+
+        async with factory() as db:
+            active = await repo.list_sessions(db, status="active")
+
+        if not active:
+            return
+
+        logger.info("reconciling_sessions", count=len(active))
+
+        for s in active:
+            shim = self.core_app_shims.get(s.core_app_id)
+            alive = False
+            if shim and s.app_instance_id:
+                try:
+                    # Use get_run if available (LVC); fall back to is_reachable.
+                    if hasattr(shim, "get_run"):
+                        result = await shim.get_run(s.app_instance_id)
+                        alive = result is not None
+                    else:
+                        alive = await shim.is_reachable()
+                except Exception:
+                    logger.exception("reconcile_check_failed", session_id=s.session_id)
+
+            if not alive:
+                async with factory() as db:
+                    await repo.stop_session(db, s.session_id)
+                logger.info(
+                    "session_reconciled_stopped",
+                    session_id=s.session_id,
+                    camera_id=s.camera_id,
+                    core_app_id=s.core_app_id,
+                )
+            else:
+                logger.info(
+                    "session_reconciled_active",
+                    session_id=s.session_id,
+                    camera_id=s.camera_id,
+                )
 
     async def shutdown(self) -> None:
         logger.info("orchestrator_shutting_down")

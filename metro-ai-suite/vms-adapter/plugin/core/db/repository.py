@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from plugin.core.models.db import CameraRow, MetadataEventRow
-from plugin.core.models.domain import Camera, MetadataEvent
+from plugin.core.models.db import AnalyticsSessionRow, CameraRow, MetadataEventRow
+from plugin.core.models.domain import AnalyticsSession, AnalyticsSessionCreate, Camera, MetadataEvent
 
 
 async def upsert_camera(session: AsyncSession, camera: Camera) -> None:
@@ -134,4 +135,92 @@ def _row_to_event(row: MetadataEventRow) -> MetadataEvent:
         labels=row.labels or [],
         clip_url=row.clip_url,
         vendor_meta=row.vendor_meta or {},
+    )
+
+
+# ── Analytics session CRUD ───────────────────────────────────────────────────
+
+async def create_session(
+    session: AsyncSession, data: AnalyticsSessionCreate,
+) -> AnalyticsSession:
+    row = AnalyticsSessionRow(
+        session_id=str(uuid.uuid4()),
+        camera_id=data.camera_id,
+        core_app_id=data.core_app_id,
+        app_instance_id=data.app_instance_id,
+        status="active",
+        launch_payload=data.launch_payload,
+        app_state=data.app_state,
+        started_at=datetime.now(timezone.utc),
+    )
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    return _row_to_session(row)
+
+
+async def get_session(
+    session: AsyncSession, session_id: str,
+) -> AnalyticsSession | None:
+    result = await session.execute(
+        select(AnalyticsSessionRow).where(AnalyticsSessionRow.session_id == session_id)
+    )
+    row = result.scalar_one_or_none()
+    return _row_to_session(row) if row else None
+
+
+async def get_session_by_instance_id(
+    session: AsyncSession, app_instance_id: str,
+) -> AnalyticsSession | None:
+    result = await session.execute(
+        select(AnalyticsSessionRow).where(
+            AnalyticsSessionRow.app_instance_id == app_instance_id
+        )
+    )
+    row = result.scalar_one_or_none()
+    return _row_to_session(row) if row else None
+
+
+async def list_sessions(
+    session: AsyncSession,
+    camera_id: str | None = None,
+    core_app_id: str | None = None,
+    status: str | None = None,
+) -> list[AnalyticsSession]:
+    stmt = select(AnalyticsSessionRow).order_by(AnalyticsSessionRow.started_at.desc())
+    if camera_id:
+        stmt = stmt.where(AnalyticsSessionRow.camera_id == camera_id)
+    if core_app_id:
+        stmt = stmt.where(AnalyticsSessionRow.core_app_id == core_app_id)
+    if status:
+        stmt = stmt.where(AnalyticsSessionRow.status == status)
+    result = await session.execute(stmt)
+    return [_row_to_session(r) for r in result.scalars().all()]
+
+
+async def stop_session(
+    session: AsyncSession, session_id: str,
+) -> bool:
+    """Mark a session as stopped. Returns False if session_id not found."""
+    result = await session.execute(
+        update(AnalyticsSessionRow)
+        .where(AnalyticsSessionRow.session_id == session_id)
+        .values(status="stopped", stopped_at=datetime.now(timezone.utc))
+        .returning(AnalyticsSessionRow.session_id)
+    )
+    await session.commit()
+    return result.scalar_one_or_none() is not None
+
+
+def _row_to_session(row: AnalyticsSessionRow) -> AnalyticsSession:
+    return AnalyticsSession(
+        session_id=row.session_id,
+        camera_id=row.camera_id,
+        core_app_id=row.core_app_id,
+        app_instance_id=row.app_instance_id,
+        status=row.status,
+        launch_payload=row.launch_payload or {},
+        app_state=row.app_state or {},
+        started_at=row.started_at,
+        stopped_at=row.stopped_at,
     )

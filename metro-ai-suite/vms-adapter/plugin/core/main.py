@@ -13,6 +13,7 @@ from plugin.core.api.routes import (
     events,
     health,
     live_captioning as lvc_routes,
+    sessions as sessions_routes,
     vms as vms_routes,
 )
 from plugin.core.config import load_config
@@ -46,10 +47,11 @@ def create_app() -> FastAPI:
     application.include_router(cameras.router, prefix="/v1", tags=["Cameras"])
     application.include_router(events.router, prefix="/v1", tags=["Events"])
     application.include_router(analysis.router, prefix="/v1", tags=["Analysis"])
-    application.include_router(config_routes.router, prefix="/v1", tags=["Config"])
+    application.include_router(config_routes.router, prefix="/v1", tags=["Config"]) # status of VMS-analytics app
     application.include_router(vms_routes.router, prefix="/v1", tags=["VMS"])
     application.include_router(core_apps_routes.router, prefix="/v1")
     application.include_router(lvc_routes.router, prefix="/v1", tags=["Live Captioning"])
+    application.include_router(sessions_routes.router, prefix="/v1")
     return application
 
 

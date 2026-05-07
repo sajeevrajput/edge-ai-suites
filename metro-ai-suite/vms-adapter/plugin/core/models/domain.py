@@ -126,3 +126,27 @@ class ClipUrlResponse(BaseModel):
 class RegisterRequest(BaseModel):
     """Request body for POST /v1/vms/{name}/register."""
     manifest: dict = Field(default_factory=dict)
+
+
+# ── Session models ───────────────────────────────────────────────────────────
+
+class AnalyticsSessionCreate(BaseModel):
+    """Input model for creating a new session (caller supplies these fields)."""
+    camera_id: str
+    core_app_id: str
+    app_instance_id: str | None = None
+    launch_payload: dict = Field(default_factory=dict)
+    app_state: dict = Field(default_factory=dict)
+
+
+class AnalyticsSession(BaseModel):
+    """Full session record as stored in the database."""
+    session_id: str
+    camera_id: str
+    core_app_id: str
+    app_instance_id: str | None = None
+    status: Literal["active", "stopped"]
+    launch_payload: dict = Field(default_factory=dict)
+    app_state: dict = Field(default_factory=dict)
+    started_at: datetime
+    stopped_at: datetime | None = None

@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from plugin.core.api.deps import get_core_app_shims, get_db_session
 from plugin.core.db import repository as repo
+from plugin.core.models.domain import AnalyticsSessionCreate
 from core_app_shim.lvc.live_captioning import LiveCaptioningCoreAppShim
 
 logger = structlog.get_logger(__name__)
@@ -115,6 +116,22 @@ async def start_run(
     if peer_id:
         run["webrtcUrl"] = f"/whep/{peer_id}/whep"
 
+    # Persist session so the plugin can report status and resume on restart.
+    run_id = run.get("runId", "")
+    await repo.create_session(db, AnalyticsSessionCreate(
+        camera_id=body.camera_id,
+        core_app_id="live_captioning",
+        app_instance_id=run_id or None,
+        launch_payload=body.model_dump(exclude_none=True),
+        app_state={
+            "run_id": run_id,
+            "peer_id": peer_id,
+            "webrtc_url": run.get("webrtcUrl", ""),
+            "mqtt_topic": run.get("mqttTopic", ""),
+            "rtsp_url": rtsp_url,
+        },
+    ))
+
     return run
 
 
@@ -139,12 +156,19 @@ async def get_run(
 @router.delete("/runs/{run_id}", status_code=204, response_class=Response)
 async def stop_run(
     run_id: str,
+    db: AsyncSession = Depends(get_db_session),
     shim: LiveCaptioningCoreAppShim = Depends(_get_lvc_shim),
 ):
     """Stop a Live Captioning pipeline run."""
     ok = await shim.stop_run(run_id)
     if not ok:
         raise HTTPException(status_code=502, detail="Failed to stop run on LVC backend")
+
+    # Mark the corresponding session as stopped.
+    session = await repo.get_session_by_instance_id(db, run_id)
+    if session:
+        await repo.stop_session(db, session.session_id)
+
     return Response(status_code=204)
 
 
