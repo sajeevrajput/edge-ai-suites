@@ -61,6 +61,14 @@ class Orchestrator:
 
         self._wire_core_app_resolvers()
 
+        # Pre-fetch schemas so param_model is ready before the first /start call.
+        for shim in self.core_app_shims.values():
+            try:
+                await shim.fetch_schema()
+                logger.info("core_app_schema_fetched", app_id=shim.app_id)
+            except Exception:
+                logger.warning("core_app_schema_fetch_skipped", app_id=shim.app_id)
+
         from plugin.core.api.deps import set_shims
         set_shims(self.nvr_shim_sets, self.core_app_shims, self.config)
 

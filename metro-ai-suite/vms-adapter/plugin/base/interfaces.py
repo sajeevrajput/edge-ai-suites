@@ -93,6 +93,21 @@ class ICoreAppShim(ABC):
     param_model: type[BaseModel] = BaseModel
 
     @abstractmethod
+    async def fetch_schema(self) -> dict[str, Any]:
+        """Fetch the JSON Schema for this app's start parameters from its own API.
+
+        Implementations should:
+        1. Call the core app's API (e.g. GET /openapi.json) to get the live schema.
+        2. Build a dynamic Pydantic model via ``build_pydantic_from_schema()``.
+        3. Cache the model so ``param_model`` returns it on subsequent calls.
+        4. Return the raw JSON Schema dict (used as ``params_schema`` in discovery).
+
+        If the app is unreachable, raise ``httpx.HTTPError`` or return the
+        static fallback ``self.param_model.model_json_schema()``.
+        """
+        ...
+
+    @abstractmethod
     async def deliver(
         self, event: MetadataEvent, clip_path: str,
     ) -> AnalysisResult | None: ...
@@ -105,3 +120,45 @@ class ICoreAppShim(ABC):
 
     @abstractmethod
     async def start(self, params: BaseModel) -> dict[str, Any]: ...
+
+    # ── Generic run lifecycle (used by /v1/core-apps/{app_id}/runs routes) ────
+
+    async def list_runs(self) -> list[dict[str, Any]]:
+        """Return all active runs for this app. Override in concrete shims."""
+        return []
+
+    async def stop_run(self, run_id: str) -> bool:
+        """Stop a run by ID. Return True on success. Override in concrete shims."""
+        return False
+
+    async def get_run(self, run_id: str) -> dict[str, Any] | None:
+        """Return details for a single run, or None if not found."""
+        return None
+
+    async def results_stream_url(self) -> str:
+        """Return the SSE/HTTP URL the plugin should proxy for live results.
+
+        The generic ``GET /results/stream`` route streams bytes from this URL.
+        Raise ``NotImplementedError`` if the app does not support streaming.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support result streaming")
+
+    async def get_options(self, option_type: str) -> list[Any]:
+        """Return a list of options for a named dropdown (e.g. 'models', 'pipelines').
+
+        The generic ``GET /options/{option_type}`` route calls this method.
+        Return an empty list for unknown option types.
+        """
+        return []
+
+    def camera_fields(self) -> list[str]:
+        """Return field names whose values are camera IDs that need RTSP resolution.
+
+        The generic start-run route resolves each listed field's value from a
+        ``camera_id`` (as sent by the UI) to a ``stream_url`` before Pydantic
+        validation, so the downstream shim always receives a real RTSP URL.
+
+        Override this in concrete shims to declare camera-bound fields.
+        The default returns an empty list (no camera resolution needed).
+        """
+        return []

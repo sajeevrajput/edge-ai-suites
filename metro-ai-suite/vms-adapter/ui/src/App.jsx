@@ -7,7 +7,7 @@ import Header from '@/components/Navbar';
 import { StatCards, CameraDiscoveryPanel, AnalyticsEnginePanel, AnalysisResultsPanel } from '@/components/MainPage';
 import ApiLogDrawer from '@/components/Drawer';
 
-import { discoverCameras, listCameras, setCameraEnabled, stopLvcRun, listLvcRuns } from '@/services/api';
+import { discoverCameras, listCameras, setCameraEnabled, stopCoreAppRun, listCoreAppRuns } from '@/services/api';
 import { useHealth } from '@/hooks';
 import { t } from '@/utils/i18n';
 
@@ -31,7 +31,7 @@ export default function App() {
     }).catch(() => {/* backend not ready yet — user can Discover manually */});
 
     // Load active LVC runs so the Live Stream tab keeps working after page refresh.
-    listLvcRuns().then((runs) => {
+    listCoreAppRuns('live_captioning').then((runs) => {
       if (Array.isArray(runs) && runs.length > 0) setLvcRuns(runs);
     }).catch(() => {/* LVC backend not ready — ignore */});
   }, []);
@@ -71,26 +71,23 @@ export default function App() {
 
   const handleStopLvc = useCallback(async (runId) => {
     try {
-      await stopLvcRun(runId);
+      await stopCoreAppRun('live_captioning', runId);
       setLvcRuns((prev) => prev.filter((r) => (r.runId || r.run_id) !== runId));
-      logApi('DELETE', `/v1/live-captioning/runs/${runId}`, 200, 'Run stopped');
+      logApi('DELETE', `/v1/core-apps/live_captioning/runs/${runId}`, 200, 'Run stopped');
       toast.success('Live Captioning run stopped');
     } catch (err) {
-      logApi('DELETE', `/v1/live-captioning/runs/${runId}`, 502, String(err));
+      logApi('DELETE', `/v1/core-apps/live_captioning/runs/${runId}`, 502, String(err));
       toast.error(`Failed to stop run: ${err.message ?? err}`);
       throw err;
     }
   }, [logApi]);
 
-  // Triggered by AnalyticsEnginePanel after a successful POST /v1/core-apps/{id}/start.
-  // The panel handles all parameter validation + the actual API call; we just record
-  // the run handle so the Live Stream tab can pick it up.
   const handleStartAnalysis = useCallback((appId, response) => {
     const run = response?.result ?? response ?? {};
     if (appId === 'live_captioning') {
       setLvcRuns((prev) => [...prev, run]);
     }
-    logApi('POST', `/v1/core-apps/${appId}/start`, 200,
+    logApi('POST', `/v1/core-apps/${appId}/runs`, 200,
       `Started ${appId} run=${run.runId ?? run.videoId ?? '(ok)'}`);
     toast.success('Analysis started — check the Live Stream tab');
   }, [logApi]);
@@ -101,12 +98,12 @@ export default function App() {
     if (!run) return;
     const runId = run.runId || run.run_id;
     try {
-      await stopLvcRun(runId);
+      await stopCoreAppRun('live_captioning', runId);
       setLvcRuns((prev) => prev.filter((r) => (r.runId || r.run_id) !== runId));
-      logApi('DELETE', `/v1/live-captioning/runs/${runId}`, 200, 'Run stopped');
+      logApi('DELETE', `/v1/core-apps/live_captioning/runs/${runId}`, 200, 'Run stopped');
       toast.success('Live Captioning run stopped');
     } catch (err) {
-      logApi('DELETE', `/v1/live-captioning/runs/${runId}`, 502, String(err));
+      logApi('DELETE', `/v1/core-apps/live_captioning/runs/${runId}`, 502, String(err));
       toast.error(`Failed to stop run: ${err.message ?? err}`);
     }
   }, [lvcRuns, logApi]);

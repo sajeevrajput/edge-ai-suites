@@ -57,34 +57,7 @@ export async function setCameraEnabled(cameraIds, enabled) {
   });
 }
 
-// ── Live Video Captioning ─────────────────────────────────────────────────────
-
-/** GET /v1/live-captioning/pipelines — list available LVC pipelines (CPU/GPU). */
-export async function getLvcPipelines() {
-  return request('/live-captioning/pipelines');
-}
-
-/** GET /v1/live-captioning/models — list available VLM models. */
-export async function getLvcModels() {
-  return request('/live-captioning/models');
-}
-
-/** GET /v1/live-captioning/runs — list active LVC runs (each with peerId for WHEP). */
-export async function listLvcRuns() {
-  const data = await request('/live-captioning/runs');
-  // Enrich each run with relative WHEP URL the UI nginx proxies to MediaMTX.
-  return (Array.isArray(data) ? data : []).map((r) => ({
-    ...r,
-    webrtcUrl: r.webrtcUrl || (r.peerId ? `/whep/${r.peerId}/whep` : ''),
-  }));
-}
-
-/** DELETE /v1/live-captioning/runs/:runId — stop a run. */
-export async function stopLvcRun(runId) {
-  return request(`/live-captioning/runs/${encodeURIComponent(runId)}`, { method: 'DELETE' });
-}
-
-// ── Core Apps (dynamic discovery) ────────────────────────────────────────────
+// ── Core Apps — generic run lifecycle ────────────────────────────────────────
 
 /**
  * GET /v1/core-apps/discover — list all registered Core Apps with their
@@ -96,12 +69,41 @@ export async function discoverCoreApps() {
 }
 
 /**
- * POST /v1/core-apps/:appId/start — validate the payload via the backend's
- * Pydantic model and trigger the analytics run. Throws an error whose
- * `.fieldErrors` is an array of `{loc, msg, type}` on 422 responses.
+ * GET /v1/core-apps/:appId/options/:optionType
+ * Returns a list of strings (models, pipelines, …) for dropdown population.
+ */
+export async function getCoreAppOptions(appId, optionType) {
+  return request(`/core-apps/${encodeURIComponent(appId)}/options/${encodeURIComponent(optionType)}`);
+}
+
+/** GET /v1/core-apps/:appId/runs — list active runs for any core app. */
+export async function listCoreAppRuns(appId) {
+  const data = await request(`/core-apps/${encodeURIComponent(appId)}/runs`);
+  return (Array.isArray(data) ? data : []).map((r) => ({
+    ...r,
+    webrtcUrl: r.webrtcUrl || (r.peerId ? `/whep/${r.peerId}/whep` : ''),
+  }));
+}
+
+/** DELETE /v1/core-apps/:appId/runs/:runId — stop a run for any core app. */
+export async function stopCoreAppRun(appId, runId) {
+  return request(
+    `/core-apps/${encodeURIComponent(appId)}/runs/${encodeURIComponent(runId)}`,
+    { method: 'DELETE' },
+  );
+}
+
+/**
+ * POST /v1/core-apps/:appId/runs — validate the payload via the backend's
+ * dynamic Pydantic model and trigger the analytics run.
+ *
+ * Throws an error with:
+ *   .status      — HTTP status code
+ *   .fieldErrors — array of {loc, msg, type} on 422 responses
+ *   .message     — human-readable error string
  */
 export async function startCoreApp(appId, payload) {
-  const res = await fetch(`${BASE}/core-apps/${encodeURIComponent(appId)}/start`, {
+  const res = await fetch(`${BASE}/core-apps/${encodeURIComponent(appId)}/runs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload ?? {}),
@@ -109,10 +111,25 @@ export async function startCoreApp(appId, payload) {
   if (!res.ok) {
     let detail;
     try { detail = (await res.json()).detail; } catch { detail = res.statusText; }
-    const err = new Error(`API ${res.status}: ${typeof detail === 'string' ? detail : 'Validation failed'}`);
+    const msg = res.status === 503
+      ? `Schema not loaded: ${typeof detail === 'string' ? detail : 'call Discover Apps first'}`
+      : res.status === 502
+        ? `Core app error: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`
+        : typeof detail === 'string' ? detail : 'Validation failed';
+    const err = new Error(`API ${res.status}: ${msg}`);
     err.status = res.status;
     err.fieldErrors = Array.isArray(detail) ? detail : [];
     throw err;
   }
   return res.json();
 }
+
+// ── Legacy aliases (kept for backward compat during transition) ───────────────
+/** @deprecated Use stopCoreAppRun('live_captioning', runId) */
+export const stopLvcRun = (runId) => stopCoreAppRun('live_captioning', runId);
+/** @deprecated Use listCoreAppRuns('live_captioning') */
+export const listLvcRuns = () => listCoreAppRuns('live_captioning');
+/** @deprecated Use getCoreAppOptions('live_captioning', 'models') */
+export const getLvcModels = () => getCoreAppOptions('live_captioning', 'models');
+/** @deprecated Use getCoreAppOptions('live_captioning', 'pipelines') */
+export const getLvcPipelines = () => getCoreAppOptions('live_captioning', 'pipelines');

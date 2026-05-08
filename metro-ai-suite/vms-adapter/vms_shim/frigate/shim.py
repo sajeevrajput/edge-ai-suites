@@ -1,15 +1,17 @@
 """Frigate VMS shim : single class, RTSP-only ingest model.
 
-Uses ONLY the documented Frigate HTTP API
-(https://docs.frigate.video/integrations/api/):
+Camera definitions live in vms_shim/frigate/config/config.yml (mounted into
+the Frigate container). All reads go through the Frigate HTTP API:
 
-  * GET  /api/version                                   - reachability / version probe
-  * GET  /api/config                                    - camera list + ffmpeg inputs (RTSP)
-  * POST /api/events/<camera>/<label>/create            - manual event (trigger recording)
+  * GET  /api/version                                   - reachability probe
+  * GET  /api/go2rtc/streams                            - camera list + RTSP stream names
+  * POST /api/events/<camera>/<label>/create            - trigger recording
   * PUT  /api/events/<event_id>/end                     - end manual event
   * POST /api/events/<event_id>/sub_label               - push label / sub_label
-  * POST /api/events/<event_id>/retain                  - retain (used as bookmark proxy)
-  * GET  /api/<camera>/recordings/<start>,<end>/clip.mp4 - clip URL surfacing
+  * GET  /api/<camera>/recordings/<start>,<end>/clip.mp4 - clip URL
+
+To add a camera: edit vms_shim/frigate/config/config.yml (cameras + go2rtc.streams),
+then call POST /v1/cameras/discover to refresh the DB from Frigate's API.
 """
 
 from __future__ import annotations
@@ -36,6 +38,10 @@ class FrigateVmsShim(IVmsShim):
         self._client: httpx.AsyncClient | None = None
         self._connected = False
 
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
+
     async def connect(self) -> None:
         self._client = httpx.AsyncClient(base_url=self._config.base_url, timeout=30.0)
         try:
@@ -56,28 +62,32 @@ class FrigateVmsShim(IVmsShim):
     def is_connected(self) -> bool:
         return self._connected
 
+    # ------------------------------------------------------------------
+    # Camera discovery — reads stream names from go2rtc API
+    # ------------------------------------------------------------------
+
     async def discover_cameras(self) -> list[Camera]:
         if not self._client:
             return []
         try:
-            resp = await self._client.get("/api/config")
+            resp = await self._client.get("/api/go2rtc/streams")
             resp.raise_for_status()
-            data = resp.json()
+            streams: dict = resp.json() or {}
         except httpx.HTTPError as e:
             logger.error("frigate_discover_failed", error=str(e))
             return []
 
+        host = self._config.base_url.split("://", 1)[-1].split(":")[0]
         cameras: list[Camera] = []
-        for cam_name, cam_data in (data.get("cameras") or {}).items():
-            enabled = cam_data.get("enabled", True)
+        for stream_name in streams:
             cameras.append(Camera(
-                camera_id=f"frigate:{cam_name}",
-                name=cam_name,
+                camera_id=f"frigate:{stream_name}",
+                name=stream_name,
                 vendor="frigate",
-                status="online" if enabled else "offline",
-                stream_url=self._extract_rtsp(cam_data),
+                status="online",
+                stream_url=f"rtsp://{host}:8554/{stream_name}",
                 enabled=False,
-                vendor_meta={"frigate_config": cam_data},
+                vendor_meta={"producers": streams[stream_name].get("producers", [])},
             ))
         logger.info("frigate_cameras_discovered", count=len(cameras))
         return cameras
@@ -86,13 +96,9 @@ class FrigateVmsShim(IVmsShim):
         cams = await self.discover_cameras()
         return next((c for c in cams if c.camera_id == camera_id), None)
 
-    @staticmethod
-    def _extract_rtsp(cam_data: dict) -> str | None:
-        for inp in (cam_data.get("ffmpeg") or {}).get("inputs") or []:
-            path = (inp or {}).get("path")
-            if isinstance(path, str) and path.startswith(("rtsp://", "rtsps://")):
-                return path
-        return None
+    # ------------------------------------------------------------------
+    # Streaming
+    # ------------------------------------------------------------------
 
     async def get_live_stream_url(self, camera_id: str) -> str | None:
         cam = await self.get_camera_metadata(camera_id)
@@ -111,16 +117,17 @@ class FrigateVmsShim(IVmsShim):
             f"/api/{cam_name}/recordings/{start},{end}/clip.mp4"
         )
 
+    # ------------------------------------------------------------------
+    # Write operations
+    # ------------------------------------------------------------------
+
     async def register_analytics(self, manifest: dict[str, Any]) -> dict[str, Any]:
-        # Frigate has no analytics-engine concept; uniform contract → no-op.
         logger.info("frigate_register_noop", keys=list(manifest.keys()))
         return {"status": "noop", "vendor": "frigate"}
 
     async def acknowledge_event(
         self, camera_id: str, event_id: str, message: str = "",
     ) -> CommandResult:
-        # Per docs.frigate.video: PUT /api/events/<id>/end ends an in-progress
-        # (typically manual) event. Closest semantic to "acknowledge".
         if not self._client:
             return _unsupported("acknowledge_event", camera_id, "Not connected")
         raw = event_id.removeprefix("frigate:")
@@ -136,8 +143,6 @@ class FrigateVmsShim(IVmsShim):
     async def set_bookmark(
         self, camera_id: str, timestamp: datetime, label: str,
     ) -> CommandResult:
-        # Frigate has no first-class bookmark concept; the closest documented
-        # primitive is event-retention. We surface this clearly as unsupported.
         return _unsupported("set_bookmark", camera_id, "Frigate has no bookmark API")
 
     async def push_label(
@@ -161,9 +166,6 @@ class FrigateVmsShim(IVmsShim):
     async def trigger_recording(
         self, camera_id: str, duration_seconds: int = 30,
     ) -> CommandResult:
-        # Per docs.frigate.video: POST /api/events/<camera>/<label>/create
-        # creates a manual event with auto-end after `duration` seconds and
-        # `include_recording: true` ensures it's persisted to recordings.
         if not self._client:
             return _unsupported("trigger_recording", camera_id, "Not connected")
         cam_name = camera_id.removeprefix("frigate:")

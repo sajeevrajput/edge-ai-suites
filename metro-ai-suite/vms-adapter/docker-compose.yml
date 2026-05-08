@@ -1,4 +1,34 @@
 services:
+  frigate:
+    image: ghcr.io/blakeblackshear/frigate:0.15.1
+    container_name: frigate
+    restart: unless-stopped
+    shm_size: "256mb"
+    networks:
+      - vms-net
+    ports:
+      - "5000:5000"   # Frigate HTTP API + HLS/WebRTC
+      - "8554:8554"   # go2rtc RTSP re-streams
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 1m
+      timeout: 20s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./vms_shim/frigate/config:/config
+      - ./vms_shim/frigate/videos:/videos:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - type: tmpfs
+        target: /tmp/cache
+        tmpfs:
+          size: 1000000000
+      - frigate_recordings:/media/frigate/recordings
+    environment:
+      no_proxy: "${no_proxy:-},frigate"
+      NO_PROXY: "${NO_PROXY:-},frigate"
+
   backend:
     build:
       context: .
@@ -16,12 +46,14 @@ services:
       VMS_PLUGIN_DATABASE_URL: "postgresql+asyncpg://${PG_USER:-vms}:${PG_PASSWORD:-vms}@postgres:${PG_PORT:-5434}/vms_plugin"
       http_proxy: ${http_proxy:-}
       https_proxy: ${https_proxy:-}
-      no_proxy: "${no_proxy:-},${FRIGATE_HOST:-},${NX_HOST:-},${LVC_HOST:-}"
+      no_proxy: "${no_proxy:-},frigate,host.docker.internal,${NX_HOST:-},${LVC_HOST:-}"
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
-      NO_PROXY: "${NO_PROXY:-},${FRIGATE_HOST:-},${NX_HOST:-},${LVC_HOST:-}"
+      NO_PROXY: "${NO_PROXY:-},frigate,host.docker.internal,${NX_HOST:-},${LVC_HOST:-}"
     depends_on:
       postgres:
+        condition: service_healthy
+      frigate:
         condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -79,3 +111,4 @@ networks:
 
 volumes:
   pgdata:
+  frigate_recordings:

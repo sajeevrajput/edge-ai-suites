@@ -23,15 +23,14 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
-  Settings2, PlayCircle, StopCircle, Loader2, AlertCircle, Cpu, ScanLine,
+  Settings2, PlayCircle, StopCircle, Loader2, AlertCircle, Cpu, ScanLine, WifiOff,
 } from 'lucide-react';
 import { t } from '@/utils/i18n';
 
 import {
   discoverCoreApps,
   startCoreApp,
-  getLvcModels,
-  getLvcPipelines,
+  getCoreAppOptions,
 } from '@/services/api';
 import SchemaForm, { initialFormState } from './SchemaForm';
 
@@ -89,7 +88,7 @@ export default function AnalyticsEnginePanel({
     onCoreAppChange?.(selectedApp.display_name);
   }, [selectedAppId]);  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Optionally fetch LVC dynamic option lists (models / pipelines) ──────
+  // ── Fetch dynamic option lists (models / pipelines / …) for selected app ──
   useEffect(() => {
     if (!selectedApp) return;
     const props = selectedApp.params_schema?.properties ?? {};
@@ -99,7 +98,7 @@ export default function AnalyticsEnginePanel({
 
     const next = { ...dynamicOptions };
     if (sources.includes('lvc-models')) {
-      getLvcModels()
+      getCoreAppOptions(selectedApp.app_id, 'models')
         .then((d) => {
           const list = Array.isArray(d) ? d : (d?.models ?? []);
           next['lvc-models'] = list.map((m) => {
@@ -111,7 +110,7 @@ export default function AnalyticsEnginePanel({
         .catch(() => {});
     }
     if (sources.includes('lvc-pipelines')) {
-      getLvcPipelines()
+      getCoreAppOptions(selectedApp.app_id, 'pipelines')
         .then((p) => {
           const list = Array.isArray(p) ? p : [];
           next['lvc-pipelines'] = list.map((x) => {
@@ -238,8 +237,23 @@ export default function AnalyticsEnginePanel({
             </div>
           )}
 
-          {/* Schema-driven parameter form */}
-          {selectedApp && (
+          {/* Offline error panel — shown instead of the form when the app is unreachable */}
+          {selectedApp && !selectedApp.available && (
+            <div className="px-[14px] py-[14px] bg-[#FAFBFF]">
+              <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-3 text-[0.78rem] text-red-800">
+                <WifiOff size={14} className="mt-[1px] shrink-0 text-red-500" />
+                <div className="flex flex-col gap-[3px]">
+                  <span className="font-semibold">{selectedApp.display_name} is not reachable</span>
+                  <span className="text-red-700">
+                    {selectedApp.error || 'The backend could not be contacted at discovery time. Re-discover once the service is running.'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Schema-driven parameter form — only shown when app is reachable and schema is available */}
+          {selectedApp && selectedApp.available && selectedApp.params_schema && (
             <div className="px-[14px] py-[14px] bg-[#FAFBFF] flex flex-col gap-[14px]">
               <span className="text-[0.72rem] font-bold uppercase tracking-[0.5px] text-[#6B7BA4]">
                 {selectedApp.display_name} — Parameters

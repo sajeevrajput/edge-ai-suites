@@ -9,10 +9,12 @@
  *   - JSON Schema "anyOf": [..., {type:"null"}]  → the non-null branch is used.
  *
  * Custom extensions honoured:
- *   - "x-vms-source": "camera"          → renders the camera dropdown using
- *                                         the `cameras` prop (enabled only).
+ *   - "x-vms-source": "camera"          → renders the camera dropdown (stores camera_id).
+ *   - "x-vms-source": "camera-rtsp"     → renders camera dropdown (stores stream_url / RTSP URL).
  *   - "x-vms-source": "lvc-models" |
- *                     "lvc-pipelines"   → caller-supplied option list.
+ *                     "lvc-pipelines"   → caller-supplied option list dropdown.
+ *   - "x-format":     "textarea"        → multi-line text area.
+ *   - "x-format":     "slider"          → range slider (for 0–1 float fields).
  */
 
 import { useMemo } from 'react';
@@ -148,7 +150,56 @@ function FieldRow({ name, field, value, onChange, options, error }) {
     default: {
       // Honour x-vms-source hints for camera-bound fields and dynamic enums.
       const src = f['x-vms-source'];
-      if (src === 'camera') {
+      const fmt = f['x-format'];
+
+      if (fmt === 'textarea') {
+        control = (
+          <textarea
+            value={value ?? ''}
+            placeholder={f.examples?.[0] ?? ''}
+            rows={3}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full rounded-md border border-[#DDE3F0] bg-[#F7F9FF] px-3 py-2 text-[0.82rem] text-[#374163] resize-y focus:outline-none focus:ring-1 focus:ring-[#0071C5]"
+          />
+        );
+      } else if (fmt === 'slider') {
+        const min = f.minimum ?? 0;
+        const max = f.maximum ?? 1;
+        const step = f.type === 'integer' ? 1 : 0.01;
+        const num = value == null || value === '' ? min : Number(value);
+        control = (
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={min}
+              max={max}
+              step={step}
+              value={num}
+              onChange={(e) => onChange(Number(e.target.value))}
+              className="flex-1 accent-[#0071C5]"
+            />
+            <span className="text-[0.82rem] font-mono-vms text-[#374163] w-10 text-right">{num}</span>
+          </div>
+        );
+      } else if (src === 'camera-id') {
+        // Camera dropdown: shows camera name, stores camera_id as value.
+        // Backend resolves camera_id → RTSP stream_url before calling the core app.
+        const cams = (options.cameras ?? []).filter((c) => c.enabled !== false);
+        control = (
+          <Select value={value ?? ''} onValueChange={onChange}>
+            <SelectTrigger className="h-8 text-[0.82rem] border-[#DDE3F0] bg-[#F7F9FF]">
+              <SelectValue placeholder={cams.length === 0 ? 'No enabled cameras' : 'Select camera…'} />
+            </SelectTrigger>
+            <SelectContent>
+              {cams.map((c) => (
+                <SelectItem key={c.camera_id} value={c.camera_id}>
+                  {c.camera_name || c.name || c.camera_id}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      } else if (src === 'camera') {
         const cams = options.cameras ?? [];
         control = (
           <Select value={value ?? ''} onValueChange={onChange}>
@@ -158,6 +209,23 @@ function FieldRow({ name, field, value, onChange, options, error }) {
             <SelectContent>
               {cams.map((c) => (
                 <SelectItem key={c.camera_id} value={c.camera_id}>
+                  {c.camera_name || c.name || c.camera_id}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      } else if (src === 'camera-rtsp') {
+        // Camera dropdown that stores the camera's stream_url (RTSP URL) as the value.
+        const cams = (options.cameras ?? []).filter((c) => c.stream_url);
+        control = (
+          <Select value={value ?? ''} onValueChange={onChange}>
+            <SelectTrigger className="h-8 text-[0.82rem] border-[#DDE3F0] bg-[#F7F9FF]">
+              <SelectValue placeholder={cams.length === 0 ? 'No cameras with RTSP stream' : 'Select camera…'} />
+            </SelectTrigger>
+            <SelectContent>
+              {cams.map((c) => (
+                <SelectItem key={c.camera_id} value={c.stream_url}>
                   {c.camera_name || c.name || c.camera_id}
                 </SelectItem>
               ))}
@@ -238,21 +306,26 @@ export default function SchemaForm({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-[12px]">
-      {Object.entries(schema.properties).map(([key, field]) => (
-        <div
-          key={key}
-          className={fieldType(field) === 'boolean' ? 'sm:col-span-2' : ''}
-        >
-          <FieldRow
-            name={key}
-            field={field}
-            value={value?.[key]}
-            onChange={setField(key)}
-            options={{ cameras, dynamicOptions, requiredSet }}
-            error={fieldError(errors, key)}
-          />
-        </div>
-      ))}
+      {Object.entries(schema.properties).map(([key, field]) => {
+        const f = unwrapAnyOf(field);
+        // Skip fields marked as hidden (they are handled by a composite control elsewhere)
+        if (f['x-hidden']) return null;
+        const fullWidth = fieldType(field) === 'boolean'
+          || f['x-format'] === 'textarea'
+          || f['x-format'] === 'slider';
+        return (
+          <div key={key} className={fullWidth ? 'sm:col-span-2' : ''}>
+            <FieldRow
+              name={key}
+              field={field}
+              value={value?.[key]}
+              onChange={setField(key)}
+              options={{ cameras, dynamicOptions, requiredSet }}
+              error={fieldError(errors, key)}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

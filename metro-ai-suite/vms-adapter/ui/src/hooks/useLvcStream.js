@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-const SSE_URL = '/v1/live-captioning/stream';
+const SSE_URL = '/v1/core-apps/live_captioning/results/stream';
 
 export default function useLvcStream(enabled = false) {
   const [captions, setCaptions] = useState({});   // { [runId]: string[] }

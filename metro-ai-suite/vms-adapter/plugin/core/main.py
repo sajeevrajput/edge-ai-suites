@@ -12,7 +12,6 @@ from plugin.core.api.routes import (
     core_apps as core_apps_routes,
     events,
     health,
-    live_captioning as lvc_routes,
     sessions as sessions_routes,
     vms as vms_routes,
 )
@@ -50,7 +49,6 @@ def create_app() -> FastAPI:
     application.include_router(config_routes.router, prefix="/v1", tags=["Config"]) # status of VMS-analytics app
     application.include_router(vms_routes.router, prefix="/v1", tags=["VMS"])
     application.include_router(core_apps_routes.router, prefix="/v1")
-    application.include_router(lvc_routes.router, prefix="/v1", tags=["Live Captioning"])
     application.include_router(sessions_routes.router, prefix="/v1")
     return application
 

@@ -26,12 +26,13 @@ class CameraView(BaseModel):
     vendor: Literal["frigate", "nx_witness"]
     status: Literal["online", "offline", "unknown"]
     enabled: bool
+    stream_url: str | None = None
 
     @classmethod
     def from_camera(cls, cam: Camera) -> "CameraView":
         return cls(
             camera_id=cam.camera_id, name=cam.name, vendor=cam.vendor,
-            status=cam.status, enabled=cam.enabled,
+            status=cam.status, enabled=cam.enabled, stream_url=cam.stream_url,
         )
 
 
