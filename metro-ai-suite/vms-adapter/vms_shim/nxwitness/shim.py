@@ -1,20 +1,27 @@
-"""Nx Witness VMS shim — single class, standard REST API v4 only.
+"""Nx Witness VMS shim - single class, standard REST API v4 only.
 
 All endpoints used here are documented in the official Nx Meta API tool
 (https://meta.nxvms.com/doc/developers/api-tool):
 
-  * POST   /rest/v4/login/sessions               → create session token
-  * DELETE /rest/v4/login/sessions/{token}       → invalidate session
-  * GET    /rest/v4/servers/*/info               → reachability probe (returns array)
-  * GET    /rest/v4/devices                      → list devices
-  * GET    /rest/v4/devices/{deviceId}           → device record
-  * POST   /rest/v4/devices/{deviceId}/bookmarks → create bookmark
-  * GET    /rest/v4/analytics/engines            → list engines
-  * PATCH  /rest/v4/devices/{deviceId}           → toggle recording
+  * POST   /rest/v4/login/sessions               -> create session token
+  * DELETE /rest/v4/login/sessions/{token}       -> invalidate session
+  * GET    /rest/v4/servers/*/info               -> reachability probe (returns array)
+  * GET    /rest/v4/devices                      -> list devices
+  * GET    /rest/v4/devices/{deviceId}           -> device record
+  * GET    /{deviceId}                           -> RTSP live stream URL (constructed, not called)
+  * POST   /rest/v4/devices/{deviceId}/bookmarks -> create bookmark
+  * GET    /rest/v4/analytics/engines            -> list engines
+  * PATCH  /rest/v4/devices/{deviceId}           -> toggle recording
 
-No URL is hand-built outside the REST API. The live RTSP and clip URLs
-are taken from the device record's ``mediaStreams`` /  ``url`` fields
-returned by the server.
+Live RTSP URLs are constructed client-side per the Nx v4 spec
+(``/{deviceId}`` Utilities endpoint):
+
+  rtsp://<host>:<port>/{deviceId}?onvif_replay=true
+
+The media server serves RTSP on the same host and port as the REST API.
+Credentials are embedded in the URL for third-party RTSP client compatibility
+(VLC, FFmpeg, etc.) since those require Basic/Digest auth. Clip URLs are
+built using the documented ``/rest/v4/devices/{id}/footage`` endpoint.
 """
 
 from __future__ import annotations
@@ -22,6 +29,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 import structlog
@@ -42,7 +50,7 @@ class NxWitnessVmsShim(IVmsShim):
         self._connected = False
         self._token: str | None = None
 
-    # ── Lifecycle ───────────────────────────────────────────────────────
+    # -- Lifecycle ------------------------------------------------------
     async def connect(self) -> None:
         self._client = httpx.AsyncClient(
             base_url=self._config.base_url,
@@ -91,7 +99,7 @@ class NxWitnessVmsShim(IVmsShim):
     def is_connected(self) -> bool:
         return self._connected
 
-    # ── Discovery / metadata ───────────────────────────────────────────
+    # -- Discovery / metadata ------------------------------------------
     async def discover_cameras(self) -> list[Camera]:
         if not self._client:
             return []
@@ -122,19 +130,19 @@ class NxWitnessVmsShim(IVmsShim):
         except httpx.HTTPError:
             return None
 
-    # ── Stream / clip URLs (taken from server response) ────────────────
+    # -- Stream / clip URLs --------------------------------------------
     async def get_live_stream_url(self, camera_id: str) -> str | None:
-        cam = await self.get_camera_metadata(camera_id)
-        if not cam:
-            return None
-        # Nx returns the playback URL under the device's mediaStreams /
-        # url fields. We never construct one client-side.
-        meta = cam.vendor_meta or {}
-        for stream in meta.get("mediaStreams") or []:
-            url = stream.get("url")
-            if isinstance(url, str) and url.startswith(("rtsp://", "rtsps://")):
-                return url
-        return cam.stream_url
+        """Build live RTSP URL per Nx Utilities with onvif_replay enabled."""
+        device_id = camera_id.removeprefix("nx:")
+        parsed = urlparse(self._config.base_url)
+        host = parsed.hostname or self._config.base_url
+        port = parsed.port or 7001
+        auth = self._config.auth
+
+        if auth.username:
+            return f"rtsp://{auth.username}:{auth.password}@{host}:{port}/{device_id}?onvif_replay=true"    #TODO credentials in plain text. must hide it
+        else:
+            return f"rtsp://{host}:{port}/{device_id}?onvif_replay=true"
 
     async def get_clip_url(
         self, camera_id: str, from_dt: datetime, to_dt: datetime,
@@ -153,7 +161,7 @@ class NxWitnessVmsShim(IVmsShim):
             f"&endTimeMs={int(to_dt.timestamp() * 1000)}"
         )
 
-    # ── Register analytics manifest ────────────────────────────────────
+    # -- Register analytics manifest -----------------------------------
     async def register_analytics(self, manifest: dict[str, Any]) -> dict[str, Any]:
         if not self._client:
             return {"status": "error", "reason": "not_connected"}
@@ -171,12 +179,12 @@ class NxWitnessVmsShim(IVmsShim):
         except httpx.HTTPError as e:
             return {"status": "error", "reason": str(e)}
 
-    # ── Write-back ─────────────────────────────────────────────────────
+    # -- Write-back -----------------------------------------------------
     async def acknowledge_event(
         self, camera_id: str, event_id: str, message: str = "",
     ) -> CommandResult:
         # Acknowledgement of analytics events is not part of the standard
-        # /rest/v4 surface — it is plugin-specific in Nx. Return unsupported.
+        # /rest/v4 surface - it is plugin-specific in Nx. Return unsupported.
         return _unsupported("acknowledge_event", camera_id,
                             "Standard Nx v4 REST API has no event-acknowledgement endpoint")
 
@@ -206,7 +214,7 @@ class NxWitnessVmsShim(IVmsShim):
         self, camera_id: str, event_id: str, labels: list[str],
         confidence: float | None = None,
     ) -> CommandResult:
-        # The plugin maps labels to a bookmark — that is the only standard
+        # The plugin maps labels to a bookmark - that is the only standard
         # storage surface available without an analytics engine plugin.
         return await self.set_bookmark(
             camera_id, datetime.utcnow(), ", ".join(labels),
@@ -232,7 +240,7 @@ class NxWitnessVmsShim(IVmsShim):
             return _result(camera_id, "trigger_recording", "timeout", str(e))
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────
+# -- Helpers -------------------------------------------------------------
 
 def _to_camera(d: dict) -> Camera:
     nx_status = d.get("status", "")
@@ -247,6 +255,7 @@ def _to_camera(d: dict) -> Camera:
         vendor_meta=d,
     )
 
+
 def _result(camera_id: str, ctype: str, status: str, msg: str) -> CommandResult:
     return CommandResult(
         command_id=str(uuid.uuid4()), camera_id=camera_id,
@@ -255,4 +264,4 @@ def _result(camera_id: str, ctype: str, status: str, msg: str) -> CommandResult:
 
 
 def _unsupported(ctype: str, camera_id: str, msg: str) -> CommandResult:
-    return _result(camera_id, ctype, "unsupported", msg)
+    return _result(ctype=ctype, camera_id=camera_id, status="unsupported", msg=msg)

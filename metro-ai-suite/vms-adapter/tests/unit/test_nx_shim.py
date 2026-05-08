@@ -21,23 +21,10 @@ def test_initial_state(nx_config):
 
 
 @pytest.mark.asyncio
-async def test_get_live_stream_url_uses_server_data(nx_config):
+async def test_get_live_stream_url_includes_onvif_replay(nx_config):
     shim = NxWitnessVmsShim(nx_config)
-
-    class _Resp:
-        def raise_for_status(self): return None
-        def json(self): return {
-            "id": "device-1", "name": "Cam", "deviceType": "Camera",
-            "status": "Online", "url": "rtsp://nx/device-1",
-            "mediaStreams": [{"url": "rtsp://nx/device-1/primary"}],
-        }
-
-    class _Client:
-        async def get(self, path, params=None): return _Resp()
-
-    shim._client = _Client()
     url = await shim.get_live_stream_url("nx:device-1")
-    assert url == "rtsp://nx/device-1/primary"
+    assert url == "rtsp://admin:test@localhost:7001/device-1?onvif_replay=true"
 
 
 @pytest.mark.asyncio
