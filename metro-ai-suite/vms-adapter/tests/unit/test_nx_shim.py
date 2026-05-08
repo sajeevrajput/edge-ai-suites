@@ -43,9 +43,19 @@ async def test_acknowledge_is_unsupported(nx_config):
 
 
 class _FakeResp:
-    def __init__(self, payload): self._p = payload
-    def raise_for_status(self): return None
-    def json(self): return self._p
+    def __init__(self, payload, status_code=200):
+        self._p = payload
+        self.status_code = status_code
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            import httpx
+            raise httpx.HTTPStatusError(
+                "error", request=None, response=self  # type: ignore[arg-type]
+            )
+
+    def json(self):
+        return self._p
 
 
 class _FakeClient:
@@ -54,7 +64,7 @@ class _FakeClient:
         self.calls = []
 
     async def get(self, path, params=None):
-        self.calls.append((path, params))
+        self.calls.append(("GET", path, params))
         return _FakeResp(self.payload)
 
 
@@ -69,6 +79,126 @@ async def test_discover_cameras_uses_rest_v4_devices(nx_config):
     ])
     shim._client = fake
     cams = await shim.discover_cameras()
-    assert fake.calls == [("/rest/v4/devices", None)]
+    assert fake.calls == [("GET", "/rest/v4/devices", None)]
     assert len(cams) == 1
     assert cams[0].camera_id == "nx:device-1"
+
+
+# ── register_analytics tests ────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_register_analytics_no_manifest_lists_engines(nx_config):
+    """Empty manifest falls back to listing Nx engines."""
+    shim = NxWitnessVmsShim(nx_config)
+    fake = _FakeClient([{"id": "eng-1"}])
+    shim._client = fake
+    result = await shim.register_analytics({})
+    assert result["status"] == "ok"
+    assert result["engines"] == [{"id": "eng-1"}]
+
+
+@pytest.mark.asyncio
+async def test_register_analytics_not_connected(nx_config):
+    shim = NxWitnessVmsShim(nx_config)
+    # _client is None (not connected)
+    result = await shim.register_analytics({
+        "integrationManifest": {"id": "test"},
+        "engineManifest": {"typeLibrary": {}},
+    })
+    assert result["status"] == "error"
+    assert result["reason"] == "not_connected"
+
+
+class _FullRegistrationClient:
+    """Fake client that simulates Phase 1 Nx REST workflow."""
+
+    def __init__(self):
+        self.calls: list[tuple] = []
+
+    async def post(self, path, json=None):
+        self.calls.append(("POST", path, json))
+        if "requests" in path and "approve" not in path:
+            return _FakeResp({
+                "username": "integration_user",
+                "password": "secret123",
+                "requestId": "req-abc-123",
+            })
+        if "approve" in path:
+            return _FakeResp({})
+        return _FakeResp({})
+
+
+@pytest.mark.asyncio
+async def test_register_analytics_full_phase1_success(nx_config):
+    """Full Phase 1: create request + approve → returns approved credentials."""
+    shim = NxWitnessVmsShim(nx_config)
+    shim._client = _FullRegistrationClient()
+
+    manifests = {
+        "integrationManifest": {"id": "test.integration", "name": "Test"},
+        "engineManifest": {"typeLibrary": {"objectTypes": []}},
+        "deviceAgentManifest": {"supportedTypes": []},
+        "pinCode": "9999",
+    }
+    result = await shim.register_analytics(manifests)
+
+    assert result["status"] == "approved"
+    assert result["username"] == "integration_user"
+    assert result["password"] == "secret123"
+    assert result["request_id"] == "req-abc-123"
+
+    calls = shim._client.calls
+    # First call: create integration request
+    assert calls[0][1] == "/rest/v4/analytics/integrations/*/requests"
+    assert calls[0][2]["pinCode"] == "9999"
+    assert calls[0][2]["integrationManifest"]["id"] == "test.integration"
+    assert calls[0][2]["isRestOnly"] is True
+    # Second call: approve
+    assert "approve" in calls[1][1]
+    assert calls[1][2]["requestId"] == "req-abc-123"
+
+
+@pytest.mark.asyncio
+async def test_register_analytics_without_device_agent_manifest(nx_config):
+    """deviceAgentManifest is optional; should not be sent if absent."""
+    shim = NxWitnessVmsShim(nx_config)
+    shim._client = _FullRegistrationClient()
+
+    manifests = {
+        "integrationManifest": {"id": "test.integration", "name": "Test"},
+        "engineManifest": {"typeLibrary": {}},
+    }
+    result = await shim.register_analytics(manifests)
+    assert result["status"] == "approved"
+
+    create_call_payload = shim._client.calls[0][2]
+    assert "deviceAgentManifest" not in create_call_payload
+
+
+class _FailApprovalClient(_FullRegistrationClient):
+    """Create succeeds but approve fails."""
+
+    async def post(self, path, json=None):
+        self.calls.append(("POST", path, json))
+        if "requests" in path and "approve" not in path:
+            return _FakeResp({
+                "username": "user", "password": "pw", "requestId": "req-1",
+            })
+        # Approval returns 500
+        return _FakeResp({}, status_code=500)
+
+
+@pytest.mark.asyncio
+async def test_register_analytics_approval_failure(nx_config):
+    """If approval fails, status is 'registered' not 'approved'."""
+    shim = NxWitnessVmsShim(nx_config)
+    shim._client = _FailApprovalClient()
+
+    manifests = {
+        "integrationManifest": {"id": "test"},
+        "engineManifest": {"typeLibrary": {}},
+    }
+    result = await shim.register_analytics(manifests)
+    assert result["status"] == "registered"
+    assert result["username"] == "user"
+    assert "reason" in result

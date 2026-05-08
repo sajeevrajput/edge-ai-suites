@@ -9,8 +9,8 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from plugin.core.models.db import AnalyticsSessionRow, CameraRow, MetadataEventRow
-from plugin.core.models.domain import AnalyticsSession, AnalyticsSessionCreate, Camera, MetadataEvent
+from plugin.core.models.db import AnalyticsSessionRow, CameraRow, MetadataEventRow, NxAnalyticsIntegrationRow
+from plugin.core.models.domain import AnalyticsSession, AnalyticsSessionCreate, Camera, MetadataEvent, NxAnalyticsIntegration
 
 
 async def upsert_camera(session: AsyncSession, camera: Camera) -> None:
@@ -223,4 +223,77 @@ def _row_to_session(row: AnalyticsSessionRow) -> AnalyticsSession:
         app_state=row.app_state or {},
         started_at=row.started_at,
         stopped_at=row.stopped_at,
+    )
+
+
+# ── Nx Analytics Integration CRUD ───────────────────────────────────────────
+
+async def upsert_nx_integration(
+    session: AsyncSession,
+    vms_name: str,
+    integration_manifest: dict,
+    engine_manifest: dict,
+    device_agent_manifest: dict | None,
+    nx_username: str | None,
+    nx_password: str | None,
+    nx_request_id: str | None,
+    status: str,
+) -> NxAnalyticsIntegration:
+    """Insert or update an Nx analytics integration record keyed by vms_name."""
+    registered_at = datetime.now(timezone.utc) if status == "approved" else None
+    base = pg_insert(NxAnalyticsIntegrationRow).values(
+        id=str(uuid.uuid4()),
+        vms_name=vms_name,
+        integration_manifest=integration_manifest,
+        engine_manifest=engine_manifest,
+        device_agent_manifest=device_agent_manifest,
+        nx_username=nx_username,
+        nx_password=nx_password,
+        nx_request_id=nx_request_id,
+        status=status,
+        registered_at=registered_at,
+    )
+    stmt = base.on_conflict_do_update(
+        index_elements=["vms_name"],
+        set_={
+            "integration_manifest": base.excluded.integration_manifest,
+            "engine_manifest": base.excluded.engine_manifest,
+            "device_agent_manifest": base.excluded.device_agent_manifest,
+            "nx_username": base.excluded.nx_username,
+            "nx_password": base.excluded.nx_password,
+            "nx_request_id": base.excluded.nx_request_id,
+            "status": base.excluded.status,
+            "registered_at": base.excluded.registered_at,
+        },
+    ).returning(NxAnalyticsIntegrationRow)
+    result = await session.execute(stmt)
+    await session.commit()
+    row = result.scalar_one()
+    return _row_to_nx_integration(row)
+
+
+async def get_nx_integration(
+    session: AsyncSession, vms_name: str,
+) -> NxAnalyticsIntegration | None:
+    result = await session.execute(
+        select(NxAnalyticsIntegrationRow).where(
+            NxAnalyticsIntegrationRow.vms_name == vms_name
+        )
+    )
+    row = result.scalar_one_or_none()
+    return _row_to_nx_integration(row) if row else None
+
+
+def _row_to_nx_integration(row: NxAnalyticsIntegrationRow) -> NxAnalyticsIntegration:
+    return NxAnalyticsIntegration(
+        id=row.id,
+        vms_name=row.vms_name,
+        integration_manifest=row.integration_manifest or {},
+        engine_manifest=row.engine_manifest or {},
+        device_agent_manifest=row.device_agent_manifest,
+        nx_username=row.nx_username,
+        nx_password=row.nx_password,
+        nx_request_id=row.nx_request_id,
+        status=row.status,
+        registered_at=row.registered_at,
     )

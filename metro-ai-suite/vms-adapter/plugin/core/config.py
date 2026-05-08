@@ -62,6 +62,10 @@ class NvrInstanceConfig(BaseModel):
     vendor: Literal["frigate", "nx_witness"]
     base_url: str = ""
     auth: NvrAuthConfig = Field(default_factory=NvrAuthConfig)
+    # Path to a JSON file containing Nx analytics integration manifests.
+    # Expected keys: integrationManifest, engineManifest, deviceAgentManifest, pinCode.
+    # Used only by the nx_witness vendor.
+    analytics_manifest_path: str | None = None
 
 
 class LiveCaptioningCoreAppConfig(BaseModel):

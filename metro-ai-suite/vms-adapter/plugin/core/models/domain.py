@@ -127,6 +127,27 @@ class ClipUrlResponse(BaseModel):
 class RegisterRequest(BaseModel):
     """Request body for POST /v1/vms/{name}/register."""
     manifest: dict = Field(default_factory=dict)
+    # Nx-specific: structured manifests (take priority over manifest dict)
+    integration_manifest: dict | None = None
+    engine_manifest: dict | None = None
+    device_agent_manifest: dict | None = None
+    pin_code: str = "1234"
+
+
+# ── Nx Analytics Integration models ─────────────────────────────────────────
+
+class NxAnalyticsIntegration(BaseModel):
+    """Nx Analytics Integration record persisted to the DB after Phase 1 registration."""
+    id: str
+    vms_name: str
+    integration_manifest: dict = Field(default_factory=dict)
+    engine_manifest: dict = Field(default_factory=dict)
+    device_agent_manifest: dict | None = None
+    nx_username: str | None = None
+    nx_password: str | None = None
+    nx_request_id: str | None = None
+    status: Literal["pending", "registered", "approved", "failed"] = "pending"
+    registered_at: datetime | None = None
 
 
 # ── Session models ───────────────────────────────────────────────────────────

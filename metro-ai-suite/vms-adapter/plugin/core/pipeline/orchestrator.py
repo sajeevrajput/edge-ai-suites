@@ -8,6 +8,8 @@ results back to /v1/analysis/results.
 from __future__ import annotations
 
 import asyncio
+import json
+from pathlib import Path
 
 import structlog
 
@@ -54,10 +56,13 @@ class Orchestrator:
             except Exception:
                 logger.exception("vms_connect_failed", nvr=ss.name)
                 continue
-            try:
-                await ss.vms_shim.register_analytics(_DEFAULT_MANIFEST)
-            except Exception:
-                logger.exception("vms_register_failed", nvr=ss.name)
+            if ss.config.vendor == "nx_witness" and ss.config.analytics_manifest_path:
+                await self._autoregister_nx_integration(ss)
+            else:
+                try:
+                    await ss.vms_shim.register_analytics(_DEFAULT_MANIFEST)
+                except Exception:
+                    logger.exception("vms_register_failed", nvr=ss.name)
 
         self._wire_core_app_resolvers()
 
@@ -75,6 +80,75 @@ class Orchestrator:
         await self._reconcile_sessions()
 
         logger.info("orchestrator_started", nvr_count=len(self.nvr_shim_sets))
+
+    async def _autoregister_nx_integration(self, ss: NvrShimSet) -> None:
+        """Register Nx analytics integration on startup if not already approved in DB."""
+        from plugin.core.db.session import get_session_factory
+        from plugin.core.db import repository as repo
+
+        try:
+            factory = get_session_factory()
+        except RuntimeError:
+            logger.warning("autoregister_skipped_no_db", nvr=ss.name)
+            return
+
+        async with factory() as db:
+            existing = await repo.get_nx_integration(db, ss.name)
+            if existing and existing.status == "approved":
+                logger.info(
+                    "nx_integration_already_registered",
+                    nvr=ss.name,
+                    username=existing.nx_username,
+                )
+                return
+
+        manifest_path = Path(ss.config.analytics_manifest_path)  # type: ignore[arg-type]
+        if not manifest_path.exists():
+            logger.error(
+                "nx_manifest_file_not_found",
+                nvr=ss.name,
+                path=str(manifest_path),
+            )
+            return
+
+        try:
+            with open(manifest_path) as f:
+                manifests = json.load(f)
+        except Exception as exc:
+            logger.error(
+                "nx_manifest_file_parse_failed",
+                nvr=ss.name,
+                path=str(manifest_path),
+                error=str(exc),
+            )
+            return
+
+        try:
+            result = await ss.vms_shim.register_analytics(manifests)
+        except Exception:
+            logger.exception("nx_autoregister_failed", nvr=ss.name)
+            return
+
+        nx_status = result.get("status", "failed")
+        async with factory() as db:
+            await repo.upsert_nx_integration(
+                db,
+                vms_name=ss.name,
+                integration_manifest=manifests.get("integrationManifest", {}),
+                engine_manifest=manifests.get("engineManifest", {}),
+                device_agent_manifest=manifests.get("deviceAgentManifest"),
+                nx_username=result.get("username"),
+                nx_password=result.get("password"),
+                nx_request_id=result.get("request_id"),
+                status=nx_status,
+            )
+
+        logger.info(
+            "nx_integration_autoregistered",
+            nvr=ss.name,
+            status=nx_status,
+            username=result.get("username"),
+        )
 
     def _wire_core_app_resolvers(self) -> None:
         """Inject an RTSP resolver that defers to IVmsShim.get_live_stream_url."""

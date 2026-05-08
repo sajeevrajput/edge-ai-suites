@@ -163,21 +163,114 @@ class NxWitnessVmsShim(IVmsShim):
 
     # -- Register analytics manifest -----------------------------------
     async def register_analytics(self, manifest: dict[str, Any]) -> dict[str, Any]:
+        """Phase 1 Nx Analytics Integration registration.
+
+        If ``manifest`` contains the structured Nx keys (``integrationManifest``,
+        ``engineManifest``), the full Phase 1 REST workflow is executed:
+          1. POST /rest/v4/analytics/integrations/*/requests
+          2. POST .../requests/{requestId}/approve
+
+        If the manifest is empty or missing those keys, falls back to listing
+        existing engines (backward-compatible behaviour for non-Nx callers).
+        """
         if not self._client:
             return {"status": "error", "reason": "not_connected"}
-        try:
-            # Standard endpoint for listing engines is GET; manifest
-            # registration is per-engine and out of scope of this
-            # shim's required surface. Acknowledge the call and return
-            # the engine list so callers can introspect what's available.
-            resp = await self._client.get("/rest/v4/analytics/engines")
+
+        integration_manifest = manifest.get("integrationManifest")
+        engine_manifest = manifest.get("engineManifest")
+
+        if not integration_manifest or not engine_manifest:
+            # Backward-compat: just list available engines.
+            try:
+                resp = await self._client.get("/rest/v4/analytics/engines")
+                return {
+                    "status": "ok" if resp.status_code == 200 else "error",
+                    "http_status": resp.status_code,
+                    "engines": resp.json() if resp.status_code == 200 else None,
+                }
+            except httpx.HTTPError as e:
+                return {"status": "error", "reason": str(e)}
+
+        device_agent_manifest = manifest.get("deviceAgentManifest")
+        pin_code = manifest.get("pinCode", "1234")
+
+        creds = await self._create_integration_request(
+            integration_manifest, engine_manifest, device_agent_manifest, pin_code,
+        )
+        if creds is None:
+            return {"status": "error", "reason": "create_integration_request_failed"}
+
+        approved = await self._approve_integration_request(creds["request_id"])
+        if not approved:
             return {
-                "status": "ok" if resp.status_code == 200 else "error",
-                "http_status": resp.status_code,
-                "engines": resp.json() if resp.status_code == 200 else None,
+                "status": "registered",
+                "username": creds["username"],
+                "password": creds["password"],
+                "request_id": creds["request_id"],
+                "reason": "approval_failed",
+            }
+
+        logger.info(
+            "nx_integration_approved",
+            username=creds["username"],
+            request_id=creds["request_id"],
+        )
+        return {
+            "status": "approved",
+            "username": creds["username"],
+            "password": creds["password"],
+            "request_id": creds["request_id"],
+        }
+
+    async def _create_integration_request(
+        self,
+        integration_manifest: dict[str, Any],
+        engine_manifest: dict[str, Any],
+        device_agent_manifest: dict[str, Any] | None,
+        pin_code: str,
+    ) -> dict[str, str] | None:
+        """POST /rest/v4/analytics/integrations/*/requests.
+
+        Returns ``{"username": ..., "password": ..., "request_id": ...}``
+        or ``None`` on failure.
+        """
+        payload: dict[str, Any] = {
+            "integrationManifest": integration_manifest,
+            "engineManifest": engine_manifest,
+            "pinCode": pin_code,
+            "isRestOnly": True,
+        }
+        if device_agent_manifest:
+            payload["deviceAgentManifest"] = device_agent_manifest
+
+        try:
+            resp = await self._client.post(  # type: ignore[union-attr]
+                "/rest/v4/analytics/integrations/*/requests",
+                json=payload,
+            )
+            resp.raise_for_status()
+            result = resp.json()
+            return {
+                "username": result.get("username", ""),
+                "password": result.get("password", ""),
+                "request_id": result.get("requestId", ""),
             }
         except httpx.HTTPError as e:
-            return {"status": "error", "reason": str(e)}
+            logger.error("nx_create_integration_failed", error=str(e))
+            return None
+
+    async def _approve_integration_request(self, request_id: str) -> bool:
+        """POST /rest/v4/analytics/integrations/*/requests/{requestId}/approve."""
+        try:
+            resp = await self._client.post(  # type: ignore[union-attr]
+                f"/rest/v4/analytics/integrations/*/requests/{request_id}/approve",
+                json={"requestId": request_id},
+            )
+            resp.raise_for_status()
+            return True
+        except httpx.HTTPError as e:
+            logger.error("nx_approve_integration_failed", error=str(e), request_id=request_id)
+            return False
 
     # -- Write-back -----------------------------------------------------
     async def acknowledge_event(
