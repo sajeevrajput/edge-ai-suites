@@ -50,6 +50,8 @@ services:
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: "${NO_PROXY:-},frigate,host.docker.internal,${NX_HOST:-},${LVC_HOST:-}"
+      MQTT_BROKER_HOST: "${MQTT_BROKER_HOST:-host.docker.internal}"
+      MQTT_BROKER_PORT: "${MQTT_BROKER_PORT:-1883}"
     depends_on:
       postgres:
         condition: service_healthy

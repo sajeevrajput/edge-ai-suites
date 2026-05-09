@@ -162,14 +162,23 @@ class LiveCaptioningCoreAppShim(ICoreAppShim):
 
     # ── ICoreAppShim — generic run management ─────────────────────────────────
 
+    def _enrich_run(self, run: dict[str, Any]) -> dict[str, Any]:
+        """Add webrtcUrl to a run dict using the peerId from LVC."""
+        peer_id = run.get("peerId", "")
+        if peer_id and "webrtcUrl" not in run:
+            run["webrtcUrl"] = f"/whep/{peer_id}/whep"
+        return run
+
     async def list_runs(self) -> list[dict[str, Any]]:
-        return await self._api.list_runs()
+        runs = await self._api.list_runs()
+        return [self._enrich_run(r) for r in runs]
 
     async def stop_run(self, run_id: str) -> bool:
         return await self._api.stop_run(run_id)
 
     async def get_run(self, run_id: str) -> dict[str, Any] | None:
-        return await self._api.get_run(run_id)
+        run = await self._api.get_run(run_id)
+        return self._enrich_run(run) if run else None
 
     async def results_stream_url(self) -> str:
         return self._api.results_stream_url
@@ -190,3 +199,7 @@ class LiveCaptioningCoreAppShim(ICoreAppShim):
             for name, prop in self._schema_mgr.annotated_props.items()
             if prop.get("x-vms-source") == "camera-id"
         ]
+
+    def mqtt_topic_prefix(self) -> str:
+        """LVC publishes caption results to MQTT topic ``live-video-captioning/{run_id}``."""
+        return "live-video-captioning"

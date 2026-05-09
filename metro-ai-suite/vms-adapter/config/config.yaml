@@ -39,5 +39,9 @@ api:
   port: 8080
   api_key: "${VMS_PLUGIN_API_KEY:-}"
 
+mqtt:
+  host: "${MQTT_BROKER_HOST:-}"
+  port: ${MQTT_BROKER_PORT:-1883}
+
 database:
   url: "postgresql+asyncpg://${PG_USER:-vms}:${PG_PASSWORD:-vms}@${PG_HOST:-postgres}:${PG_PORT:-5434}/vms_plugin"

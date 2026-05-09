@@ -2,7 +2,7 @@
  * useLvcStream — subscribes to the Live Captioning SSE metadata stream.
  *
  * Returns a `captions` map keyed by runId, where each value is an array of
- * caption strings (most-recent first), plus the raw last envelope object.
+ * caption objects { text, timestampSeconds } (most-recent first).
  *
  * Usage:
  *   const { captions, connected } = useLvcStream(enabled);
@@ -14,7 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 const SSE_URL = '/v1/core-apps/live_captioning/results/stream';
 
 export default function useLvcStream(enabled = false) {
-  const [captions, setCaptions] = useState({});   // { [runId]: string[] }
+  const [captions, setCaptions] = useState({});   // { [runId]: {text, timestampSeconds}[] }
   const [connected, setConnected] = useState(false);
   const esRef = useRef(null);
 
@@ -34,8 +34,8 @@ export default function useLvcStream(enabled = false) {
     es.onmessage = (ev) => {
       try {
         const envelope = JSON.parse(ev.data);
-        // Skip status heartbeats — only handle caption envelopes
-        if (envelope?.type === 'status' || !envelope?.runId) return;
+        // Skip heartbeats — only handle caption envelopes
+        if (envelope?.type === 'status' || envelope?.type === 'heartbeat' || !envelope?.runId) return;
 
         const data = envelope.data ?? {};
         const text =
@@ -46,9 +46,13 @@ export default function useLvcStream(enabled = false) {
           (typeof data === 'string' ? data : null);
 
         if (text) {
+          const entry = {
+            text,
+            timestampSeconds: data.timestamp_seconds ?? null,
+          };
           setCaptions((prev) => {
             const existing = prev[envelope.runId] ?? [];
-            return { ...prev, [envelope.runId]: [text, ...existing].slice(0, 20) };
+            return { ...prev, [envelope.runId]: [entry, ...existing].slice(0, 20) };
           });
         }
       } catch {

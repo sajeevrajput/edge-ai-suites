@@ -1,58 +1,68 @@
 /**
  * LiveStreamTab — Live Video Captioning stream viewer.
  *
- * Configuration is done via the App-Specific Config modal.
- * This tab shows the WebRTC WHEP video stream and live AI captions.
+ * Video: MediaMTX iframe (bypasses nginx; MediaMTX handles WebRTC natively).
+ * Stream readiness: polls WHEP endpoint until pipeline starts publishing,
+ * then force-reloads the iframe so MediaMTX's player connects to a live feed.
  */
 
-import { useEffect, useRef, useState } from 'react';
-import { Video, Loader2, Wifi, WifiOff, StopCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Video, Wifi, WifiOff, StopCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import useLvcStream from '@/hooks/useLvcStream';
 
-// ── WHEP helper ───────────────────────────────────────────────────────────────
+const MEDIAMTX_PORT = import.meta.env.VITE_MEDIAMTX_PORT || '8889';
 
-async function connectWhep(whepUrl, videoEl) {
-  const pc = new RTCPeerConnection({
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-  });
+function mediamtxPlayerUrl(peerId, reloadKey) {
+  if (!peerId) return null;
+  // reloadKey forces a fresh iframe load after pipeline starts publishing
+  return `http://${window.location.hostname}:${MEDIAMTX_PORT}/${peerId}?_k=${reloadKey}`;
+}
 
-  pc.addTransceiver('video', { direction: 'recvonly' });
-  pc.addTransceiver('audio', { direction: 'recvonly' });
+/** Poll MediaMTX WHEP until stream is publishing (non-404 response). */
+async function waitForStream(peerId, signal, intervalMs = 2500) {
+  const whepUrl = `http://${window.location.hostname}:${MEDIAMTX_PORT}/${peerId}/whep`;
+  while (!signal.aborted) {
+    try {
+      const resp = await fetch(whepUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/sdp' },
+        body: 'v=0\r\n',
+        signal,
+      });
+      // 404 = no one publishing yet; anything else (400 bad SDP, 405, …) = stream exists
+      if (resp.status !== 404) return true;
+    } catch { /* network / abort */ }
+    if (signal.aborted) break;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return false;
+}
 
-  pc.ontrack = (ev) => {
-    if (videoEl && ev.streams?.[0]) videoEl.srcObject = ev.streams[0];
-  };
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
+function formatStreamSeconds(seconds) {
+  const mins = Math.floor(seconds / 60);
+  const remaining = seconds - mins * 60;
+  return `${String(mins).padStart(2, '0')}:${remaining.toFixed(2).padStart(5, '0')}`;
+}
 
-  await new Promise((resolve) => {
-    if (pc.iceGatheringState === 'complete') { resolve(); return; }
-    pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') resolve(); };
-    setTimeout(resolve, 3000);
-  });
+function captionPositionLabel(index) {
+  return index === 0 ? 'Latest' : `latest -${index}`;
+}
 
-  const resp = await fetch(whepUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/sdp' },
-    body: pc.localDescription.sdp,
-  });
-
-  if (!resp.ok) throw new Error(`WHEP ${resp.status}: ${await resp.text()}`);
-  await pc.setRemoteDescription({ type: 'answer', sdp: await resp.text() });
-
-  return () => pc.close();
+function captionTimestampLabel(entry) {
+  if (entry.timestampSeconds != null) return formatStreamSeconds(entry.timestampSeconds);
+  return new Date().toLocaleTimeString();
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function LiveStreamTab({ lvcRuns = [], onStopLvc }) {
-  const [whepConnecting, setWhepConnecting] = useState(false);
-  const [whepError,      setWhepError]      = useState('');
-
-  const videoRef   = useRef(null);
-  const cleanupRef = useRef(null);
+  const [stopped,    setStopped]    = useState(false);
+  const [streamReady, setStreamReady] = useState(false);
+  const [reloadKey,  setReloadKey]  = useState(0);
+  const abortRef = useRef(null);
 
   // Use the first active run
   const activeRun = lvcRuns[0] ?? null;
@@ -60,39 +70,42 @@ export default function LiveStreamTab({ lvcRuns = [], onStopLvc }) {
   const { captions, connected: sseConnected } = useLvcStream(lvcRuns.length > 0);
   const runCaptions = activeRun ? (captions[activeRun.runId] ?? []) : [];
 
-  // Connect WebRTC when run starts
+  // When run changes, poll MediaMTX until stream is publishing then reload iframe
   useEffect(() => {
-    const webrtcUrl = activeRun?.webrtcUrl || activeRun?.webrtc_url;
-    if (!webrtcUrl || !videoRef.current) return;
+    const peerId = activeRun?.peerId;
+    if (!peerId) {
+      setStreamReady(false);
+      return;
+    }
 
-    setWhepConnecting(true);
-    setWhepError('');
+    // Abort any prior polling
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
 
-    connectWhep(webrtcUrl, videoRef.current)
-      .then((cleanup) => {
-        cleanupRef.current = cleanup;
-        setWhepConnecting(false);
-      })
-      .catch((err) => {
-        setWhepError(`WebRTC: ${err.message}`);
-        setWhepConnecting(false);
-      });
+    setStreamReady(false);
 
-    return () => {
-      cleanupRef.current?.();
-      cleanupRef.current = null;
-      if (videoRef.current) videoRef.current.srcObject = null;
-    };
-  }, [activeRun?.runId]);
+    waitForStream(peerId, ac.signal).then((ready) => {
+      if (ready && !ac.signal.aborted) {
+        setStreamReady(true);
+        setReloadKey((k) => k + 1); // force iframe src change → fresh load
+      }
+    });
+
+    return () => ac.abort();
+  }, [activeRun?.peerId]);
+
+  const playerUrl = mediamtxPlayerUrl(activeRun?.peerId, reloadKey);
 
   const handleStop = async () => {
     if (!activeRun) return;
+    abortRef.current?.abort();
+    setStopped(true);
     try {
       await onStopLvc(activeRun.runId || activeRun.run_id);
-      if (videoRef.current) videoRef.current.srcObject = null;
-      cleanupRef.current?.();
-      cleanupRef.current = null;
-    } catch { /* toast handled in App.jsx */ }
+    } catch {
+      setStopped(false);
+    }
   };
 
   return (
@@ -115,15 +128,14 @@ export default function LiveStreamTab({ lvcRuns = [], onStopLvc }) {
             variant="destructive"
             className="h-6 text-[0.68rem] px-2"
             onClick={handleStop}
+            disabled={stopped}
           >
             <StopCircle size={11} className="mr-1" />Stop
           </Button>
         </div>
       )}
 
-      {whepError && <p className="text-[0.72rem] text-red-500 px-1">{whepError}</p>}
-
-      {/* ── Video player ── */}
+      {/* ── Video player (MediaMTX iframe) ── */}
       <div className="relative bg-black rounded overflow-hidden w-full aspect-video flex items-center justify-center" style={{ maxHeight: '240px' }}>
         {!activeRun && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/40">
@@ -131,19 +143,22 @@ export default function LiveStreamTab({ lvcRuns = [], onStopLvc }) {
             <p className="text-[0.72rem]">Configure and click "Start Analysis" to begin</p>
           </div>
         )}
-        {activeRun && whepConnecting && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Loader2 size={24} className="animate-spin text-white/60" />
+        {/* Waiting overlay — shown while pipeline is starting up */}
+        {activeRun && !streamReady && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black/80">
+            <Loader2 size={24} className="animate-spin text-white/70" />
+            <p className="text-[0.72rem] text-white/60 animate-pulse">Starting pipeline…</p>
           </div>
         )}
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className={`w-full h-full object-contain ${activeRun ? 'opacity-100' : 'opacity-0'}`}
-        />
+        {activeRun && playerUrl && (
+          <iframe
+            key={`${activeRun.peerId}-${reloadKey}`}
+            src={playerUrl}
+            allow="autoplay"
+            className="w-full h-full border-0"
+            title="Live Video Stream"
+          />
+        )}
       </div>
 
       {/* ── Caption ticker ── */}
@@ -153,10 +168,17 @@ export default function LiveStreamTab({ lvcRuns = [], onStopLvc }) {
           {runCaptions.length === 0 ? (
             <p className="text-[0.72rem] italic text-[#A3B0CC]">Waiting for captions…</p>
           ) : (
-            runCaptions.map((cap, i) => (
-              <div key={i} className={`text-[0.75rem] leading-snug px-2 py-0.5 rounded ${
-                i === 0 ? 'bg-[#EBF5FF] text-[#0E1C47] font-medium' : 'text-[#4A5C80]'
-              }`}>{cap}</div>
+            runCaptions.map((entry, i) => (
+              <div key={i} className={`flex flex-col px-2 py-0.5 rounded ${
+                i === 0 ? 'bg-[#EBF5FF] text-[#0E1C47]' : 'text-[#4A5C80]'
+              }`}>
+                <span className="text-[0.62rem] text-[#6B7BA4] font-mono leading-none mb-0.5">
+                  {captionPositionLabel(i)} • {captionTimestampLabel(entry)}
+                </span>
+                <span className={`text-[0.75rem] leading-snug ${i === 0 ? 'font-medium' : ''}`}>
+                  {entry.text}
+                </span>
+              </div>
             ))
           )}
         </div>

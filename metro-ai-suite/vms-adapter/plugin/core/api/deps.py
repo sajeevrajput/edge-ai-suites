@@ -12,11 +12,13 @@ if TYPE_CHECKING:
     from plugin.core.config import AppConfig
     from plugin.core.factory import NvrShimSet
     from plugin.base.interfaces import ICoreAppShim
+    from plugin.core.services.mqtt_client import MqttResultClient
 
 # Module-level state set by the orchestrator at startup
 _nvr_shim_sets: list["NvrShimSet"] = []
 _core_app_shims: dict[str, "ICoreAppShim"] = {}
 _app_config: "AppConfig | None" = None
+_mqtt_client: "MqttResultClient | None" = None
 
 
 def set_shims(
@@ -76,3 +78,14 @@ def require_core_app_shim(app_id: str) -> "ICoreAppShim":
 async def get_app_config():
     """Return the application configuration."""
     return _app_config
+
+
+def set_mqtt_client(client: "MqttResultClient") -> None:
+    """Called by the orchestrator at startup to inject the MQTT client."""
+    global _mqtt_client
+    _mqtt_client = client
+
+
+def get_mqtt_client() -> "MqttResultClient | None":
+    """Return the global MQTT result client, or None if not configured."""
+    return _mqtt_client

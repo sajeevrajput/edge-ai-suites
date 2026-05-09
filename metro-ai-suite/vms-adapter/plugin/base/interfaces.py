@@ -196,3 +196,18 @@ class ICoreAppShim(ABC):
         The default returns an empty list (no camera resolution needed).
         """
         return []
+
+    def mqtt_topic_prefix(self) -> str | None:
+        """Return the MQTT topic prefix used by this Core App, or None if not using MQTT.
+
+        The plugin's ``MqttResultClient`` subscribes to ``{prefix}/#`` at startup
+        and routes messages to per-run queues consumed by the SSE result stream.
+
+        Example: ``"live-video-captioning"`` → subscribes to
+        ``"live-video-captioning/#"`` and processes topics like
+        ``"live-video-captioning/{run_id}"``.
+
+        Return ``None`` (default) if the app does not publish results via MQTT;
+        the SSE route will fall back to proxying the app's HTTP SSE endpoint.
+        """
+        return None
