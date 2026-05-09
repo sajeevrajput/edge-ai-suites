@@ -30,10 +30,26 @@ export default function App() {
       if (cams.length > 0) setCameras(cams);
     }).catch(() => {/* backend not ready yet — user can Discover manually */});
 
-    // Load active LVC runs so the Live Stream tab keeps working after page refresh.
+    // Load active LVC runs on mount.
     listCoreAppRuns('live_captioning').then((runs) => {
       if (Array.isArray(runs) && runs.length > 0) setLvcRuns(runs);
-    }).catch(() => {/* LVC backend not ready — ignore */});
+    }).catch(() => {});
+  }, []);
+
+  // Poll LVC every 5 seconds so runs started from LVC's own UI appear automatically.
+  useEffect(() => {
+    const id = setInterval(() => {
+      listCoreAppRuns('live_captioning').then((runs) => {
+        if (!Array.isArray(runs)) return;
+        setLvcRuns((prev) => {
+          // Only update if the run list actually changed (compare runIds)
+          const prevIds = prev.map((r) => r.runId ?? r.run_id).join(',');
+          const nextIds = runs.map((r) => r.runId ?? r.run_id).join(',');
+          return prevIds === nextIds ? prev : runs;
+        });
+      }).catch(() => {});
+    }, 5000);
+    return () => clearInterval(id);
   }, []);
 
   const logApi = useCallback((method, path, statusCode, note) => {
@@ -82,10 +98,15 @@ export default function App() {
     }
   }, [logApi]);
 
-  const handleStartAnalysis = useCallback((appId, response) => {
+  const handleStartAnalysis = useCallback(async (appId, response) => {
     const run = response?.result ?? response ?? {};
     if (appId === 'live_captioning') {
+      // Optimistically add the run immediately so the Live Stream tab appears
       setLvcRuns((prev) => [...prev, run]);
+      // Then fetch the enriched run list from the API (guarantees peerId is present)
+      listCoreAppRuns('live_captioning').then((runs) => {
+        if (Array.isArray(runs) && runs.length > 0) setLvcRuns(runs);
+      }).catch(() => {/* fallback to optimistic run */});
     }
     logApi('POST', `/v1/core-apps/${appId}/runs`, 200,
       `Started ${appId} run=${run.runId ?? run.videoId ?? '(ok)'}`);

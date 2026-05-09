@@ -77,6 +77,7 @@ class Orchestrator:
         from plugin.core.api.deps import set_shims
         set_shims(self.nvr_shim_sets, self.core_app_shims, self.config)
 
+        await self._start_mqtt_client()
         await self._reconcile_sessions()
 
         logger.info("orchestrator_started", nvr_count=len(self.nvr_shim_sets))
@@ -221,6 +222,31 @@ class Orchestrator:
                     camera_id=s.camera_id,
                 )
 
+    async def _start_mqtt_client(self) -> None:
+        """Connect the generic MQTT result client and subscribe to all shim topic prefixes."""
+        if not self.config.mqtt.host:
+            logger.info("mqtt_not_configured_skipping")
+            return
+
+        from plugin.core.services.mqtt_client import MqttResultClient
+        from plugin.core.api.deps import set_mqtt_client
+
+        client = MqttResultClient(
+            host=self.config.mqtt.host,
+            port=self.config.mqtt.port,
+        )
+        await client.connect()
+
+        for shim in self.core_app_shims.values():
+            prefix = shim.mqtt_topic_prefix()
+            if prefix:
+                client.subscribe_prefix(prefix)
+                logger.info("mqtt_prefix_subscribed", app_id=shim.app_id, prefix=prefix)
+
+        set_mqtt_client(client)
+        self._mqtt_client = client
+        logger.info("mqtt_client_ready", host=self.config.mqtt.host, port=self.config.mqtt.port)
+
     async def shutdown(self) -> None:
         logger.info("orchestrator_shutting_down")
         for ss in self.nvr_shim_sets:
@@ -228,6 +254,11 @@ class Orchestrator:
                 await ss.vms_shim.disconnect()
             except Exception:
                 logger.exception("vms_disconnect_error", nvr=ss.name)
+        if hasattr(self, "_mqtt_client") and self._mqtt_client is not None:
+            try:
+                await self._mqtt_client.disconnect()
+            except Exception:
+                logger.exception("mqtt_disconnect_error")
         await close_db()
         logger.info("orchestrator_stopped")
 

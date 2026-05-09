@@ -82,6 +82,11 @@ class LiveCaptioningCoreAppConfig(BaseModel):
 AnyCorAppConfig = LiveCaptioningCoreAppConfig
 
 
+class MqttConfig(BaseModel):
+    host: str = ""
+    port: int = 1883
+
+
 class ApiConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8080
@@ -97,6 +102,7 @@ class AppConfig(BaseModel):
     core_apps: list[AnyCorAppConfig] = Field(default_factory=list)
     api: ApiConfig = Field(default_factory=ApiConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    mqtt: MqttConfig = Field(default_factory=MqttConfig)
 
     @model_validator(mode="before")
     @classmethod

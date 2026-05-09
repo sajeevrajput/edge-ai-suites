@@ -22,17 +22,20 @@ Adding a **new core app** requires only a new shim class implementing
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
+import asyncio
+import json
+import time
+from typing import Any, AsyncIterator, Optional
 
 import httpx
 import structlog
-from fastapi import APIRouter, Body, Depends, HTTPException, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from plugin.core.api.deps import get_core_app_shims, get_db_session, require_core_app_shim
+from plugin.core.api.deps import get_core_app_shims, get_db_session, require_core_app_shim, get_mqtt_client
 from plugin.core.db import repository as repo
 from plugin.base.interfaces import ICoreAppShim
 
@@ -244,16 +247,67 @@ async def stop_core_app_run(app_id: str, run_id: str) -> Response:
 # ── Results stream ────────────────────────────────────────────────────────────
 
 @router.get("/{app_id}/results/stream")
-async def stream_core_app_results(app_id: str) -> StreamingResponse:
-    """Proxy the core app's live SSE result stream to the browser.
+async def stream_core_app_results(
+    app_id: str,
+    run_id: Optional[str] = Query(default=None, description="Filter results to a specific run ID"),
+) -> StreamingResponse:
+    """Stream live inference results (captions, detections, …) as Server-Sent Events.
 
-    The core app backend emits Server-Sent Events (captions, detections, …).
-    This endpoint forwards that stream through the plugin so the UI never
-    connects to the core app directly.
+    **MQTT path (preferred):** If the Core App shim declares an MQTT topic prefix
+    and the plugin's MQTT client is connected, results are served directly from the
+    MQTT broker — no round-trip to the Core App backend.
 
-    Returns 501 if the app does not support streaming.
+    **SSE proxy fallback:** If MQTT is not available the route proxies the Core
+    App's own SSE endpoint (legacy behaviour, same as before).
+
+    The ``run_id`` query parameter narrows the stream to a single run's results.
+    Without it, all results for the app are broadcast (backwards-compatible).
+
+    Returns 501 if the app does not support streaming at all.
     """
     shim = _require_shim(app_id)
+    mqtt_client = get_mqtt_client()
+    topic_prefix = shim.mqtt_topic_prefix()
+
+    if mqtt_client is not None and topic_prefix:
+        # ── MQTT-driven SSE ──────────────────────────────────────────────────
+        if run_id:
+            queue: asyncio.Queue = mqtt_client.subscribe_run(topic_prefix, run_id)
+        else:
+            queue = mqtt_client.broadcast_queue(topic_prefix)
+
+        async def _mqtt_sse() -> AsyncIterator[bytes]:
+            heartbeat_interval = 1.0
+            last_heartbeat = time.monotonic()
+            try:
+                while True:
+                    now = time.monotonic()
+                    timeout = max(0.05, heartbeat_interval - (now - last_heartbeat))
+                    try:
+                        envelope = await asyncio.wait_for(queue.get(), timeout=timeout)
+                        yield f"data: {json.dumps(envelope)}\n\n".encode()
+                    except asyncio.TimeoutError:
+                        # Send a heartbeat so the client stays alive
+                        heartbeat = json.dumps({"type": "heartbeat", "app_id": app_id})
+                        yield f"data: {heartbeat}\n\n".encode()
+                        last_heartbeat = time.monotonic()
+            except asyncio.CancelledError:
+                pass
+            finally:
+                if run_id:
+                    mqtt_client.release_run(run_id)
+
+        return StreamingResponse(
+            _mqtt_sse(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
+        )
+
+    # ── SSE proxy fallback ───────────────────────────────────────────────────
     try:
         sse_url = await shim.results_stream_url()
     except NotImplementedError as exc:
