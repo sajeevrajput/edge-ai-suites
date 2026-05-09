@@ -1,7 +1,7 @@
 {
     "integrationManifest": {
-        "id": "DLStreamerAnalyticsIntegration",
-        "name": "DLStreamerAnalyticsIntegration",
+        "id": "DLStreamerAnalyticsIntegrationVMS",
+        "name": "DLStreamerAnalyticsIntegrationVMS",
         "description": "REST-only analytics integration example with DLStreamer Pipeline Server based Application",
         "vendor": "Intel OEP",
         "version": "1.0.0",
@@ -35,15 +35,7 @@
             "objectTypes": [
                 {
                     "id": "python.detected.object",
-                    "name": "Python Detected Object"
-                },
-                {
-                    "id": "vap.vehicle",
-                    "name": "Vehicle"
-                },
-                {
-                    "id": "vap.person",
-                    "name": "Person"
+                    "name": "Detected Object"
                 }
             ],
             "eventTypes": [
@@ -70,21 +62,7 @@
         "supportedTypes": [
             {
                 "objectTypeId": "python.detected.object",
-                "attributes": []
-            },
-            {
-                "objectTypeId": "vap.vehicle",
-                "attributes": [
-                    "boundingBox",
-                    "confidence"
-                ]
-            },
-            {
-                "objectTypeId": "vap.person",
-                "attributes": [
-                    "boundingBox",
-                    "confidence"
-                ]
+                "attributes": ["boundingBox", "confidence"]
             },
             {
                 "eventTypeId": "analytics.api.stub.lineCrossing",

@@ -11,6 +11,8 @@ All endpoints used here are documented in the official Nx Meta API tool
   * GET    /{deviceId}                           -> RTSP live stream URL (constructed, not called)
   * POST   /rest/v4/devices/{deviceId}/bookmarks -> create bookmark
   * GET    /rest/v4/analytics/engines            -> list engines
+  * PATCH  /rest/v4/analytics/engines/{id}/deviceAgents/{id} -> enable device agent
+  * POST   /rest/v4/analytics/engines/{id}/deviceAgents/{id}/manifest -> push device agent manifest
   * PATCH  /rest/v4/devices/{deviceId}           -> toggle recording
 
 Live RTSP URLs are constructed client-side per the Nx v4 spec
@@ -56,6 +58,8 @@ class NxWitnessVmsShim(IVmsShim):
         self._integration_client: httpx.AsyncClient | None = None
         self._integration_token: str | None = None
         self._engine_id: str | None = None
+        # Device agents that have already been enabled for this session
+        self._enabled_device_agents: set[str] = set()
 
     # -- Lifecycle ------------------------------------------------------
     async def connect(self) -> None:
@@ -390,7 +394,14 @@ class NxWitnessVmsShim(IVmsShim):
             return False
 
     async def _get_engine_id(self) -> str | None:
-        """GET /rest/v4/analytics/engines — return the first engine_id (cached)."""
+        """Return the engine ID for this integration (cached).
+
+        Calls GET /rest/v4/analytics/engines via the integration client.  If
+        multiple engines are returned (possible when the user can see engines
+        from other integrations), the admin client is used to look up the Nx
+        internal UUID of our integration and the result is filtered by
+        ``integrationId``.
+        """
         if self._engine_id:
             return self._engine_id
         if not self._integration_client:
@@ -399,12 +410,126 @@ class NxWitnessVmsShim(IVmsShim):
             resp = await self._integration_client.get("/rest/v4/analytics/engines")
             resp.raise_for_status()
             engines = resp.json()
-            if engines and isinstance(engines, list):
+            if not engines or not isinstance(engines, list):
+                return None
+
+            if len(engines) == 1:
                 self._engine_id = engines[0].get("id")
                 return self._engine_id
+
+            # Multiple engines visible — find the one owned by our integration.
+            # Resolve integration UUID via the admin client.
+            integration_uuid = await self._get_integration_uuid()
+            if integration_uuid:
+                for engine in engines:
+                    if engine.get("integrationId") == integration_uuid:
+                        self._engine_id = engine.get("id")
+                        logger.info(
+                            "nx_engine_resolved",
+                            engine_id=self._engine_id,
+                            integration_uuid=integration_uuid,
+                        )
+                        return self._engine_id
+                logger.warning(
+                    "nx_engine_not_found_for_integration",
+                    integration_uuid=integration_uuid,
+                    engines=[e.get("id") for e in engines],
+                )
+
+            # Fallback: first engine (may be wrong — log a warning)
+            self._engine_id = engines[0].get("id")
+            logger.warning(
+                "nx_engine_fallback_to_first",
+                engine_id=self._engine_id,
+                total_engines=len(engines),
+            )
+            return self._engine_id
         except httpx.HTTPError as exc:
             logger.error("nx_get_engines_failed", error=str(exc))
         return None
+
+    async def _get_integration_uuid(self) -> str | None:
+        """Look up the Nx-internal UUID for our integration via the admin client.
+
+        Matches the approved integration whose manifest integration ID equals
+        our integration username (e.g. ``"DLStreamerAnalyticsIntegrationVMS"``).
+        """
+        if not self._client or not self._integration_username:
+            return None
+        try:
+            resp = await self._client.get("/rest/v4/analytics/integrations")
+            resp.raise_for_status()
+            for item in resp.json():
+                api_info = item.get("apiIntegrationInfo") or {}
+                sdk_info = item.get("sdkIntegrationInfo") or {}
+                if (
+                    api_info.get("integrationId") == self._integration_username
+                    or sdk_info.get("integrationId") == self._integration_username
+                ):
+                    return item.get("id")
+        except httpx.HTTPError as exc:
+            logger.warning("nx_get_integration_uuid_failed", error=str(exc))
+        return None
+
+    async def _ensure_device_agent_enabled(
+        self, engine_id: str, device_id: str,
+        device_agent_manifest: dict | None = None,
+    ) -> bool:
+        """Enable the device agent and push its manifest if not already done this session.
+
+        Two steps are required before Nx will accept pushed metadata for a device:
+          1. PATCH .../deviceAgents/{id}  → ``{"isEnabled": true}``
+          2. POST  .../deviceAgents/{id}/manifest → declare supported object types
+
+        Both calls are made once per device_id per process lifetime (cached in
+        ``_enabled_device_agents``).
+        """
+        if device_id in self._enabled_device_agents:
+            return True
+        base_url = f"/rest/v4/analytics/engines/{engine_id}/deviceAgents/{device_id}"
+        try:
+            # Step 1: enable
+            resp = await self._integration_client.patch(  # type: ignore[union-attr]
+                base_url, json={"isEnabled": True},
+            )
+            if not resp.is_success:
+                logger.warning(
+                    "nx_device_agent_enable_failed",
+                    status_code=resp.status_code,
+                    device_id=device_id,
+                    detail=resp.text[:200],
+                )
+                return False
+            logger.info("nx_device_agent_enabled", engine_id=engine_id, device_id=device_id)
+
+            # Step 2: push device agent manifest so Nx knows which types to expect
+            manifest_payload = device_agent_manifest or {
+                "supportedTypes": [{"objectTypeId": "python.detected.object"}],
+            }
+            resp = await self._integration_client.post(  # type: ignore[union-attr]
+                f"{base_url}/manifest",
+                json={"deviceAgentManifest": manifest_payload},
+            )
+            if resp.is_success:
+                logger.info(
+                    "nx_device_agent_manifest_pushed",
+                    engine_id=engine_id,
+                    device_id=device_id,
+                )
+            else:
+                logger.warning(
+                    "nx_device_agent_manifest_push_failed",
+                    status_code=resp.status_code,
+                    device_id=device_id,
+                    detail=resp.text[:200],
+                )
+                # Non-fatal: proceed and let the push attempt reveal the true error.
+
+            self._enabled_device_agents.add(device_id)
+            return True
+        except httpx.HTTPError as exc:
+            logger.error("nx_device_agent_enable_error", error=str(exc), device_id=device_id)
+            return False
 
     async def push_analytics_objects(
         self,
@@ -416,7 +541,8 @@ class NxWitnessVmsShim(IVmsShim):
         """POST analytics objects to Nx for the given device.
 
         Authenticates as the integration user (lazily), discovers the engine ID
-        (cached), then pushes the objects via the standard REST v4 endpoint.
+        (cached), enables the device agent for this device (once per session),
+        then pushes the objects via the standard REST v4 endpoint.
 
         Args:
             device_id: Nx device UUID (without ``nx:`` prefix).
@@ -438,12 +564,14 @@ class NxWitnessVmsShim(IVmsShim):
             logger.error("nx_push_no_engine_id", device_id=device_id)
             return False
 
+        await self._ensure_device_agent_enabled(engine_id, device_id)
+
         url = (
             f"/rest/v4/analytics/engines/{engine_id}"
             f"/deviceAgents/{device_id}/metadata/object"
         )
         payload: dict = {
-            "flags": 0,
+            "flags": "none",
             "timestampMs": timestamp_ms,
             "durationMs": duration_ms,
             "objects": objects,

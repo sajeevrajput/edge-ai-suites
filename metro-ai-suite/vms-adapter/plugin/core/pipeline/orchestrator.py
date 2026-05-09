@@ -34,6 +34,44 @@ _DEFAULT_MANIFEST: dict = {
 }
 
 
+def _merge_label_types_into_manifest(
+    manifests: dict,
+    label_type_map: dict[str, str],
+) -> None:
+    """Merge typeIds from ``label_type_map`` into the Nx manifest dicts in-place.
+
+    Adds any typeId that appears as a value in ``label_type_map`` (and is not
+    already declared) to both ``engineManifest.typeLibrary.objectTypes`` and
+    ``deviceAgentManifest.supportedTypes``.  This keeps the registered manifest
+    in sync with whatever labels are configured without requiring manual JSON edits.
+    """
+    extra_type_ids = set(label_type_map.values())
+    if not extra_type_ids:
+        return
+
+    # -- engineManifest.typeLibrary.objectTypes --
+    engine = manifests.setdefault("engineManifest", {})
+    type_library = engine.setdefault("typeLibrary", {})
+    object_types: list[dict] = type_library.setdefault("objectTypes", [])
+    existing_ids = {t.get("id") for t in object_types}
+    for type_id in sorted(extra_type_ids):
+        if type_id not in existing_ids:
+            object_types.append({"id": type_id, "name": type_id})
+            existing_ids.add(type_id)
+
+    # -- deviceAgentManifest.supportedTypes --
+    da_manifest = manifests.setdefault("deviceAgentManifest", {})
+    supported: list[dict] = da_manifest.setdefault("supportedTypes", [])
+    existing_supported = {t.get("objectTypeId") for t in supported}
+    for type_id in sorted(extra_type_ids):
+        if type_id not in existing_supported:
+            supported.append({
+                "objectTypeId": type_id,
+                "attributes": ["boundingBox", "confidence"],
+            })
+
+
+
 class Orchestrator:
     def __init__(self, config: AppConfig):
         self.config = config
@@ -182,6 +220,13 @@ class Orchestrator:
             )
             return
 
+        # Merge any label_type_map typeIds from object_detection core apps into the manifest
+        # so Nx recognises all configured types without manual manifest edits.
+        from plugin.core.config import ObjectDetectionCoreAppConfig
+        for ca_cfg in self.config.core_apps:
+            if isinstance(ca_cfg, ObjectDetectionCoreAppConfig) and ca_cfg.label_type_map:
+                _merge_label_types_into_manifest(manifests, ca_cfg.label_type_map)
+
         # Neither DB nor Nx has the integration — create fresh
         try:
             result = await ss.vms_shim.register_analytics(manifests)
@@ -236,6 +281,7 @@ class Orchestrator:
                     mqtt_port=cfg.mqtt_port,
                     nvr_shim_sets=self.nvr_shim_sets,
                     core_app_id=shim.app_id,
+                    label_type_map=cfg.label_type_map,
                 ),
                 name=f"mqtt-subscriber-{shim.app_id}",
             )

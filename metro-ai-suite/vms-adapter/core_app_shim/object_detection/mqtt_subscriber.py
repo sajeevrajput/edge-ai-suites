@@ -47,6 +47,7 @@ class MqttSubscriber:
         mqtt_port: int,
         nvr_shim_sets: list[NvrShimSet],
         core_app_id: str = "pdd",
+        label_type_map: dict[str, str] | None = None,
     ) -> None:
         """Subscribe to MQTT and dispatch messages until cancelled.
 
@@ -65,6 +66,7 @@ class MqttSubscriber:
 
         # Build a name → shim lookup for fast dispatch
         shim_map: dict[str, Any] = {ss.name: ss.vms_shim for ss in nvr_shim_sets}
+        _label_map: dict[str, str] = {k.lower(): v for k, v in (label_type_map or {}).items()}
 
         # Wildcard: single-level + matches any vms_name; trailing + matches any camera_id
         topic_filter = f"+/{core_app_id}/+"
@@ -87,6 +89,7 @@ class MqttSubscriber:
                             message.payload,
                             shim_map,
                             core_app_id,
+                            _label_map,
                         )
             except asyncio.CancelledError:
                 logger.info("mqtt_subscriber_stopped")
@@ -105,6 +108,7 @@ class MqttSubscriber:
         payload: bytes,
         shim_map: dict[str, Any],
         core_app_id: str,
+        label_type_map: dict[str, str] | None = None,
     ) -> None:
         """Parse topic, translate payload, and dispatch to VMS shim."""
         import json
@@ -135,7 +139,7 @@ class MqttSubscriber:
             logger.warning("mqtt_payload_parse_failed", topic=topic, error=str(exc))
             return
 
-        objects, timestamp_ms = translate_dls_metadata(metadata)
+        objects, timestamp_ms = translate_dls_metadata(metadata, label_type_map)
         if not objects:
             logger.debug("mqtt_no_objects_in_frame", topic=topic)
             return

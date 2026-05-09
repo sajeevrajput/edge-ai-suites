@@ -31,28 +31,46 @@ import uuid
 from typing import Any
 
 
-_OBJECT_TYPE_PREFIX = "nx.objectDetection"
+_TYPE_DEFAULT = "python.detected.object"
+
+
+def _label_to_type_id(label: str, label_type_map: dict[str, str]) -> str:
+    """Resolve a detection label to a registered Nx typeId.
+
+    Looks up ``label`` (case-insensitively) in ``label_type_map``.
+    Falls back to ``python.detected.object`` for unrecognised labels.
+    """
+    return label_type_map.get(label.lower(), _TYPE_DEFAULT)
 
 
 def translate_dls_metadata(
     payload: dict[str, Any],
-    object_type_id: str = _OBJECT_TYPE_PREFIX,
+    label_type_map: dict[str, str] | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     """Convert a DLS inference metadata payload to Nx push format.
+
+    Args:
+        payload: Raw DLStreamer MQTT metadata dict.
+        label_type_map: Optional mapping of detection label (lower-cased) to Nx
+            typeId.  Labels absent from the map resolve to
+            ``python.detected.object``.  Typically comes from
+            ``ObjectDetectionCoreAppConfig.label_type_map``.
 
     Returns a tuple of:
     - list of Nx object dicts (may be empty if no valid detections)
     - timestamp_ms to use for the metadata push
 
-    The timestamp is taken from the RTP ``sender_ntp_unix_timestamp_ns``
-    field (converted to milliseconds). If absent, wall-clock time is used.
+    The timestamp is taken from local wall-clock time. The RTP
+    ``sender_ntp_unix_timestamp_ns`` field is extracted but not used.
+
+    The ``typeId`` of each object is resolved from the detection label via
+    ``label_type_map``, falling back to ``python.detected.object`` for
+    unrecognised labels.
     """
+    _map = {k.lower(): v for k, v in (label_type_map or {}).items()}
     rtp = payload.get("rtp") or {}
-    ntp_ns = rtp.get("sender_ntp_unix_timestamp_ns", 0)
-    if ntp_ns:
-        timestamp_ms = ntp_ns // 1_000_000
-    else:
-        timestamp_ms = int(time.time() * 1000)
+    _ntp_ns = rtp.get("sender_ntp_unix_timestamp_ns", 0)  # retained for future use
+    timestamp_ms = int(time.time() * 1000)
 
     objects: list[dict[str, Any]] = []
     for obj in payload.get("objects", []):
@@ -78,6 +96,8 @@ def translate_dls_metadata(
         # Use region_id as a stable per-object track seed; fall back to random UUID.
         track_id = str(uuid.UUID(int=region_id)) if region_id else str(uuid.uuid4())
 
+        type_id = _label_to_type_id(label, _map)
+
         attributes = [
             {"type": "String", "name": "label", "value": label, "confidence": confidence},
         ]
@@ -85,7 +105,7 @@ def translate_dls_metadata(
         objects.append(
             {
                 "trackId": track_id,
-                "typeId": object_type_id,
+                "typeId": type_id,
                 "boundingBox": bounding_box,
                 "confidence": confidence,
                 "attributes": attributes,

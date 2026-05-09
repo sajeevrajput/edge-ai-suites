@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import time
-from core_app_shim.object_detection.translator import translate_dls_metadata
+from core_app_shim.object_detection.translator import (
+    translate_dls_metadata,
+    _TYPE_DEFAULT,
+    _label_to_type_id,
+)
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -44,15 +48,18 @@ def test_translate_returns_list_and_timestamp():
     assert ts > 0
 
 
-def test_translate_rtp_timestamp_used_when_present():
-    ntp_ns = 1_777_350_580_000_000_000  # 1.777…e18 ns
+def test_translate_rtp_timestamp_present_but_local_time_used():
+    # NTP timestamp is retained in payload but local wall-clock is always used.
+    ntp_ns = 1_777_350_580_000_000_000
     payload = _sample_payload(with_rtp=False)
     payload["rtp"] = {"sender_ntp_unix_timestamp_ns": ntp_ns}
+    before = int(time.time() * 1000)
     _, ts = translate_dls_metadata(payload)
-    assert ts == ntp_ns // 1_000_000
+    after = int(time.time() * 1000)
+    assert before <= ts <= after
 
 
-def test_translate_wall_clock_fallback_when_no_rtp():
+def test_translate_wall_clock_used_when_no_rtp():
     before = int(time.time() * 1000)
     _, ts = translate_dls_metadata(_sample_payload(with_rtp=False))
     after = int(time.time() * 1000)
@@ -168,3 +175,71 @@ def test_translate_multiple_objects():
     assert len(objects) == 2
     labels = {o["attributes"][0]["value"] for o in objects}
     assert labels == {"A", "B"}
+
+
+def _make_obj(label: str) -> dict:
+    return {
+        "detection": {
+            "bounding_box": {"x_min": 0.0, "y_min": 0.0, "x_max": 0.5, "y_max": 0.5},
+            "confidence": 0.9,
+            "label": label,
+        },
+        "region_id": 1,
+    }
+
+
+_SAMPLE_MAP = {
+    "car": "vap.vehicle",
+    "truck": "vap.vehicle",
+    "bus": "vap.vehicle",
+    "motorcycle": "vap.vehicle",
+    "bicycle": "vap.vehicle",
+    "van": "vap.vehicle",
+    "person": "vap.person",
+    "pedestrian": "vap.person",
+}
+
+
+def test_label_to_type_id_hit():
+    assert _label_to_type_id("car", _SAMPLE_MAP) == "vap.vehicle"
+    assert _label_to_type_id("person", _SAMPLE_MAP) == "vap.person"
+
+
+def test_label_to_type_id_miss_returns_default():
+    assert _label_to_type_id("pallet", _SAMPLE_MAP) == _TYPE_DEFAULT
+    assert _label_to_type_id("unknown", {}) == _TYPE_DEFAULT
+
+
+def test_label_to_type_id_case_insensitive():
+    assert _label_to_type_id("Car", _SAMPLE_MAP) == "vap.vehicle"
+    assert _label_to_type_id("PERSON", _SAMPLE_MAP) == "vap.person"
+
+
+def test_type_id_vehicle_labels():
+    for label in ("car", "truck", "bus", "motorcycle", "bicycle", "van"):
+        objects, _ = translate_dls_metadata({"objects": [_make_obj(label)]}, _SAMPLE_MAP)
+        assert objects[0]["typeId"] == "vap.vehicle", f"Expected vap.vehicle for '{label}'"
+
+
+def test_type_id_person_labels():
+    for label in ("person", "pedestrian"):
+        objects, _ = translate_dls_metadata({"objects": [_make_obj(label)]}, _SAMPLE_MAP)
+        assert objects[0]["typeId"] == "vap.person", f"Expected vap.person for '{label}'"
+
+
+def test_type_id_unknown_label_falls_back_to_default():
+    objects, _ = translate_dls_metadata({"objects": [_make_obj("pallet")]}, _SAMPLE_MAP)
+    assert objects[0]["typeId"] == _TYPE_DEFAULT
+
+
+def test_type_id_no_map_always_default():
+    objects, _ = translate_dls_metadata({"objects": [_make_obj("car")]})
+    assert objects[0]["typeId"] == _TYPE_DEFAULT
+
+
+def test_type_id_custom_map():
+    custom_map = {"forklift": "custom.forklift", "helmet": "custom.ppe.helmet"}
+    objects, _ = translate_dls_metadata({"objects": [_make_obj("forklift")]}, custom_map)
+    assert objects[0]["typeId"] == "custom.forklift"
+    objects, _ = translate_dls_metadata({"objects": [_make_obj("helmet")]}, custom_map)
+    assert objects[0]["typeId"] == "custom.ppe.helmet"

@@ -94,6 +94,17 @@ class ObjectDetectionCoreAppConfig(BaseModel):
     # broker is only reachable via the host's published port.
     pipeline_server_mqtt_host: str = "mqtt-broker"
     pipeline_server_mqtt_port: int = 1883
+    # Maps detection labels (case-insensitive) to Nx Witness object typeIds.
+    # Any label not present here falls back to "python.detected.object".
+    # These typeIds are also merged into the Nx analytics manifest at startup
+    # so that Nx accepts pushed objects for all configured types.
+    # Example:
+    #   label_type_map:
+    #     car: vap.vehicle
+    #     truck: vap.vehicle
+    #     person: vap.person
+    #     forklift: custom.forklift
+    label_type_map: dict[str, str] = Field(default_factory=dict)
 
 
 AnyCorAppConfig = LiveCaptioningCoreAppConfig | ObjectDetectionCoreAppConfig
