@@ -72,6 +72,31 @@ class IVmsShim(ABC):
         """
         return None
 
+    def set_integration_credentials(self, username: str, password: str) -> None:
+        """Store analytics integration user credentials for metadata push.
+
+        Called after Nx integration registration. Override in VMS shims that
+        support analytics metadata push (e.g. NxWitnessVmsShim).
+        """
+
+    async def push_analytics_objects(
+        self,
+        device_id: str,
+        objects: list[dict[str, Any]],
+        timestamp_ms: int,
+    ) -> bool:
+        """Push analytics object metadata to a VMS device.
+
+        Args:
+            device_id: Vendor-native device identifier (e.g. Nx device UUID without prefix).
+            objects: List of Nx-format object dicts (trackId, typeId, boundingBox, confidence).
+            timestamp_ms: Frame wall-clock timestamp in milliseconds.
+
+        Returns True on success, False on failure. Default no-op for non-Nx shims.
+        Override in VMS shims that support analytics metadata push.
+        """
+        return False
+
     @abstractmethod
     async def acknowledge_event(
         self, camera_id: str, event_id: str, message: str = "",

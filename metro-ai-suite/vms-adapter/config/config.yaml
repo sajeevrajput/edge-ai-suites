@@ -27,6 +27,13 @@ core_apps:
     delivery_timeout_seconds: 30
     default_pipeline: "${LVC_DEFAULT_PIPELINE:-GenAI_Pipeline_on_CPU}"
 
+  - type: object_detection
+    app_id: "pdd"
+    display_name: "Pallet Defect Detection"
+    base_url: "http://${PDD_HOST:-host.docker.internal}:${PDD_PORT:-8080}"
+    mqtt_host: "${MQTT_HOST:-host.docker.internal}"
+    mqtt_port: ${MQTT_PORT:-1883}
+
 api:
   host: "0.0.0.0"
   port: 8080

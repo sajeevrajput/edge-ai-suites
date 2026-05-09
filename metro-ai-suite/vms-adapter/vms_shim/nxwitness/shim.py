@@ -49,6 +49,13 @@ class NxWitnessVmsShim(IVmsShim):
         self._client: httpx.AsyncClient | None = None
         self._connected = False
         self._token: str | None = None
+        # Integration user credentials (set after analytics registration)
+        self._integration_username: str | None = None
+        self._integration_password: str | None = None
+        # Cached per-session state for metadata push
+        self._integration_client: httpx.AsyncClient | None = None
+        self._integration_token: str | None = None
+        self._engine_id: str | None = None
 
     # -- Lifecycle ------------------------------------------------------
     async def connect(self) -> None:
@@ -314,6 +321,150 @@ class NxWitnessVmsShim(IVmsShim):
             return True
         except httpx.HTTPError as e:
             logger.error("nx_approve_integration_failed", error=str(e), request_id=request_id)
+            return False
+
+    # -- Analytics metadata push ----------------------------------------
+
+    def set_integration_credentials(self, username: str, password: str) -> None:
+        """Store integration user credentials for analytics metadata push.
+
+        Called by the orchestrator after the Nx integration has been registered
+        and approved. Required before ``push_analytics_objects()`` will work.
+        """
+        self._integration_username = username
+        self._integration_password = password
+        # Invalidate cached session so the new credentials are used.
+        self._integration_token = None
+        self._engine_id = None
+        if self._integration_client:
+            import asyncio
+            try:
+                asyncio.get_event_loop().run_until_complete(
+                    self._integration_client.aclose()
+                )
+            except Exception:
+                pass
+            self._integration_client = None
+        logger.info("nx_integration_credentials_set", username=username)
+
+    async def _ensure_integration_session(self) -> bool:
+        """Lazily login as the integration user and cache the bearer token.
+
+        Returns True if a valid session is ready; False on failure.
+        """
+        if self._integration_token and self._integration_client:
+            return True
+
+        if not self._integration_username or not self._integration_password:
+            logger.warning(
+                "nx_push_skipped_no_credentials",
+                detail="Call set_integration_credentials() after registration.",
+            )
+            return False
+
+        parsed = urlparse(self._config.base_url)
+        base_url = f"{parsed.scheme}://{parsed.hostname}:{parsed.port or 7001}"
+        client = httpx.AsyncClient(base_url=base_url, timeout=10.0, verify=False)
+        try:
+            resp = await client.post(
+                "/rest/v4/login/sessions",
+                json={
+                    "username": self._integration_username,
+                    "password": self._integration_password,
+                },
+            )
+            resp.raise_for_status()
+            token = (resp.json() or {}).get("token")
+            if not token:
+                logger.error("nx_integration_login_no_token")
+                await client.aclose()
+                return False
+            client.headers["Authorization"] = f"Bearer {token}"
+            self._integration_client = client
+            self._integration_token = token
+            logger.info("nx_integration_session_ready", username=self._integration_username)
+            return True
+        except httpx.HTTPError as exc:
+            logger.error("nx_integration_login_failed", error=str(exc))
+            await client.aclose()
+            return False
+
+    async def _get_engine_id(self) -> str | None:
+        """GET /rest/v4/analytics/engines — return the first engine_id (cached)."""
+        if self._engine_id:
+            return self._engine_id
+        if not self._integration_client:
+            return None
+        try:
+            resp = await self._integration_client.get("/rest/v4/analytics/engines")
+            resp.raise_for_status()
+            engines = resp.json()
+            if engines and isinstance(engines, list):
+                self._engine_id = engines[0].get("id")
+                return self._engine_id
+        except httpx.HTTPError as exc:
+            logger.error("nx_get_engines_failed", error=str(exc))
+        return None
+
+    async def push_analytics_objects(
+        self,
+        device_id: str,
+        objects: list[dict],
+        timestamp_ms: int,
+        duration_ms: int = 100,
+    ) -> bool:
+        """POST analytics objects to Nx for the given device.
+
+        Authenticates as the integration user (lazily), discovers the engine ID
+        (cached), then pushes the objects via the standard REST v4 endpoint.
+
+        Args:
+            device_id: Nx device UUID (without ``nx:`` prefix).
+            objects: list of Nx object dicts (from ``translate_dls_metadata``).
+            timestamp_ms: epoch milliseconds for the frame.
+            duration_ms: frame duration hint (default 100 ms).
+
+        Returns True on success, False on any failure.
+        """
+        if not objects:
+            return True
+
+        ready = await self._ensure_integration_session()
+        if not ready:
+            return False
+
+        engine_id = await self._get_engine_id()
+        if not engine_id:
+            logger.error("nx_push_no_engine_id", device_id=device_id)
+            return False
+
+        url = (
+            f"/rest/v4/analytics/engines/{engine_id}"
+            f"/deviceAgents/{device_id}/metadata/object"
+        )
+        payload: dict = {
+            "flags": 0,
+            "timestampMs": timestamp_ms,
+            "durationMs": duration_ms,
+            "objects": objects,
+        }
+        try:
+            resp = await self._integration_client.post(url, json=payload)  # type: ignore[union-attr]
+            if resp.is_success:
+                return True
+            logger.warning(
+                "nx_push_objects_rejected",
+                status_code=resp.status_code,
+                device_id=device_id,
+                detail=resp.text[:200],
+            )
+            # 401 → session expired; clear token so next call re-authenticates
+            if resp.status_code == 401:
+                self._integration_token = None
+                self._integration_client = None
+            return False
+        except httpx.HTTPError as exc:
+            logger.error("nx_push_objects_failed", error=str(exc), device_id=device_id)
             return False
 
     # -- Write-back -----------------------------------------------------

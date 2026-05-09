@@ -6,7 +6,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 import yaml
 from pydantic import BaseModel, Field, model_validator
@@ -79,7 +79,24 @@ class LiveCaptioningCoreAppConfig(BaseModel):
     default_pipeline: str = "GenAI_Pipeline_on_CPU"
 
 
-AnyCorAppConfig = LiveCaptioningCoreAppConfig
+class ObjectDetectionCoreAppConfig(BaseModel):
+    """Config for DLStreamer Pipeline Server–based object detection apps (e.g. PDD)."""
+    type: Literal["object_detection"] = "object_detection"
+    # Identifies this app instance in API URLs (e.g. "pdd" → /v1/core-apps/pdd/runs)
+    app_id: str = "pdd"
+    display_name: str = "Object Detection"
+    base_url: str  # Pipeline Server REST URL
+    mqtt_host: str = "localhost"
+    mqtt_port: int = 1883
+
+
+AnyCorAppConfig = LiveCaptioningCoreAppConfig | ObjectDetectionCoreAppConfig
+
+# Discriminated union for Pydantic to pick the right config model from the YAML `type` field.
+_DiscriminatedCoreAppConfig = Annotated[
+    LiveCaptioningCoreAppConfig | ObjectDetectionCoreAppConfig,
+    Field(discriminator="type"),
+]
 
 
 class ApiConfig(BaseModel):
@@ -94,7 +111,7 @@ class DatabaseConfig(BaseModel):
 
 class AppConfig(BaseModel):
     nvr_instances: list[NvrInstanceConfig] = Field(default_factory=list)
-    core_apps: list[AnyCorAppConfig] = Field(default_factory=list)
+    core_apps: list[_DiscriminatedCoreAppConfig] = Field(default_factory=list)  # type: ignore[valid-type]
     api: ApiConfig = Field(default_factory=ApiConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
 

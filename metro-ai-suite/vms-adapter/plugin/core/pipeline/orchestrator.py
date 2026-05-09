@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import structlog
 
@@ -17,6 +18,9 @@ from plugin.base.interfaces import ICoreAppShim
 from plugin.core.config import AppConfig, load_config
 from plugin.core.db.session import close_db, init_db
 from plugin.core.factory import NvrShimSet, ShimFactory
+
+if TYPE_CHECKING:
+    pass
 
 logger = structlog.get_logger(__name__)
 
@@ -36,6 +40,7 @@ class Orchestrator:
         self.nvr_shim_sets: list[NvrShimSet] = []
         self.core_app_shims: dict[str, ICoreAppShim] = {}
         self._shutdown_event = asyncio.Event()
+        self._mqtt_tasks: list[asyncio.Task] = []
 
     @property
     def core_app_shim(self) -> ICoreAppShim | None:
@@ -78,6 +83,7 @@ class Orchestrator:
         set_shims(self.nvr_shim_sets, self.core_app_shims, self.config)
 
         await self._reconcile_sessions()
+        await self._start_mqtt_subscribers()
 
         logger.info("orchestrator_started", nvr_count=len(self.nvr_shim_sets))
 
@@ -130,6 +136,23 @@ class Orchestrator:
                 core_app_id=core_app_id,
                 username=db_record.nx_username,
             )
+            # Restore push credentials from DB so metadata push works after restart.
+            if db_record.nx_username and db_record.nx_password:
+                ss.vms_shim.set_integration_credentials(
+                    db_record.nx_username, db_record.nx_password,
+                )
+                logger.info(
+                    "nx_integration_credentials_restored",
+                    nvr=ss.name,
+                    username=db_record.nx_username,
+                )
+            else:
+                logger.warning(
+                    "nx_integration_no_password_in_db",
+                    nvr=ss.name,
+                    core_app_id=core_app_id,
+                    detail="Metadata push unavailable — recreate the integration to store credentials.",
+                )
             return
 
         if not db_record and nx_record:
@@ -189,6 +212,39 @@ class Orchestrator:
             status=db_status,
             username=result.get("username"),
         )
+
+        # Provide integration credentials to the shim so it can push metadata.
+        password = result.get("password") or ""
+        username = result.get("username") or ""
+        if username and password:
+            ss.vms_shim.set_integration_credentials(username, password)
+
+    async def _start_mqtt_subscribers(self) -> None:
+        """Start an MqttSubscriber background task for each object_detection shim."""
+        from core_app_shim.object_detection.mqtt_subscriber import MqttSubscriber
+        from plugin.core.config import ObjectDetectionCoreAppConfig
+
+        for shim in self.core_app_shims.values():
+            cfg = getattr(shim, "_config", None)
+            if not isinstance(cfg, ObjectDetectionCoreAppConfig):
+                continue
+            subscriber = MqttSubscriber()
+            task = asyncio.create_task(
+                subscriber.run(
+                    mqtt_host=cfg.mqtt_host,
+                    mqtt_port=cfg.mqtt_port,
+                    nvr_shim_sets=self.nvr_shim_sets,
+                    core_app_id=shim.app_id,
+                ),
+                name=f"mqtt-subscriber-{shim.app_id}",
+            )
+            self._mqtt_tasks.append(task)
+            logger.info(
+                "mqtt_subscriber_task_started",
+                app_id=shim.app_id,
+                mqtt_host=cfg.mqtt_host,
+                mqtt_port=cfg.mqtt_port,
+            )
 
     def _wire_core_app_resolvers(self) -> None:
         """Inject an RTSP resolver that defers to IVmsShim.get_live_stream_url."""
@@ -263,6 +319,12 @@ class Orchestrator:
 
     async def shutdown(self) -> None:
         logger.info("orchestrator_shutting_down")
+        # Cancel MQTT subscriber tasks
+        for task in self._mqtt_tasks:
+            task.cancel()
+        if self._mqtt_tasks:
+            await asyncio.gather(*self._mqtt_tasks, return_exceptions=True)
+            logger.info("mqtt_subscribers_stopped", count=len(self._mqtt_tasks))
         for ss in self.nvr_shim_sets:
             try:
                 await ss.vms_shim.disconnect()

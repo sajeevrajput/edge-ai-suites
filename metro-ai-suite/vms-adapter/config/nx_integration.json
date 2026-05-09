@@ -1,0 +1,95 @@
+{
+    "integrationManifest": {
+        "id": "DLStreamerAnalyticsIntegration",
+        "name": "DLStreamerAnalyticsIntegration",
+        "description": "REST-only analytics integration example with DLStreamer Pipeline Server based Application",
+        "vendor": "Intel OEP",
+        "version": "1.0.0",
+        "engineSettingsModel": {
+            "type": "Settings",
+            "items": [
+                {
+                    "type": "CheckBox",
+                    "name": "enable_detection",
+                    "caption": "Enable Object Detection",
+                    "defaultValue": true
+                },
+                {
+                    "type": "TextField",
+                    "name": "confidence_threshold",
+                    "caption": "Confidence Threshold",
+                    "defaultValue": "0.5"
+                },
+                {
+                    "type": "Button",
+                    "name": "crash_plugin",
+                    "caption": "Crashes the plugin when clicked",
+                    "isActive": true
+                }
+            ]
+        }
+    },
+    "engineManifest": {
+        "vectorizationModel": "openai/clip-vit-large-patch14-336",
+        "typeLibrary": {
+            "objectTypes": [
+                {
+                    "id": "python.detected.object",
+                    "name": "Python Detected Object"
+                },
+                {
+                    "id": "vap.vehicle",
+                    "name": "Vehicle"
+                },
+                {
+                    "id": "vap.person",
+                    "name": "Person"
+                }
+            ],
+            "eventTypes": [
+                {
+                    "id": "python.object.detected",
+                    "name": "Object Detected"
+                }
+            ]
+        },
+        "deviceAgentSettingsModel": {
+            "type": "Settings",
+            "items": [
+                {
+                    "type": "CheckBox",
+                    "name": "enable_tracking",
+                    "caption": "Enable Object Tracking",
+                    "defaultValue": true
+                }
+            ]
+        },
+        "objectActions": []
+    },
+    "deviceAgentManifest": {
+        "supportedTypes": [
+            {
+                "objectTypeId": "python.detected.object",
+                "attributes": []
+            },
+            {
+                "objectTypeId": "vap.vehicle",
+                "attributes": [
+                    "boundingBox",
+                    "confidence"
+                ]
+            },
+            {
+                "objectTypeId": "vap.person",
+                "attributes": [
+                    "boundingBox",
+                    "confidence"
+                ]
+            },
+            {
+                "eventTypeId": "analytics.api.stub.lineCrossing",
+                "attributes": []
+            }
+        ]
+    }
+}

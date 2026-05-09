@@ -15,6 +15,7 @@ from plugin.core.config import AppConfig, AnyCorAppConfig, NvrInstanceConfig
 from vms_shim.frigate.shim import FrigateVmsShim
 from vms_shim.nxwitness.shim import NxWitnessVmsShim
 from core_app_shim.lvc import LiveCaptioningCoreAppShim
+from core_app_shim.object_detection import ObjectDetectionCoreAppShim
 
 logger = structlog.get_logger(__name__)
 
@@ -29,6 +30,7 @@ _VMS_REGISTRY: dict[str, VmsShimBuilder] = {
 
 _CORE_APP_REGISTRY: dict[str, CoreAppShimBuilder] = {
     "live_captioning": LiveCaptioningCoreAppShim,
+    "object_detection": ObjectDetectionCoreAppShim,
 }
 
 
