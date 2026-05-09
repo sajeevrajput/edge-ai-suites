@@ -126,7 +126,9 @@ class NxWitnessVmsShim(IVmsShim):
         for d in devices:
             if d.get("deviceType") != "Camera":
                 continue
-            cameras.append(_to_camera(d))
+            device_id = d.get("id", "")
+            vms_url = await self.get_live_stream_url(f"nx:{device_id}")
+            cameras.append(_to_camera(d, stream_url=vms_url))
         logger.info("nx_cameras_discovered", count=len(cameras))
         return cameras
 
@@ -658,7 +660,7 @@ class NxWitnessVmsShim(IVmsShim):
 
 # -- Helpers -------------------------------------------------------------
 
-def _to_camera(d: dict) -> Camera:
+def _to_camera(d: dict, stream_url: str | None = None) -> Camera:
     nx_status = d.get("status", "")
     cam_status = "online" if nx_status in ("Online", "Recording") else "offline"
     return Camera(
@@ -666,7 +668,7 @@ def _to_camera(d: dict) -> Camera:
         name=d.get("name", ""),
         vendor="nx_witness",
         status=cam_status,
-        stream_url=d.get("url"),
+        stream_url=stream_url or d.get("url"),
         enabled=False,
         vendor_meta=d,
     )
