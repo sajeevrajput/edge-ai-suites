@@ -18,6 +18,7 @@ export default function App() {
   const [cameras,      setCameras]      = useState([]);
   const [apiLog,       setApiLog]       = useState([]);
   const [lvcRuns,      setLvcRuns]      = useState([]);
+  const [odRuns,       setOdRuns]       = useState([]);
   const [discovering,  setDiscovering]  = useState(false);
   const [coreApp,      setCoreApp]      = useState('');
 
@@ -107,27 +108,31 @@ export default function App() {
       listCoreAppRuns('live_captioning').then((runs) => {
         if (Array.isArray(runs) && runs.length > 0) setLvcRuns(runs);
       }).catch(() => {/* fallback to optimistic run */});
+    } else {
+      setOdRuns((prev) => [...prev, run]);
     }
     logApi('POST', `/v1/core-apps/${appId}/runs`, 200,
-      `Started ${appId} run=${run.runId ?? run.videoId ?? '(ok)'}`);
-    toast.success('Analysis started — check the Live Stream tab');
+      `Started ${appId} run=${run.run_id ?? run.runId ?? run.videoId ?? '(ok)'}`);
+    toast.success('Analysis started');
   }, [logApi]);
 
-  // Stop the first active LVC run (from the engine panel Stop button)
-  const handleStopAnalysis = useCallback(async () => {
-    const run = lvcRuns[0];
-    if (!run) return;
-    const runId = run.runId || run.run_id;
+  // Stop the first active run for the given app (called from the engine panel Stop button)
+  const handleStopAnalysis = useCallback(async (appId, runId) => {
+    if (!appId || !runId) return;
     try {
-      await stopCoreAppRun('live_captioning', runId);
-      setLvcRuns((prev) => prev.filter((r) => (r.runId || r.run_id) !== runId));
-      logApi('DELETE', `/v1/core-apps/live_captioning/runs/${runId}`, 200, 'Run stopped');
-      toast.success('Live Captioning run stopped');
+      await stopCoreAppRun(appId, runId);
+      if (appId === 'live_captioning') {
+        setLvcRuns((prev) => prev.filter((r) => (r.runId || r.run_id) !== runId));
+      } else {
+        setOdRuns((prev) => prev.filter((r) => (r.runId || r.run_id) !== runId));
+      }
+      logApi('DELETE', `/v1/core-apps/${appId}/runs/${runId}`, 200, 'Run stopped');
+      toast.success('Analysis stopped');
     } catch (err) {
-      logApi('DELETE', `/v1/core-apps/live_captioning/runs/${runId}`, 502, String(err));
+      logApi('DELETE', `/v1/core-apps/${appId}/runs/${runId}`, 502, String(err));
       toast.error(`Failed to stop run: ${err.message ?? err}`);
     }
-  }, [lvcRuns, logApi]);
+  }, [logApi]);
 
   const NAV = [
     { id: 'cameras',   label: t('navCameraDiscovery'), icon: Camera, desc: t('navCameraDesc') },
@@ -254,7 +259,7 @@ export default function App() {
                   coreApp={coreApp}
                   cameras={cameras}
                   onCoreAppChange={setCoreApp}
-                  isLvcRunning={lvcRuns.length > 0}
+                  activeRuns={{ live_captioning: lvcRuns, pdd: odRuns }}
                   onStartAnalysis={handleStartAnalysis}
                   onStopAnalysis={handleStopAnalysis}
                 />

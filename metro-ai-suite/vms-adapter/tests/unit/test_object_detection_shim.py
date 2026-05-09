@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -17,9 +17,11 @@ def _make_config(**kwargs) -> ObjectDetectionCoreAppConfig:
         "type": "object_detection",
         "app_id": "pdd",
         "display_name": "Pallet Defect Detection",
-        "base_url": "http://localhost:8080",
+        "base_url": "https://localhost:443/api",
         "mqtt_host": "localhost",
         "mqtt_port": 1883,
+        "pipeline_server_mqtt_host": "mqtt-broker",
+        "pipeline_server_mqtt_port": 1883,
     }
     defaults.update(kwargs)
     return ObjectDetectionCoreAppConfig(**defaults)
@@ -56,11 +58,9 @@ def test_camera_fields_returns_camera_id():
 
 async def test_fetch_schema_returns_object_schema():
     shim = _make_shim()
-    mock_pipelines = [
-        {"name": "object_detection", "version": "1"},
-        {"name": "defect_detection", "version": "2"},
-    ]
-    shim._api.list_pipelines = AsyncMock(return_value=mock_pipelines)
+    shim._api.list_pipelines = AsyncMock(return_value=[
+        {"name": "user_defined_pipelines", "version": "pallet_defect_detection"},
+    ])
 
     schema = await shim.fetch_schema()
 
@@ -71,14 +71,28 @@ async def test_fetch_schema_returns_object_schema():
 
 
 async def test_fetch_schema_populates_pipeline_enum():
+    """Pipeline enum uses the 'version' field, not 'name' (which is the root)."""
     shim = _make_shim()
-    shim._api.list_pipelines = AsyncMock(
-        return_value=[{"name": "pipe_A"}, {"name": "pipe_B"}]
-    )
+    shim._api.list_pipelines = AsyncMock(return_value=[
+        {"name": "user_defined_pipelines", "version": "pallet_defect_detection"},
+        {"name": "user_defined_pipelines", "version": "pallet_defect_detection_gpu"},
+    ])
     schema = await shim.fetch_schema()
     enum = schema["properties"]["pipeline_name"]["enum"]
-    assert "pipe_A" in enum
-    assert "pipe_B" in enum
+    assert "pallet_defect_detection" in enum
+    assert "pallet_defect_detection_gpu" in enum
+    # Root name must NOT appear in the enum
+    assert "user_defined_pipelines" not in enum
+
+
+async def test_fetch_schema_builds_pipeline_root_map():
+    """_pipeline_root_map maps version → root for correct POST URL."""
+    shim = _make_shim()
+    shim._api.list_pipelines = AsyncMock(return_value=[
+        {"name": "user_defined_pipelines", "version": "pallet_defect_detection"},
+    ])
+    await shim.fetch_schema()
+    assert shim._pipeline_root_map == {"pallet_defect_detection": "user_defined_pipelines"}
 
 
 async def test_fetch_schema_handles_empty_pipeline_list():
@@ -102,28 +116,58 @@ async def test_is_reachable_delegates_to_api_client():
 # ── start ─────────────────────────────────────────────────────────────────────
 
 async def test_start_creates_run():
+    """start() posts to /{pipeline_root}/{pipeline_version} and returns run_id=instance_id."""
     shim = _make_shim()
+    shim._pipeline_root_map = {"pallet_defect_detection": "user_defined_pipelines"}
     shim._api.start_run = AsyncMock(
-        return_value={"instance_id": 42, "pipeline": "object_detection/1"}
+        return_value={"instance_id": "4b36b3ce52ad11f0ad60863f511204e2"}
     )
 
     params = MagicMock()
     params.model_dump.return_value = {
-        "pipeline_name": "object_detection",
-        "pipeline_version": "1",
+        "pipeline_name": "pallet_defect_detection",
         "camera_id": "rtsp://cam:554/stream",
+        "camera_id_ref": "nx:e3e9a385-7fe0-3ba5-5482-a86cde7faf48",
         "parameters": {},
     }
 
     result = await shim.start(params)
 
     shim._api.start_run.assert_called_once_with(
-        "object_detection",
-        "1",
-        {"source": {"uri": "rtsp://cam:554/stream", "type": "uri"}},
+        "user_defined_pipelines",
+        "pallet_defect_detection",
+        {
+            "source": {"uri": "rtsp://cam:554/stream", "type": "uri", "properties": {"protocols": "tcp", "add-reference-timestamp-meta": True, "latency": 100}},
+            "destination": {"metadata": {"type": "mqtt", "host": "tcp://mqtt-broker:1883", "topic": "nx/pdd/e3e9a385-7fe0-3ba5-5482-a86cde7faf48"}},
+            "parameters": {},
+        },
     )
-    assert result["instance_id"] == 42
-    assert "run_id" in result
+    assert result["run_id"] == "4b36b3ce52ad11f0ad60863f511204e2"
+    assert result["pipeline_name"] == "pallet_defect_detection"
+
+
+async def test_start_uses_default_root_when_not_in_map():
+    """If pipeline_root_map is empty, defaults to 'user_defined_pipelines'."""
+    shim = _make_shim()
+    shim._api.start_run = AsyncMock(return_value={"instance_id": "abc123"})
+
+    params = MagicMock()
+    params.model_dump.return_value = {
+        "pipeline_name": "some_pipeline",
+        "camera_id": "rtsp://cam/s",
+        "camera_id_ref": "",
+        "parameters": {},
+    }
+    await shim.start(params)
+    shim._api.start_run.assert_called_once_with(
+        "user_defined_pipelines",
+        "some_pipeline",
+        {
+            "source": {"uri": "rtsp://cam/s", "type": "uri", "properties": {"protocols": "tcp", "add-reference-timestamp-meta": True, "latency": 100}},
+            "destination": {"metadata": {"type": "mqtt", "host": "tcp://mqtt-broker:1883", "topic": "vap/pdd/unknown"}},
+            "parameters": {},
+        },
+    )
 
 
 async def test_start_raises_on_missing_pipeline_name():
@@ -144,8 +188,7 @@ async def test_start_raises_on_api_failure():
 
     params = MagicMock()
     params.model_dump.return_value = {
-        "pipeline_name": "defect",
-        "pipeline_version": "1",
+        "pipeline_name": "pallet_defect_detection",
         "camera_id": "rtsp://x/y",
         "parameters": {},
     }
@@ -155,34 +198,36 @@ async def test_start_raises_on_api_failure():
 
 # ── stop_run ──────────────────────────────────────────────────────────────────
 
-async def test_stop_run_by_run_id_found_in_cache():
+async def test_stop_run_calls_api_with_instance_id():
+    """stop_run() passes run_id (hex UUID) directly to the API — no name/version lookup."""
     shim = _make_shim()
+    run_id = "4b36b3ce52ad11f0ad60863f511204e2"
     shim._api.stop_run = AsyncMock(return_value=True)
-    shim._api.start_run = AsyncMock(return_value={"instance_id": 5})
 
-    params = MagicMock()
-    params.model_dump.return_value = {
-        "pipeline_name": "pd",
-        "pipeline_version": "1",
-        "camera_id": "rtsp://c/s",
-        "parameters": {},
-    }
-    r = await shim.start(params)
-    ok = await shim.stop_run(r["run_id"])
+    ok = await shim.stop_run(run_id)
+
+    shim._api.stop_run.assert_called_once_with(run_id)
     assert ok is True
 
 
-async def test_stop_run_parses_run_id_without_cache():
+async def test_stop_run_clears_cache_on_success():
+    """Successful stop removes the entry from _runs cache."""
     shim = _make_shim()
+    run_id = "abc123"
+    shim._runs[run_id] = {"run_id": run_id, "pipeline_name": "pd"}
     shim._api.stop_run = AsyncMock(return_value=True)
-    ok = await shim.stop_run("my_pipeline/2/99")
-    shim._api.stop_run.assert_called_once_with("my_pipeline", "2", "99")
-    assert ok is True
+
+    await shim.stop_run(run_id)
+
+    assert run_id not in shim._runs
 
 
-async def test_stop_run_unknown_format_returns_false():
+async def test_stop_run_not_in_cache_still_calls_api():
+    """stop_run() does NOT require the cache — it calls the API directly."""
     shim = _make_shim()
-    ok = await shim.stop_run("bad_run_id")
+    shim._api.stop_run = AsyncMock(return_value=False)
+    ok = await shim.stop_run("unknown-id")
+    shim._api.stop_run.assert_called_once_with("unknown-id")
     assert ok is False
 
 

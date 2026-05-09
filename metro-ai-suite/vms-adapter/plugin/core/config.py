@@ -88,6 +88,12 @@ class ObjectDetectionCoreAppConfig(BaseModel):
     base_url: str  # Pipeline Server REST URL
     mqtt_host: str = "localhost"
     mqtt_port: int = 1883
+    # Broker address as seen by the Pipeline Server (used in the destination payload
+    # so gvametapublish can connect). Defaults to the Pipeline Server's MQTT_HOST env var
+    # value (container name on the PDD network). Set to "host.docker.internal" if the
+    # broker is only reachable via the host's published port.
+    pipeline_server_mqtt_host: str = "mqtt-broker"
+    pipeline_server_mqtt_port: int = 1883
 
 
 AnyCorAppConfig = LiveCaptioningCoreAppConfig | ObjectDetectionCoreAppConfig

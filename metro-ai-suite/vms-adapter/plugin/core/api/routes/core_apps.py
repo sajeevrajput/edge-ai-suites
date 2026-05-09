@@ -170,6 +170,8 @@ async def start_core_app_run(
         if cam_value and isinstance(cam_value, str):
             camera = await repo.get_camera(db, cam_value)
             if camera and camera.stream_url:
+                # Preserve original camera_id for shims that need it (e.g. OD MQTT topic)
+                resolved_payload[f"{field_name}_ref"] = cam_value
                 resolved_payload[field_name] = camera.stream_url
                 logger.info(
                     "core_app_camera_resolved",

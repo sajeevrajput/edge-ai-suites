@@ -37,10 +37,9 @@ import SchemaForm, { initialFormState } from './SchemaForm';
 export default function AnalyticsEnginePanel({
   cameras = [],
   onCoreAppChange,
-  isLvcRunning = false,
-  lvcStarting = false,
+  activeRuns = {},     // { [appId]: run[] } — map of active runs per app
   onStartAnalysis,   // (appId, runResult) => void  — invoked after a successful start
-  onStopAnalysis,
+  onStopAnalysis,    // (appId, runId) => void  — invoked when Stop is clicked
 }) {
   const [discovered, setDiscovered] = useState([]);
   const [discovering, setDiscovering] = useState(false);
@@ -130,6 +129,19 @@ export default function AnalyticsEnginePanel({
     const payload = Object.fromEntries(
       Object.entries(formValue).filter(([, v]) => v !== '' && v !== null && v !== undefined),
     );
+    // Coerce any string values that the schema declares as type:object.
+    // This happens when a textarea is used for JSON input (e.g. "parameters").
+    const schemaProps = selectedApp.params_schema?.properties ?? {};
+    for (const [key, val] of Object.entries(payload)) {
+      if (typeof val === 'string' && schemaProps[key]?.type === 'object') {
+        try {
+          payload[key] = JSON.parse(val);
+        } catch {
+          setErrors([{ loc: [key], msg: `"${key}" must be valid JSON`, type: 'json_parse_error' }]);
+          return;
+        }
+      }
+    }
     setStarting(true);
     setErrors([]);
     try {
@@ -278,24 +290,34 @@ export default function AnalyticsEnginePanel({
           {selectedApp && (
             <div className="vms-field-row bg-[#F0F7FF]">
               <span className="vms-field-label">Live Analysis</span>
-              {!isLvcRunning ? (
-                <Button
-                  size="sm"
-                  className="bg-[#0071C5] hover:bg-[#005BA0] text-white text-[0.78rem] font-semibold px-4"
-                  onClick={handleStart}
-                  disabled={starting || lvcStarting || !selectedApp.available}
-                  title={!selectedApp.available ? 'Core App backend is not reachable' : 'Validate parameters and trigger the Core App'}
-                >
-                  {(starting || lvcStarting)
-                    ? <><Loader2 size={13} className="mr-1.5 animate-spin" />Starting…</>
-                    : <><PlayCircle size={13} className="mr-1.5" />Start Analysis</>}
-                </Button>
-              ) : (
-                <Button size="sm" variant="destructive"
-                  className="text-[0.78rem] font-semibold px-4" onClick={onStopAnalysis}>
-                  <StopCircle size={13} className="mr-1.5" />Stop Analysis
-                </Button>
-              )}
+              {(() => {
+                const appRuns = activeRuns[selectedAppId] ?? [];
+                const activeRun = appRuns[0];
+                const isRunning = appRuns.length > 0;
+                if (!isRunning) {
+                  return (
+                    <Button
+                      size="sm"
+                      className="bg-[#0071C5] hover:bg-[#005BA0] text-white text-[0.78rem] font-semibold px-4"
+                      onClick={handleStart}
+                      disabled={starting || !selectedApp.available}
+                      title={!selectedApp.available ? 'Core App backend is not reachable' : 'Validate parameters and trigger the Core App'}
+                    >
+                      {starting
+                        ? <><Loader2 size={13} className="mr-1.5 animate-spin" />Starting…</>
+                        : <><PlayCircle size={13} className="mr-1.5" />Start Analysis</>}
+                    </Button>
+                  );
+                }
+                const runId = activeRun?.run_id ?? activeRun?.runId;
+                return (
+                  <Button size="sm" variant="destructive"
+                    className="text-[0.78rem] font-semibold px-4"
+                    onClick={() => onStopAnalysis?.(selectedAppId, runId)}>
+                    <StopCircle size={13} className="mr-1.5" />Stop Analysis
+                  </Button>
+                );
+              })()}
             </div>
           )}
 

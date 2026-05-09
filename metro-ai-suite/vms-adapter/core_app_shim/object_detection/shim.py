@@ -21,7 +21,6 @@ generic ``/v1/core-apps/{app_id}/…`` routes work without app-specific code.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import structlog
@@ -42,7 +41,10 @@ class ObjectDetectionCoreAppShim(ICoreAppShim):
         self._config = config
         self._api = ObjectDetectionApiClient(base_url=config.base_url)
         self._param_model: type[BaseModel] = BaseModel
-        # Tracks active runs: run_id → {name, version, instance_id, camera_id}
+        # Maps pipeline version (user-facing name) → pipeline root (URL path segment)
+        # e.g. "pallet_defect_detection" → "user_defined_pipelines"
+        self._pipeline_root_map: dict[str, str] = {}
+        # Tracks active runs: run_id (= instance_id hex) → run metadata
         self._runs: dict[str, dict[str, Any]] = {}
 
     @property
@@ -62,16 +64,26 @@ class ObjectDetectionCoreAppShim(ICoreAppShim):
     async def fetch_schema(self) -> dict[str, Any]:
         """Build a JSON Schema from the available pipeline templates.
 
-        Fetches ``GET /pipelines``, extracts pipeline names, and builds a
-        simple schema with ``pipeline_name``, ``camera_id``, and ``parameters``
-        fields. Caches a dynamic Pydantic model for validation.
+        Calls ``GET /pipelines``. Each entry has:
+          - ``name``:    pipeline root directory (e.g. "user_defined_pipelines")
+          - ``version``: user-facing pipeline identifier (e.g. "pallet_defect_detection")
+
+        The UI ``pipeline_name`` field shows the ``version`` values.  The root
+        is stored in ``_pipeline_root_map`` so ``start()`` can construct the
+        correct POST URL: ``/pipelines/{root}/{version}``.
         """
         pipelines = await self._api.list_pipelines()
-        pipeline_names = [
-            p.get("name") or f"{p.get('type', 'unknown')}/{p.get('version', '1')}"
-            for p in pipelines
-            if isinstance(p, dict)
-        ]
+
+        self._pipeline_root_map = {}
+        pipeline_names: list[str] = []
+        for p in pipelines:
+            if not isinstance(p, dict):
+                continue
+            root = p.get("name", "user_defined_pipelines")
+            version = p.get("version", "")
+            if version:
+                self._pipeline_root_map[version] = root
+                pipeline_names.append(version)
 
         schema: dict[str, Any] = {
             "type": "object",
@@ -81,7 +93,7 @@ class ObjectDetectionCoreAppShim(ICoreAppShim):
                 "pipeline_name": {
                     "type": "string",
                     "title": "Pipeline",
-                    "description": "Name of the pipeline template to run",
+                    "description": "Pipeline template to run",
                     "enum": pipeline_names or [],
                     "x-vms-source": "pipeline",
                 },
@@ -91,33 +103,46 @@ class ObjectDetectionCoreAppShim(ICoreAppShim):
                     "description": "Camera to process (RTSP URL resolved automatically)",
                     "x-vms-source": "camera-id",
                 },
-                "pipeline_version": {
-                    "type": "string",
-                    "title": "Pipeline version",
-                    "default": "1",
-                },
                 "parameters": {
                     "type": "object",
-                    "title": "Additional parameters",
-                    "description": "Extra pipeline parameters passed as-is to the Pipeline Server",
+                    "title": "Pipeline parameters",
+                    "description": (
+                        "Extra parameters forwarded to the Pipeline Server payload. "
+                        "E.g. {\"detection-properties\": {\"device\": \"CPU\"}}"
+                    ),
                     "default": {},
                     "additionalProperties": True,
+                    "x-format": "textarea",
                 },
             },
         }
 
-        # Build a lightweight Pydantic model for validation
         self._param_model = create_model(
             "OdStartParams",
             pipeline_name=(str, ...),
             camera_id=(str, ...),
-            pipeline_version=(str, "1"),
+            camera_id_ref=(str, ""),   # original camera_id before RTSP resolution (e.g. "nx:abc123")
             parameters=(dict, {}),
         )
 
         return schema
 
     # ── ICoreAppShim — lifecycle ──────────────────────────────────────────────
+
+    def _build_mqtt_topic(self, camera_id_ref: str) -> str:
+        """Build the MQTT publish topic from the original camera_id.
+
+        Format: ``{vendor_prefix}/{app_id}/{device_id}``
+        Example: ``nx/pdd/e3e9a385-7fe0-3ba5-5482-a86cde7faf48``
+
+        The subscriber listens on ``+/{app_id}/+`` and uses prefix-match on
+        the first segment to find the right VMS shim (e.g. ``nx`` → ``nx-main``).
+        """
+        if ":" in camera_id_ref:
+            vendor_prefix, device_id = camera_id_ref.split(":", 1)
+        else:
+            vendor_prefix, device_id = "vap", camera_id_ref or "unknown"
+        return f"{vendor_prefix}/{self._config.app_id}/{device_id}"
 
     async def is_reachable(self) -> bool:
         return await self._api.is_reachable()
@@ -127,53 +152,78 @@ class ObjectDetectionCoreAppShim(ICoreAppShim):
 
         The ``camera_id`` field is resolved to an RTSP URL by the generic
         run route before this method is called (see ``camera_fields()``).
-        After resolution the field contains the RTSP URL string.
+
+        Payload sent to Pipeline Server::
+
+            {
+              "source": {"uri": "<rtsp_url>", "type": "uri"},
+              "parameters": { ...extra_params from the ``parameters`` field }
+            }
         """
         data = params.model_dump() if hasattr(params, "model_dump") else dict(params)
 
         pipeline_name: str = data.get("pipeline_name", "")
-        pipeline_version: str = str(data.get("pipeline_version", "1"))
-        # After RTSP resolution the camera_id field holds the stream URL
         stream_url: str = data.get("camera_id", "")
         extra_params: dict = data.get("parameters", {}) or {}
+        camera_id_ref: str = data.get("camera_id_ref", "")
 
         if not pipeline_name:
             raise ValueError("pipeline_name is required")
         if not stream_url:
             raise ValueError("camera_id / stream URL is required")
 
-        payload: dict[str, Any] = {
-            "source": {"uri": stream_url, "type": "uri"},
-            **extra_params,
-        }
+        pipeline_root = self._pipeline_root_map.get(pipeline_name, "user_defined_pipelines")
 
-        result = await self._api.start_run(pipeline_name, pipeline_version, payload)
+        # Build MQTT topic from the original camera_id (e.g. "nx:abc123")
+        # Topic format: "{vendor_prefix}/{app_id}/{device_id}" → matches subscriber filter "+/{app_id}+"
+        # e.g. "nx/pdd/e3e9a385-7fe0-3ba5-5482-a86cde7faf48"
+        mqtt_topic = self._build_mqtt_topic(camera_id_ref)
+
+        payload: dict[str, Any] = {
+            "source": {
+                "uri": stream_url,
+                "type": "uri",
+                "properties": {
+                    "protocols": "tcp",
+                    "add-reference-timestamp-meta": True,
+                    "latency": 100,
+                },
+            },
+            "destination": {
+                "metadata": {
+                    "type": "mqtt",
+                    "host": f"{self._config.pipeline_server_mqtt_host}:{self._config.pipeline_server_mqtt_port}",
+                    "topic": mqtt_topic,
+                },
+            },
+            "parameters": extra_params,
+        }
+        logger.info("-"*100)
+        logger.info(payload)
+        logger.info("-"*100)
+
+        result = await self._api.start_run(pipeline_root, pipeline_name, payload)
         if result is None:
             raise RuntimeError(
-                f"Pipeline Server failed to start pipeline '{pipeline_name}/{pipeline_version}'"
+                f"Pipeline Server failed to start pipeline '{pipeline_root}/{pipeline_name}'"
             )
 
-        instance_id = result.get("instance_id") or result.get("id") or str(result)
-        run_id = f"{pipeline_name}/{pipeline_version}/{instance_id}"
+        # instance_id is a hex UUID string returned by the Pipeline Server
+        instance_id: str = str(result.get("instance_id") or result.get("id") or "")
+        run_id = instance_id  # already URL-safe hex string
 
         self._runs[run_id] = {
             "run_id": run_id,
             "pipeline_name": pipeline_name,
-            "pipeline_version": pipeline_version,
-            "instance_id": instance_id,
+            "pipeline_root": pipeline_root,
             "stream_url": stream_url,
         }
 
-        logger.info(
-            "od_run_started",
-            run_id=run_id,
-            pipeline=f"{pipeline_name}/{pipeline_version}",
-        )
+        logger.info("od_run_started", run_id=run_id, pipeline=f"{pipeline_root}/{pipeline_name}")
         return {
             "run_id": run_id,
             "pipeline_name": pipeline_name,
-            "pipeline_version": pipeline_version,
-            "instance_id": instance_id,
+            "pipeline_root": pipeline_root,
         }
 
     # ── ICoreAppShim — run management ─────────────────────────────────────────
@@ -182,38 +232,15 @@ class ObjectDetectionCoreAppShim(ICoreAppShim):
         return await self._api.list_runs()
 
     async def stop_run(self, run_id: str) -> bool:
-        run = self._runs.get(run_id)
-        if run is None:
-            # Try to parse run_id as "name/version/instance_id"
-            parts = run_id.split("/", 2)
-            if len(parts) == 3:  # noqa: PLR2004
-                name, version, instance_id = parts
-            else:
-                logger.warning("od_stop_run_unknown_id", run_id=run_id)
-                return False
-        else:
-            name = run["pipeline_name"]
-            version = run["pipeline_version"]
-            instance_id = run["instance_id"]
-
-        ok = await self._api.stop_run(name, version, instance_id)
+        """Stop a pipeline instance by its hex UUID run_id."""
+        ok = await self._api.stop_run(run_id)
         if ok:
             self._runs.pop(run_id, None)
         return ok
 
     async def get_run(self, run_id: str) -> dict[str, Any] | None:
-        run = self._runs.get(run_id)
-        if run is None:
-            parts = run_id.split("/", 2)
-            if len(parts) == 3:  # noqa: PLR2004
-                name, version, instance_id = parts
-            else:
-                return None
-        else:
-            name = run["pipeline_name"]
-            version = run["pipeline_version"]
-            instance_id = run["instance_id"]
-        return await self._api.get_run(name, version, instance_id)
+        """Get status of a pipeline instance by its hex UUID run_id."""
+        return await self._api.get_run(run_id)
 
     # ── ICoreAppShim — deliver (not used — push model) ────────────────────────
 

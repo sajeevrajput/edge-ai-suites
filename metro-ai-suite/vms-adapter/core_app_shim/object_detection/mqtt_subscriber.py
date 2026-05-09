@@ -117,7 +117,10 @@ class MqttSubscriber:
 
         vms_name, _, camera_id = parts
 
-        shim = shim_map.get(vms_name)
+        # Exact match first (e.g. "nx-main"), then prefix match (e.g. "nx" → "nx-main")
+        shim = shim_map.get(vms_name) or next(
+            (v for k, v in shim_map.items() if k.startswith(vms_name)), None
+        )
         if shim is None:
             logger.warning(
                 "mqtt_unknown_vms",

@@ -30,9 +30,11 @@ core_apps:
   - type: object_detection
     app_id: "pdd"
     display_name: "Pallet Defect Detection"
-    base_url: "http://${PDD_HOST:-host.docker.internal}:${PDD_PORT:-8080}"
+    base_url: "https://${PDD_HOST:-host.docker.internal}:${PDD_PORT:-443}/api"
     mqtt_host: "${MQTT_HOST:-host.docker.internal}"
     mqtt_port: ${MQTT_PORT:-1883}
+    pipeline_server_mqtt_host: "${PIPELINE_SERVER_MQTT_HOST:-172.18.0.1}"
+    pipeline_server_mqtt_port: ${PIPELINE_SERVER_MQTT_PORT:-1883}
 
 api:
   host: "0.0.0.0"

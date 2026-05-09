@@ -1,7 +1,13 @@
 """DLStreamer Pipeline Server REST API client.
 
 Wraps all HTTP calls to the Pipeline Server REST API.
-Reference API spec: core_app_shim/dlstreamer/pipeline-server.yaml
+
+URL conventions (via nginx /api/ → dlstreamer:8080):
+  GET  /pipelines                  → list templates; each item has "name" (root) + "version" (pipeline id)
+  POST /pipelines/{root}/{version} → start instance; response is a hex UUID string (instance_id)
+  GET  /pipelines/status           → list all running instances (id, state, avg_fps, ...)
+  GET  /pipelines/{instance_id}    → get one instance
+  DELETE /pipelines/{instance_id}  → stop one instance (id only, no root/version)
 """
 
 from __future__ import annotations
@@ -27,13 +33,19 @@ class ObjectDetectionApiClient:
             self._client = httpx.AsyncClient(
                 base_url=self._base_url,
                 timeout=self._timeout,
+                verify=False,  # PDD nginx uses a self-signed certificate
             )
         return self._client
 
     # ── Pipelines (templates) ─────────────────────────────────────────────────
 
     async def list_pipelines(self) -> list[dict[str, Any]]:
-        """GET /pipelines — list available pipeline templates."""
+        """GET /pipelines — list available pipeline templates.
+
+        Each entry has:
+          - "name":    pipeline root directory (e.g. "user_defined_pipelines")
+          - "version": pipeline identifier shown to users (e.g. "pallet_defect_detection")
+        """
         client = self._ensure_client()
         try:
             resp = await client.get("/pipelines")
@@ -44,49 +56,49 @@ class ObjectDetectionApiClient:
             logger.error("od_list_pipelines_failed", error=str(exc))
             return []
 
-    async def get_pipeline(self, name: str, version: str) -> dict[str, Any] | None:
-        """GET /pipelines/{name}/{version} — get pipeline description."""
-        client = self._ensure_client()
-        try:
-            resp = await client.get(f"/pipelines/{name}/{version}")
-            resp.raise_for_status()
-            return resp.json()
-        except httpx.HTTPError as exc:
-            logger.error("od_get_pipeline_failed", name=name, version=version, error=str(exc))
-            return None
-
     # ── Pipeline instances (runs) ─────────────────────────────────────────────
 
     async def start_run(
-        self, name: str, version: str, payload: dict[str, Any],
+        self, pipeline_root: str, pipeline_version: str, payload: dict[str, Any],
     ) -> dict[str, Any] | None:
-        """POST /pipelines/{name}/{version} — start a new pipeline instance.
+        """POST /pipelines/{pipeline_root}/{pipeline_version} — start a new pipeline instance.
 
-        Returns the created instance dict on success, or None on failure.
+        The Pipeline Server returns the instance_id as a hex UUID string
+        (e.g. "4b36b3ce52ad11f0ad60863f511204e2").
+
+        Returns {"instance_id": "<hex-uuid>"} on success, None on failure.
         """
         client = self._ensure_client()
         try:
-            resp = await client.post(f"/pipelines/{name}/{version}", json=payload)
+            resp = await client.post(f"/pipelines/{pipeline_root}/{pipeline_version}", json=payload)
             if not resp.is_success:
                 logger.error(
                     "od_start_run_failed",
-                    name=name,
-                    version=version,
+                    pipeline_root=pipeline_root,
+                    pipeline_version=pipeline_version,
                     status_code=resp.status_code,
                     detail=resp.text[:200],
                 )
                 return None
-            # Pipeline Server returns the instance_id as a plain integer or in a dict
             result = resp.json()
-            if isinstance(result, (int, str)):
-                return {"instance_id": result, "pipeline": f"{name}/{version}"}
+            # Response is a plain hex UUID string
+            if isinstance(result, str):
+                return {"instance_id": result}
             return result
         except httpx.HTTPError as exc:
-            logger.error("od_start_run_error", name=name, version=version, error=str(exc))
+            logger.error(
+                "od_start_run_error",
+                pipeline_root=pipeline_root,
+                pipeline_version=pipeline_version,
+                error=str(exc),
+            )
             return None
 
     async def list_runs(self) -> list[dict[str, Any]]:
-        """GET /pipelines/status — list all running pipeline instances."""
+        """GET /pipelines/status — list all running pipeline instances.
+
+        Each entry has: id, state, avg_fps, elapsed_time, start_time, message.
+        """
         client = self._ensure_client()
         try:
             resp = await client.get("/pipelines/status")
@@ -97,37 +109,27 @@ class ObjectDetectionApiClient:
             logger.error("od_list_runs_failed", error=str(exc))
             return []
 
-    async def get_run(
-        self, name: str, version: str, instance_id: str | int,
-    ) -> dict[str, Any] | None:
-        """GET /pipelines/{name}/{version}/{instance_id} — get instance status."""
+    async def get_run(self, instance_id: str) -> dict[str, Any] | None:
+        """GET /pipelines/{instance_id} — get a specific running instance."""
         client = self._ensure_client()
         try:
-            resp = await client.get(f"/pipelines/{name}/{version}/{instance_id}")
+            resp = await client.get(f"/pipelines/{instance_id}")
             resp.raise_for_status()
             return resp.json()
         except httpx.HTTPError as exc:
-            logger.error(
-                "od_get_run_failed",
-                name=name, version=version, instance_id=instance_id, error=str(exc),
-            )
+            logger.error("od_get_run_failed", instance_id=instance_id, error=str(exc))
             return None
 
-    async def stop_run(
-        self, name: str, version: str, instance_id: str | int,
-    ) -> bool:
-        """DELETE /pipelines/{name}/{version}/{instance_id} — stop a pipeline instance."""
+    async def stop_run(self, instance_id: str) -> bool:
+        """DELETE /pipelines/{instance_id} — stop a pipeline instance by its hex UUID."""
         client = self._ensure_client()
         try:
-            resp = await client.delete(f"/pipelines/{name}/{version}/{instance_id}")
+            resp = await client.delete(f"/pipelines/{instance_id}")
             resp.raise_for_status()
-            logger.info("od_run_stopped", name=name, version=version, instance_id=instance_id)
+            logger.info("od_run_stopped", instance_id=instance_id)
             return True
         except httpx.HTTPError as exc:
-            logger.error(
-                "od_stop_run_failed",
-                name=name, version=version, instance_id=instance_id, error=str(exc),
-            )
+            logger.error("od_stop_run_failed", instance_id=instance_id, error=str(exc))
             return False
 
     # ── Health ────────────────────────────────────────────────────────────────
