@@ -92,16 +92,6 @@ class Orchestrator:
             logger.warning("autoregister_skipped_no_db", nvr=ss.name)
             return
 
-        async with factory() as db:
-            existing = await repo.get_nx_integration(db, ss.name)
-            if existing and existing.status == "approved":
-                logger.info(
-                    "nx_integration_already_registered",
-                    nvr=ss.name,
-                    username=existing.nx_username,
-                )
-                return
-
         manifest_path = Path(ss.config.analytics_manifest_path)  # type: ignore[arg-type]
         if not manifest_path.exists():
             logger.error(
@@ -123,30 +113,80 @@ class Orchestrator:
             )
             return
 
+        # Derive core_app_id from the integration manifest id (e.g. "dlstreamer", "lvc")
+        core_app_id = manifests.get("integrationManifest", {}).get("id", "default")
+        manifest_id = core_app_id  # same value — manifest ID is used as username in Nx
+
+        async with factory() as db:
+            db_record = await repo.get_nx_integration(db, ss.name, core_app_id)
+
+        nx_record = await ss.vms_shim.find_integration_in_vms(manifest_id)
+
+        # Decision tree: DB ✕ Nx
+        if db_record and nx_record:
+            logger.info(
+                "nx_integration_already_registered",
+                nvr=ss.name,
+                core_app_id=core_app_id,
+                username=db_record.nx_username,
+            )
+            return
+
+        if not db_record and nx_record:
+            logger.error(
+                "nx_integration_exists_in_vms_not_in_db",
+                nvr=ss.name,
+                core_app_id=core_app_id,
+                detail=(
+                    "The Nx VMS already has an integration with this manifest ID but the "
+                    "VAP database has no record of it. Clean up the integration in Nx or "
+                    "call POST /v1/vms/{name}/register to force re-registration."
+                ),
+            )
+            return
+
+        if db_record and not nx_record:
+            logger.error(
+                "nx_integration_exists_in_db_not_in_vms",
+                nvr=ss.name,
+                core_app_id=core_app_id,
+                detail=(
+                    "The VAP database has an integration record but it is missing from the "
+                    "Nx VMS. The integration may have been deleted from Nx manually. "
+                    "Delete the DB record and restart, or recreate the integration in Nx."
+                ),
+            )
+            return
+
+        # Neither DB nor Nx has the integration — create fresh
         try:
             result = await ss.vms_shim.register_analytics(manifests)
         except Exception:
             logger.exception("nx_autoregister_failed", nvr=ss.name)
             return
 
+        _VALID_STATUSES = {"pending", "registered", "approved", "failed"}
         nx_status = result.get("status", "failed")
+        db_status = nx_status if nx_status in _VALID_STATUSES else "failed"
         async with factory() as db:
             await repo.upsert_nx_integration(
                 db,
                 vms_name=ss.name,
+                core_app_id=core_app_id,
                 integration_manifest=manifests.get("integrationManifest", {}),
                 engine_manifest=manifests.get("engineManifest", {}),
                 device_agent_manifest=manifests.get("deviceAgentManifest"),
                 nx_username=result.get("username"),
                 nx_password=result.get("password"),
                 nx_request_id=result.get("request_id"),
-                status=nx_status,
+                status=db_status,
             )
 
         logger.info(
             "nx_integration_autoregistered",
             nvr=ss.name,
-            status=nx_status,
+            core_app_id=core_app_id,
+            status=db_status,
             username=result.get("username"),
         )
 

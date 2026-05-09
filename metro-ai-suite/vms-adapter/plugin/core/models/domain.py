@@ -127,6 +127,8 @@ class ClipUrlResponse(BaseModel):
 class RegisterRequest(BaseModel):
     """Request body for POST /v1/vms/{name}/register."""
     manifest: dict = Field(default_factory=dict)
+    # Identifies which core app this integration belongs to (e.g. "dlstreamer", "lvc")
+    core_app_id: str = "default"
     # Nx-specific: structured manifests (take priority over manifest dict)
     integration_manifest: dict | None = None
     engine_manifest: dict | None = None
@@ -140,6 +142,7 @@ class NxAnalyticsIntegration(BaseModel):
     """Nx Analytics Integration record persisted to the DB after Phase 1 registration."""
     id: str
     vms_name: str
+    core_app_id: str
     integration_manifest: dict = Field(default_factory=dict)
     engine_manifest: dict = Field(default_factory=dict)
     device_agent_manifest: dict | None = None

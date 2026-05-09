@@ -32,7 +32,7 @@ _SAMPLE_MANIFESTS = {
 }
 
 
-def _make_nx_shim_set(name="nx-main", manifest_path: str | None = None):
+def _make_nx_shim_set(name="nx-main", manifest_path: str | None = None, nx_record=None):
     config = NvrInstanceConfig(
         name=name,
         vendor="nx_witness",
@@ -47,6 +47,7 @@ def _make_nx_shim_set(name="nx-main", manifest_path: str | None = None):
         "password": "secret",
         "request_id": "req-123",
     })
+    shim.find_integration_in_vms = AsyncMock(return_value=nx_record)
     return SimpleNamespace(name=name, config=config, vms_shim=shim)
 
 
@@ -83,6 +84,7 @@ def client_factory():
             mock_repo.upsert_nx_integration = AsyncMock(return_value=MagicMock(
                 model_dump=lambda **kw: {
                     "vms_name": "nx-main",
+                    "core_app_id": "dlstreamer",
                     "status": "approved",
                     "nx_username": "integration_user",
                     "nx_password": "secret",
@@ -116,30 +118,77 @@ def test_register_vms_not_found(client_factory):
     assert resp.status_code == 404
 
 
-def test_register_nx_returns_cached_if_already_approved(client_factory):
-    """If DB already has an approved integration, skip Nx and return cached."""
+def test_register_nx_returns_cached_if_both_db_and_vms_have_it(client_factory):
+    """DB + Nx both have the integration → return DB record, skip registration."""
     from plugin.core.models.domain import NxAnalyticsIntegration
     from datetime import datetime, timezone
 
     cached = NxAnalyticsIntegration(
         id="some-uuid",
         vms_name="nx-main",
-        integration_manifest={},
-        engine_manifest={},
+        core_app_id="test.integration",
+        integration_manifest=_SAMPLE_MANIFESTS["integrationManifest"],
+        engine_manifest=_SAMPLE_MANIFESTS["engineManifest"],
         nx_username="cached_user",
         nx_password="cached_pass",
         nx_request_id="req-old",
         status="approved",
         registered_at=datetime.now(timezone.utc),
     )
-    ss = _make_nx_shim_set()
-    with client_factory([ss], db_integration=cached) as (client, mock_repo):
-        resp = client.post("/v1/vms/nx-main/register", json={"manifest": {}})
+    nx_existing = {"username": "cached_user", "password": "", "request_id": "req-old"}
+    ss = _make_nx_shim_set(nx_record=nx_existing)
+    with client_factory([ss], db_integration=cached) as (client, _):
+        resp = client.post("/v1/vms/nx-main/register", json={
+            "integration_manifest": _SAMPLE_MANIFESTS["integrationManifest"],
+            "engine_manifest": _SAMPLE_MANIFESTS["engineManifest"],
+        })
 
     assert resp.status_code == 200
-    data = resp.json()
-    assert data["nx_username"] == "cached_user"
-    # Shim should NOT have been called
+    assert resp.json()["nx_username"] == "cached_user"
+    ss.vms_shim.register_analytics.assert_not_awaited()
+
+
+def test_register_nx_errors_if_vms_has_it_but_db_does_not(client_factory):
+    """Nx has integration but DB missing → 409 error."""
+    nx_existing = {"username": "test.integration", "password": "", "request_id": "req-nx"}
+    ss = _make_nx_shim_set(nx_record=nx_existing)
+    with client_factory([ss], db_integration=None) as (client, _):
+        resp = client.post("/v1/vms/nx-main/register", json={
+            "integration_manifest": _SAMPLE_MANIFESTS["integrationManifest"],
+            "engine_manifest": _SAMPLE_MANIFESTS["engineManifest"],
+        })
+
+    assert resp.status_code == 409
+    assert "already exists in Nx VMS but has no DB record" in resp.json()["detail"]
+    ss.vms_shim.register_analytics.assert_not_awaited()
+
+
+def test_register_nx_errors_if_db_has_it_but_vms_does_not(client_factory):
+    """DB has integration but Nx missing → 409 error."""
+    from plugin.core.models.domain import NxAnalyticsIntegration
+    from datetime import datetime, timezone
+
+    cached = NxAnalyticsIntegration(
+        id="some-uuid",
+        vms_name="nx-main",
+        core_app_id="test.integration",
+        integration_manifest=_SAMPLE_MANIFESTS["integrationManifest"],
+        engine_manifest=_SAMPLE_MANIFESTS["engineManifest"],
+        nx_username="cached_user",
+        nx_password="cached_pass",
+        nx_request_id="req-old",
+        status="approved",
+        registered_at=datetime.now(timezone.utc),
+    )
+    ss = _make_nx_shim_set(nx_record=None)  # Nx has no record
+    with client_factory([ss], db_integration=cached) as (client, _):
+        resp = client.post("/v1/vms/nx-main/register", json={
+            "integration_manifest": _SAMPLE_MANIFESTS["integrationManifest"],
+            "engine_manifest": _SAMPLE_MANIFESTS["engineManifest"],
+        })
+
+    assert resp.status_code == 409
+    assert "recorded in the DB but is missing from Nx VMS" in resp.json()["detail"]
     ss.vms_shim.register_analytics.assert_not_awaited()
 
 
@@ -148,6 +197,7 @@ def test_register_nx_with_inline_manifests(client_factory):
     ss = _make_nx_shim_set()
     with client_factory([ss]) as (client, mock_repo):
         resp = client.post("/v1/vms/nx-main/register", json={
+            "core_app_id": "dlstreamer",
             "integration_manifest": _SAMPLE_MANIFESTS["integrationManifest"],
             "engine_manifest": _SAMPLE_MANIFESTS["engineManifest"],
             "device_agent_manifest": _SAMPLE_MANIFESTS["deviceAgentManifest"],
@@ -159,6 +209,9 @@ def test_register_nx_with_inline_manifests(client_factory):
     called_manifest = ss.vms_shim.register_analytics.call_args[0][0]
     assert called_manifest["integrationManifest"]["id"] == "test.integration"
     assert called_manifest["pinCode"] == "1234"
+    # Verify core_app_id was passed to upsert
+    upsert_call = mock_repo.upsert_nx_integration.call_args
+    assert upsert_call.kwargs["core_app_id"] == "dlstreamer"
     mock_repo.upsert_nx_integration.assert_awaited_once()
 
 

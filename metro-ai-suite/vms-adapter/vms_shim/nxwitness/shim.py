@@ -194,46 +194,6 @@ class NxWitnessVmsShim(IVmsShim):
         device_agent_manifest = manifest.get("deviceAgentManifest")
         pin_code = manifest.get("pinCode", "1234")
 
-        creds = await self._create_integration_request(
-            integration_manifest, engine_manifest, device_agent_manifest, pin_code,
-        )
-        if creds is None:
-            return {"status": "error", "reason": "create_integration_request_failed"}
-
-        approved = await self._approve_integration_request(creds["request_id"])
-        if not approved:
-            return {
-                "status": "registered",
-                "username": creds["username"],
-                "password": creds["password"],
-                "request_id": creds["request_id"],
-                "reason": "approval_failed",
-            }
-
-        logger.info(
-            "nx_integration_approved",
-            username=creds["username"],
-            request_id=creds["request_id"],
-        )
-        return {
-            "status": "approved",
-            "username": creds["username"],
-            "password": creds["password"],
-            "request_id": creds["request_id"],
-        }
-
-    async def _create_integration_request(
-        self,
-        integration_manifest: dict[str, Any],
-        engine_manifest: dict[str, Any],
-        device_agent_manifest: dict[str, Any] | None,
-        pin_code: str,
-    ) -> dict[str, str] | None:
-        """POST /rest/v4/analytics/integrations/*/requests.
-
-        Returns ``{"username": ..., "password": ..., "request_id": ...}``
-        or ``None`` on failure.
-        """
         payload: dict[str, Any] = {
             "integrationManifest": integration_manifest,
             "engineManifest": engine_manifest,
@@ -243,6 +203,36 @@ class NxWitnessVmsShim(IVmsShim):
         if device_agent_manifest:
             payload["deviceAgentManifest"] = device_agent_manifest
 
+        # Try fresh registration first
+        fresh = await self._post_integration_request(payload)
+        if fresh:
+            approved = await self._approve_integration_request(fresh["request_id"])
+            if not approved:
+                return {
+                    "status": "registered",
+                    "username": fresh["username"],
+                    "password": fresh["password"],
+                    "request_id": fresh["request_id"],
+                    "reason": "approval_failed",
+                }
+            logger.info(
+                "nx_integration_approved",
+                username=fresh["username"],
+                request_id=fresh["request_id"],
+            )
+            return {
+                "status": "approved",
+                "username": fresh["username"],
+                "password": fresh["password"],
+                "request_id": fresh["request_id"],
+            }
+
+        return {"status": "error", "reason": "create_integration_request_failed"}
+
+    async def _post_integration_request(
+        self, payload: dict[str, Any],
+    ) -> dict[str, str] | None:
+        """Single attempt at POST /rest/v4/analytics/integrations/*/requests."""
         try:
             resp = await self._client.post(  # type: ignore[union-attr]
                 "/rest/v4/analytics/integrations/*/requests",
@@ -255,9 +245,63 @@ class NxWitnessVmsShim(IVmsShim):
                 "password": result.get("password", ""),
                 "request_id": result.get("requestId", ""),
             }
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "nx_create_integration_failed",
+                status_code=e.response.status_code,
+                response_body=e.response.text,
+                payload_keys=list(payload.keys()),
+            )
+            return None
         except httpx.HTTPError as e:
             logger.error("nx_create_integration_failed", error=str(e))
             return None
+
+    async def find_integration_in_vms(
+        self, manifest_id: str,
+    ) -> dict[str, str] | None:
+        """Check whether an integration with the given manifest ID exists in Nx.
+
+        Checks both the approved integrations list and the Nx users list (to
+        catch pending/unapproved requests). Returns a dict with ``username``,
+        ``password`` (empty — not recoverable from Nx), and ``request_id`` if
+        found, or ``None`` if the integration does not exist in Nx at all.
+        """
+        # 1. Check approved integrations list
+        try:
+            resp = await self._client.get("/rest/v4/analytics/integrations")  # type: ignore[union-attr]
+            resp.raise_for_status()
+            for item in resp.json():
+                api_info = item.get("apiIntegrationInfo") or {}
+                sdk_info = item.get("sdkIntegrationInfo") or {}
+                if (
+                    api_info.get("integrationId") == manifest_id
+                    or sdk_info.get("integrationId") == manifest_id
+                ):
+                    return {
+                        "username": manifest_id,
+                        "password": "",  # not recoverable from Nx
+                        "request_id": api_info.get("integrationUserId") or item.get("id", ""),
+                    }
+        except httpx.HTTPError as e:
+            logger.error("nx_list_integrations_failed", error=str(e))
+            return None  # can't determine state — treat as unknown
+
+        # 2. Check users list for a pending (unapproved) integration
+        try:
+            resp = await self._client.get("/rest/v4/users")  # type: ignore[union-attr]
+            resp.raise_for_status()
+            for user in resp.json():
+                if user.get("name") == manifest_id or user.get("login") == manifest_id:
+                    return {
+                        "username": manifest_id,
+                        "password": "",  # not recoverable from Nx
+                        "request_id": user.get("id", ""),
+                    }
+        except httpx.HTTPError as e:
+            logger.error("nx_list_users_failed", error=str(e))
+
+        return None
 
     async def _approve_integration_request(self, request_id: str) -> bool:
         """POST /rest/v4/analytics/integrations/*/requests/{requestId}/approve."""

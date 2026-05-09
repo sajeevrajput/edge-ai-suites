@@ -63,6 +63,15 @@ class IVmsShim(ABC):
     @abstractmethod
     async def register_analytics(self, manifest: dict[str, Any]) -> dict[str, Any]: ...
 
+    async def find_integration_in_vms(self, manifest_id: str) -> dict[str, Any] | None:
+        """Check if an analytics integration exists in the VMS by its manifest ID.
+
+        Returns a dict with ``username``, ``password``, ``request_id`` if found,
+        or ``None`` if not found or not applicable for this VMS vendor.
+        Override in VMS shims that support analytics integration lookup.
+        """
+        return None
+
     @abstractmethod
     async def acknowledge_event(
         self, camera_id: str, event_id: str, message: str = "",

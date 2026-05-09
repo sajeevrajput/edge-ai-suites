@@ -27,7 +27,7 @@ async def register_vms(
 
     For Nx Witness:
       1. Returns cached approved credentials if already registered in DB.
-      2. Loads manifests from request body, or falls back to config YAML path.
+      2. Loads manifests from request body, or falls back to config YAML.
       3. Calls the shim for Phase 1 REST registration.
       4. Persists credentials to DB so cameras can reuse the integration.
 
@@ -42,12 +42,7 @@ async def register_vms(
 
     # --- Nx Witness path ---
 
-    # 1. Check DB for existing approved integration
-    existing = await repo.get_nx_integration(db, name)
-    if existing and existing.status == "approved":
-        return existing.model_dump(exclude={"id"})
-
-    # 2. Build manifests dict: prefer structured fields in body, then load from file
+    # Build manifests early (needed to derive manifest_id for Nx lookup)
     manifests = _build_manifests(body, ss)
     if manifests is None:
         raise HTTPException(
@@ -58,24 +53,60 @@ async def register_vms(
             ),
         )
 
-    # 3. Register with Nx
+    manifest_id = manifests.get("integrationManifest", {}).get("id", body.core_app_id)
+
+    # Check DB for existing record
+    db_record = await repo.get_nx_integration(db, name, body.core_app_id)
+
+    # Check Nx VMS for existing integration
+    nx_record = await ss.vms_shim.find_integration_in_vms(manifest_id)
+
+    # Decision tree: DB ✕ Nx
+    if db_record and nx_record:
+        # Both present — return DB record (source of truth)
+        return db_record.model_dump(exclude={"id"})
+
+    if not db_record and nx_record:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Integration '{manifest_id}' already exists in Nx VMS but has no DB record. "
+                "Delete the integration from Nx and retry, or contact your administrator."
+            ),
+        )
+
+    if db_record and not nx_record:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Integration '{manifest_id}' is recorded in the DB but is missing from Nx VMS. "
+                "The integration may have been deleted from Nx manually. "
+                "Delete the DB record and retry registration."
+            ),
+        )
+
+    # Neither — create in Nx then save to DB
     result = await ss.vms_shim.register_analytics(manifests)
 
-    # 4. Persist to DB
-    nx_status = result.get("status", "failed")
+    # Persist to DB — normalize shim status to the DB-allowed set
+    raw_status = result.get("status", "failed")
+    _VALID_STATUSES = {"pending", "registered", "approved", "failed"}
+    db_status = raw_status if raw_status in _VALID_STATUSES else "failed"
+
     integration: NxAnalyticsIntegration = await repo.upsert_nx_integration(
         db,
         vms_name=name,
+        core_app_id=body.core_app_id,
         integration_manifest=manifests.get("integrationManifest", {}),
         engine_manifest=manifests.get("engineManifest", {}),
         device_agent_manifest=manifests.get("deviceAgentManifest"),
         nx_username=result.get("username"),
         nx_password=result.get("password"),
         nx_request_id=result.get("request_id"),
-        status=nx_status,
+        status=db_status,
     )
 
-    if nx_status == "error":
+    if raw_status == "error":
         raise HTTPException(
             status_code=502,
             detail=f"Nx integration registration failed: {result.get('reason', 'unknown')}",
