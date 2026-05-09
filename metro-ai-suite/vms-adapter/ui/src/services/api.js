@@ -123,13 +123,3 @@ export async function startCoreApp(appId, payload) {
   }
   return res.json();
 }
-
-// ── Legacy aliases (kept for backward compat during transition) ───────────────
-/** @deprecated Use stopCoreAppRun('live_captioning', runId) */
-export const stopLvcRun = (runId) => stopCoreAppRun('live_captioning', runId);
-/** @deprecated Use listCoreAppRuns('live_captioning') */
-export const listLvcRuns = () => listCoreAppRuns('live_captioning');
-/** @deprecated Use getCoreAppOptions('live_captioning', 'models') */
-export const getLvcModels = () => getCoreAppOptions('live_captioning', 'models');
-/** @deprecated Use getCoreAppOptions('live_captioning', 'pipelines') */
-export const getLvcPipelines = () => getCoreAppOptions('live_captioning', 'pipelines');
