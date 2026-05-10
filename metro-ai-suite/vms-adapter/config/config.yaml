@@ -40,13 +40,10 @@ core_apps:
     # These types are also registered in the Nx manifest automatically at startup.
     label_type_map:
       car: vap.vehicle
-      truck: vap.vehicle
-      bus: vap.vehicle
-      motorcycle: vap.vehicle
-      bicycle: vap.vehicle
-      van: vap.vehicle
       person: vap.person
-      pedestrian: vap.person
+      defect: vap.defect.defect
+      box: vap.ok.box
+      shipping_label: vap.shipping_label
 
 api:
   host: "0.0.0.0"

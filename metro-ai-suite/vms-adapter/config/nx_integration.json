@@ -7,30 +7,10 @@
         "version": "1.0.0",
         "engineSettingsModel": {
             "type": "Settings",
-            "items": [
-                {
-                    "type": "CheckBox",
-                    "name": "enable_detection",
-                    "caption": "Enable Object Detection",
-                    "defaultValue": true
-                },
-                {
-                    "type": "TextField",
-                    "name": "confidence_threshold",
-                    "caption": "Confidence Threshold",
-                    "defaultValue": "0.5"
-                },
-                {
-                    "type": "Button",
-                    "name": "crash_plugin",
-                    "caption": "Crashes the plugin when clicked",
-                    "isActive": true
-                }
-            ]
+            "items": []
         }
     },
     "engineManifest": {
-        "vectorizationModel": "openai/clip-vit-large-patch14-336",
         "typeLibrary": {
             "objectTypes": [
                 {
@@ -47,14 +27,7 @@
         },
         "deviceAgentSettingsModel": {
             "type": "Settings",
-            "items": [
-                {
-                    "type": "CheckBox",
-                    "name": "enable_tracking",
-                    "caption": "Enable Object Tracking",
-                    "defaultValue": true
-                }
-            ]
+            "items": []
         },
         "objectActions": []
     },

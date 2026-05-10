@@ -1,0 +1,227 @@
+# Get Started
+
+The **VMS Adapter Plugin (VAP)** bridges NVR/VMS systems (Frigate, Nx Witness) with AI analytics Core Apps (Live Video Captioning, Pallet Defect Detection). This guide shows how to deploy the full stack with Docker Compose and run your first analytics session.
+
+This guide shows how to:
+
+- **Set up prerequisites**: Start LVC or PDD before VAP, since VAP fetches their schemas at startup.
+- **Configure the environment**: Point VAP at your NVR and Core App services.
+- **Run the operator dashboard**: Discover cameras, enable streams, and start analytics runs.
+
+## Prerequisites
+
+- Verify that your system meets the [minimum requirements](./get-started/system-requirements.md).
+- Install Docker: [Installation Guide](https://docs.docker.com/get-docker/).
+- Install Docker Compose: [Installation Guide](https://docs.docker.com/compose/install/).
+- One or more of the following running and reachable:
+  - **Frigate** NVR with cameras configured (RTSP streams)
+  - **Nx Witness** VMS with accessible REST API (`NX_HOST`, `NX_USERNAME`, `NX_PASSWORD`)
+- At least one Core App running before VAP starts:
+  - **Live Video Captioning (LVC)** — for AI captioning
+  - **Pallet Defect Detection (PDD)** — for warehouse defect detection with Nx write-back
+
+---
+
+## Step 1 — Start Live Video Captioning (LVC)
+
+> Skip this step if you are only using Pallet Defect Detection.
+
+Clone and start the LVC application from its own directory. LVC must be running before VAP starts, because VAP fetches the LVC OpenAPI schema at startup to build the analytics configuration form.
+
+```bash
+git clone --filter=blob:none --sparse --branch main https://github.com/open-edge-platform/edge-ai-suites.git
+cd edge-ai-suites
+git sparse-checkout set metro-ai-suite
+cd metro-ai-suite/live-video-analysis/live-video-captioning
+```
+
+Follow the [LVC Get Started guide](../live-video-analysis/live-video-captioning/docs/user-guide/get-started.md) to prepare models and configure the environment, then start the stack:
+
+```bash
+docker compose up -d
+```
+
+Verify LVC is reachable:
+
+```bash
+curl http://localhost:4173/health
+```
+
+---
+
+## Step 2 — Start Pallet Defect Detection (PDD)
+
+> Skip this step if you are only using Live Video Captioning.
+
+PDD is a user-provided application based on the Intel DLStreamer Pipeline Server. Bring up the PDD application according to its own documentation. The following services must be reachable from the VAP backend container:
+
+| **Service**              | **Default Port** | **Purpose**                            |
+|--------------------------|------------------|----------------------------------------|
+| DLStreamer Pipeline Server | `8080`         | Receive pipeline start/stop commands   |
+| MQTT Broker              | `1883`           | Publish inference metadata to VAP      |
+
+Verify the DLStreamer Pipeline Server is reachable:
+
+```bash
+curl http://<PDD_HOST>:8080/pipelines
+```
+
+---
+
+## Step 3 — Clone VAP and Create the `.env` File
+
+```bash
+cd metro-ai-suite/vms-adapter
+cp .env.example .env
+```
+
+Open `.env` and update the variables for your environment:
+
+| **Variable**                         | **Description**                                                          |
+|--------------------------------------|--------------------------------------------------------------------------|
+| `LVC_BASE_URL`                       | URL of the running LVC backend, e.g. `http://<lvc-host>:4173`           |
+| `MEDIAMTX_URL`                       | URL of the MediaMTX WebRTC server, e.g. `http://<lvc-host>:8889`        |
+| `FRIGATE_HOST`                       | Hostname/IP of the Frigate instance reachable from the backend container |
+| `NX_BASE_URL` / `NX_USERNAME` / `NX_PASSWORD` | Nx Witness credentials (only if using Nx)                     |
+| `PDD_HOST` / `PDD_PORT`              | DLStreamer Pipeline Server host and port for PDD (default: `8080`)       |
+| `MQTT_HOST` / `MQTT_PORT`            | MQTT broker host and port for PDD metadata (default: `1883`)             |
+| `PG_PASSWORD`                        | PostgreSQL password (change from default)                                |
+| `BACKEND_PORT` / `UI_PORT`           | Host ports for the API (`8085`) and dashboard (`3100`)                   |
+
+> If LVC or PDD is running on the same host as VAP, use `host.docker.internal` (Linux/Mac). Otherwise, use the actual IP address.
+
+---
+
+## Step 4 — Configure Frigate Cameras
+
+> Skip this step if you are not using Frigate.
+
+Edit `vms_shim/frigate/config/config.yml` to add your camera RTSP streams. VAP reads this file directly — no Frigate API call is needed for camera discovery.
+
+```yaml
+cameras:
+  front-door:
+    ffmpeg:
+      inputs:
+        - path: rtsp://user:pass@192.168.1.10:554/stream
+          roles:
+            - detect
+```
+
+Refer to the [Frigate configuration docs](https://docs.frigate.video/configuration/) for the full schema.
+
+---
+
+## Step 5 — Build and Start VAP
+
+```bash
+docker compose up -d --build
+```
+
+Wait for all services to become healthy:
+
+```bash
+docker compose ps
+```
+
+Expected output — all services should show **healthy** or **running**:
+
+```
+NAME              STATUS
+vms-backend       Up (healthy)
+vms-ui            Up
+postgres          Up (healthy)
+frigate           Up
+```
+
+Verify the backend is up:
+
+```bash
+curl http://localhost:8085/v1/health
+```
+
+---
+
+## Step 6 — Open the Operator Dashboard
+
+| **Service**             | **URL**                            |
+|-------------------------|------------------------------------|
+| Operator Dashboard      | `http://localhost:3100`            |
+| Backend API             | `http://localhost:8085/v1`         |
+| API Docs (Swagger)      | `http://localhost:8085/docs`       |
+| Frigate UI              | `http://localhost:5000`            |
+
+---
+
+## Step 7 — Discover Cameras
+
+In the dashboard, click **Discover Cameras** to sync cameras from all connected NVR systems. You can also trigger discovery via the API:
+
+```bash
+curl -X POST http://localhost:8085/v1/cameras/discover
+```
+
+The backend queries all configured VMS shims (Frigate, Nx Witness) and persists discovered cameras to PostgreSQL.
+
+---
+
+## Step 8 — Enable Cameras and Start Analytics
+
+1. In the **Camera Discovery** panel, enable the cameras you want to use for analytics.
+2. In the **Analytics Engine** panel, select a Core App (for example, **Live Video Captioning** or **Pallet Defect Detection**).
+3. Configure the analytics parameters (model, prompt, pipeline, and so on) and click **Start Run**.
+4. View live captions or detection results in the **Live Stream** and **Analysis Results** panels.
+
+### Live Video Captioning
+
+Configure the following fields in the dashboard:
+
+| **Field**         | **Description**                                     | **Default**                              |
+|-------------------|-----------------------------------------------------|------------------------------------------|
+| Camera            | Dropdown of enabled cameras                         | —                                        |
+| Enter Prompt      | VLM prompt for captioning                           | "Describe what you see in one sentence." |
+| Select Model      | VLM model from LVC                                  | OpenGVLab/InternVL2-2B                   |
+| Max New Tokens    | Maximum caption length                              | 70                                       |
+| Select Pipeline   | DLStreamer pipeline configuration                   | —                                        |
+| Run Name          | Display name for this run                           | —                                        |
+| Frame Rate        | Frames per second sent for inference                | 1                                        |
+| Chunk Size        | Number of frames per inference chunk                | 1                                        |
+| Frame Resolution  | Resolution preset sent to LVC                       | default                                  |
+
+Live captions are streamed via SSE and displayed in the dashboard caption overlay on the WebRTC video player.
+
+### Pallet Defect Detection
+
+Configure the following fields in the dashboard:
+
+| **Field**         | **Description**                                     |
+|-------------------|-----------------------------------------------------|
+| Camera            | Dropdown of enabled cameras (Nx Witness cameras)    |
+| Pipeline Name     | DLStreamer pipeline template to use                 |
+| Pipeline Version  | Version of the pipeline template                    |
+
+Detection results are pushed directly back to Nx Witness as analytics objects (bounding boxes with labels). Use the Nx Witness client to view detections overlaid on the camera feed.
+
+---
+
+## Stop the Stack
+
+```bash
+docker compose down          # stop without removing data
+docker compose down -v       # stop and remove PostgreSQL volume
+```
+
+## Supporting Resources
+
+- [How It Works](./how-it-works.md)
+- [Troubleshooting](./troubleshooting.md)
+- [System Requirements](./get-started/system-requirements.md)
+
+<!--hide_directive
+:::{toctree}
+:hidden:
+
+get-started/system-requirements.md
+
+:::
+hide_directive-->
