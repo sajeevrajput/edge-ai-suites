@@ -5,18 +5,14 @@ import { Camera, Zap } from 'lucide-react';
 
 import Header from '@/components/Navbar';
 import { StatCards, CameraDiscoveryPanel, AnalyticsEnginePanel, AnalysisResultsPanel } from '@/components/MainPage';
-import ApiLogDrawer from '@/components/Drawer';
 
 import { discoverCameras, listCameras, setCameraEnabled, stopCoreAppRun, listCoreAppRuns } from '@/services/api';
 import { useHealth } from '@/hooks';
 import { t } from '@/utils/i18n';
 
-const ts = () => new Date().toTimeString().slice(0, 8);
-
 export default function App() {
   const [activeSection, setActiveSection] = useState('cameras');
   const [cameras,      setCameras]      = useState([]);
-  const [apiLog,       setApiLog]       = useState([]);
   const [lvcRuns,      setLvcRuns]      = useState([]);
   const [odRuns,       setOdRuns]       = useState([]);
   const [discovering,  setDiscovering]  = useState(false);
@@ -24,6 +20,17 @@ export default function App() {
 
   const engineStatus = useHealth();
   const enabledCount = cameras.filter((c) => c.enabled).length;
+
+  // Stop all running LVC pipelines when the user refreshes or leaves the page.
+  useEffect(() => {
+    const stopAllOnUnload = () => {
+      if (lvcRuns.length === 0) return;
+      // sendBeacon is the only reliable way to fire a request on page unload.
+      navigator.sendBeacon('/v1/core-apps/live_captioning/runs/stop-all');
+    };
+    window.addEventListener('beforeunload', stopAllOnUnload);
+    return () => window.removeEventListener('beforeunload', stopAllOnUnload);
+  }, [lvcRuns]);
 
   // Load persisted cameras from DB on mount (preserves enabled state across page refreshes)
   useEffect(() => {
@@ -53,19 +60,13 @@ export default function App() {
     return () => clearInterval(id);
   }, []);
 
-  const logApi = useCallback((method, path, statusCode, note) => {
-    setApiLog((prev) => [{ method, path, statusCode, note, time:ts() }, ...prev].slice(0, 30));
-  }, []);
-
   const handleDiscover = async () => {
     setDiscovering(true);
     try {
       const discovered = await discoverCameras();
       setCameras(discovered);
-      logApi('POST', '/v1/cameras/discover', 200, `Discovered ${discovered.length} cameras via FrigateVmsShim`);
       toast.success(t('toastDiscoverSuccess', { count: discovered.length }));
     } catch (err) {
-      logApi('POST', '/v1/cameras/discover', 502, String(err));
       toast.error(t('toastDiscoverFailed', { message: err.message ?? err }));
     } finally {
       setDiscovering(false);
@@ -78,10 +79,8 @@ export default function App() {
     try {
       await setCameraEnabled([cameraId], enabled);
       setCameras((prev) => prev.map((c) => c.camera_id === cameraId ? { ...c, enabled } : c));
-      logApi('POST', `/v1/cameras/enable`, 200, `camera_id=${cameraId} → ${action}d`);
       if (cam) toast.success(t(enabled ? 'toastCameraEnabled' : 'toastCameraDisabled', { name: cam.camera_name }));
     } catch (err) {
-      logApi('POST', `/v1/cameras/enable`, 502, String(err));
       toast.error(t('toastCameraToggleFailed', { action, message: err.message ?? err }));
     }
   };
@@ -90,14 +89,12 @@ export default function App() {
     try {
       await stopCoreAppRun('live_captioning', runId);
       setLvcRuns((prev) => prev.filter((r) => (r.runId || r.run_id) !== runId));
-      logApi('DELETE', `/v1/core-apps/live_captioning/runs/${runId}`, 200, 'Run stopped');
       toast.success('Live Captioning run stopped');
     } catch (err) {
-      logApi('DELETE', `/v1/core-apps/live_captioning/runs/${runId}`, 502, String(err));
       toast.error(`Failed to stop run: ${err.message ?? err}`);
       throw err;
     }
-  }, [logApi]);
+  }, []);
 
   const handleStartAnalysis = useCallback(async (appId, response) => {
     const run = response?.result ?? response ?? {};
@@ -111,10 +108,8 @@ export default function App() {
     } else {
       setOdRuns((prev) => [...prev, run]);
     }
-    logApi('POST', `/v1/core-apps/${appId}/runs`, 200,
-      `Started ${appId} run=${run.run_id ?? run.runId ?? run.videoId ?? '(ok)'}`);
-    toast.success('Analysis started');
-  }, [logApi]);
+    toast.success('Analysis started — check the Live Stream tab');
+  }, []);
 
   // Stop the first active run for the given app (called from the engine panel Stop button)
   const handleStopAnalysis = useCallback(async (appId, runId) => {
@@ -126,13 +121,11 @@ export default function App() {
       } else {
         setOdRuns((prev) => prev.filter((r) => (r.runId || r.run_id) !== runId));
       }
-      logApi('DELETE', `/v1/core-apps/${appId}/runs/${runId}`, 200, 'Run stopped');
       toast.success('Analysis stopped');
     } catch (err) {
-      logApi('DELETE', `/v1/core-apps/${appId}/runs/${runId}`, 502, String(err));
       toast.error(`Failed to stop run: ${err.message ?? err}`);
     }
-  }, [logApi]);
+  }, []);
 
   const NAV = [
     { id: 'cameras',   label: t('navCameraDiscovery'), icon: Camera, desc: t('navCameraDesc') },
@@ -180,10 +173,7 @@ export default function App() {
             })}
           </nav>
 
-          {/* Bottom version tag */}
-          <div className="mt-auto px-5 pb-[56px] pt-4 border-t border-white/[0.06]">
-            <p className="text-[0.62rem] text-white/50 font-mono-vms">v2.1.0-oep</p>
-          </div>
+          <div className="mt-auto" />
         </aside>
 
         {/* Content */}
@@ -284,8 +274,6 @@ export default function App() {
           </div>
         </main>
       </div>
-
-      <ApiLogDrawer entries={apiLog} />
 
       <Toaster
         position="bottom-right"

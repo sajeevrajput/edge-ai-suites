@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import structlog
 
@@ -18,9 +17,6 @@ from plugin.base.interfaces import ICoreAppShim
 from plugin.core.config import AppConfig, load_config
 from plugin.core.db.session import close_db, init_db
 from plugin.core.factory import NvrShimSet, ShimFactory
-
-if TYPE_CHECKING:
-    pass
 
 logger = structlog.get_logger(__name__)
 
@@ -80,10 +76,6 @@ class Orchestrator:
         self._shutdown_event = asyncio.Event()
         self._mqtt_tasks: list[asyncio.Task] = []
 
-    @property
-    def core_app_shim(self) -> ICoreAppShim | None:
-        return next(iter(self.core_app_shims.values()), None)
-
     async def startup(self) -> None:
         logger.info("orchestrator_starting")
 
@@ -120,9 +112,9 @@ class Orchestrator:
         from plugin.core.api.deps import set_shims
         set_shims(self.nvr_shim_sets, self.core_app_shims, self.config)
 
-        await self._start_mqtt_client()
         await self._reconcile_sessions()
         await self._start_mqtt_subscribers()
+        await self._start_lvc_mqtt_subscriber()
 
         logger.info("orchestrator_started", nvr_count=len(self.nvr_shim_sets))
 
@@ -265,6 +257,35 @@ class Orchestrator:
         if username and password:
             ss.vms_shim.set_integration_credentials(username, password)
 
+    async def _start_lvc_mqtt_subscriber(self) -> None:
+        """Start an LvcMqttSubscriber background task for each live_captioning shim."""
+        from core_app_shim.lvc.mqtt_subscriber import LvcMqttSubscriber
+        from plugin.core.config import LiveCaptioningCoreAppConfig
+
+        for shim in self.core_app_shims.values():
+            cfg = getattr(shim, "_config", None)
+            if not isinstance(cfg, LiveCaptioningCoreAppConfig):
+                continue
+            if not self.config.mqtt.host:
+                logger.info("lvc_mqtt_not_configured_skipping", app_id=shim.app_id)
+                continue
+            subscriber = LvcMqttSubscriber()
+            shim.set_subscriber(subscriber)
+            task = asyncio.create_task(
+                subscriber.run(
+                    mqtt_host=self.config.mqtt.host,
+                    mqtt_port=self.config.mqtt.port,
+                ),
+                name=f"lvc-mqtt-subscriber-{shim.app_id}",
+            )
+            self._mqtt_tasks.append(task)
+            logger.info(
+                "lvc_mqtt_subscriber_task_started",
+                app_id=shim.app_id,
+                mqtt_host=self.config.mqtt.host,
+                mqtt_port=self.config.mqtt.port,
+            )
+
     async def _start_mqtt_subscribers(self) -> None:
         """Start an MqttSubscriber background task for each object_detection shim."""
         from core_app_shim.object_detection.mqtt_subscriber import MqttSubscriber
@@ -364,34 +385,9 @@ class Orchestrator:
                     camera_id=s.camera_id,
                 )
 
-    async def _start_mqtt_client(self) -> None:
-        """Connect the generic MQTT result client and subscribe to all shim topic prefixes."""
-        if not self.config.mqtt.host:
-            logger.info("mqtt_not_configured_skipping")
-            return
-
-        from plugin.core.services.mqtt_client import MqttResultClient
-        from plugin.core.api.deps import set_mqtt_client
-
-        client = MqttResultClient(
-            host=self.config.mqtt.host,
-            port=self.config.mqtt.port,
-        )
-        await client.connect()
-
-        for shim in self.core_app_shims.values():
-            prefix = shim.mqtt_topic_prefix()
-            if prefix:
-                client.subscribe_prefix(prefix)
-                logger.info("mqtt_prefix_subscribed", app_id=shim.app_id, prefix=prefix)
-
-        set_mqtt_client(client)
-        self._mqtt_client = client
-        logger.info("mqtt_client_ready", host=self.config.mqtt.host, port=self.config.mqtt.port)
-
     async def shutdown(self) -> None:
         logger.info("orchestrator_shutting_down")
-        # Cancel MQTT subscriber tasks
+        # Cancel all MQTT subscriber tasks (LVC + OD)
         for task in self._mqtt_tasks:
             task.cancel()
         if self._mqtt_tasks:
@@ -402,11 +398,6 @@ class Orchestrator:
                 await ss.vms_shim.disconnect()
             except Exception:
                 logger.exception("vms_disconnect_error", nvr=ss.name)
-        if hasattr(self, "_mqtt_client") and self._mqtt_client is not None:
-            try:
-                await self._mqtt_client.disconnect()
-            except Exception:
-                logger.exception("mqtt_disconnect_error")
         await close_db()
         logger.info("orchestrator_stopped")
 

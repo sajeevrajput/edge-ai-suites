@@ -21,7 +21,8 @@ so the generic ``/v1/core-apps/{app_id}/…`` routes work without any LVC-specif
 
 from __future__ import annotations
 
-from typing import Any
+import asyncio
+from typing import Any, Optional
 
 import structlog
 from pydantic import BaseModel
@@ -31,6 +32,7 @@ from plugin.core.models.domain import AnalysisResult, MetadataEvent
 from plugin.base.interfaces import ICoreAppShim
 from .api_client import LvcApiClient
 from .schema import LvcSchemaManager
+from .mqtt_subscriber import LvcMqttSubscriber
 
 logger = structlog.get_logger(__name__)
 
@@ -48,6 +50,30 @@ class LiveCaptioningCoreAppShim(ICoreAppShim):
             timeout=config.delivery_timeout_seconds,
         )
         self._schema_mgr = LvcSchemaManager()
+        self._mqtt_subscriber: Optional[LvcMqttSubscriber] = None
+
+    # ── MQTT subscriber wiring (set by orchestrator) ──────────────────────────
+
+    def set_subscriber(self, subscriber: LvcMqttSubscriber) -> None:
+        """Inject the aiomqtt subscriber started by the orchestrator."""
+        self._mqtt_subscriber = subscriber
+
+    def subscribe_run(self, run_id: str) -> asyncio.Queue | None:
+        """Return a per-run result queue, or None if MQTT is not connected."""
+        if self._mqtt_subscriber is None:
+            return None
+        return self._mqtt_subscriber.subscribe_run(run_id)
+
+    def release_run(self, run_id: str) -> None:
+        """Release the per-run queue when the SSE client disconnects."""
+        if self._mqtt_subscriber is not None:
+            self._mqtt_subscriber.release_run(run_id)
+
+    def get_broadcast_queue(self) -> asyncio.Queue | None:
+        """Return the broadcast queue (all runs), or None if not connected."""
+        if self._mqtt_subscriber is None:
+            return None
+        return self._mqtt_subscriber.broadcast_queue()
 
     # ── ICoreAppShim — schema ─────────────────────────────────────────────────
 

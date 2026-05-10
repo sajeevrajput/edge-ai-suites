@@ -35,7 +35,7 @@ from pydantic import ValidationError
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from plugin.core.api.deps import get_core_app_shims, get_db_session, require_core_app_shim, get_mqtt_client
+from plugin.core.api.deps import get_core_app_shims, get_db_session, require_core_app_shim
 from plugin.core.db import repository as repo
 from plugin.base.interfaces import ICoreAppShim
 
@@ -64,10 +64,7 @@ def _shim_descriptor(
 
 
 def _require_shim(app_id: str) -> ICoreAppShim:
-    shim = require_core_app_shim(app_id)
-    if shim is None:
-        raise HTTPException(status_code=404, detail=f"Core app '{app_id}' not registered")
-    return shim
+    return require_core_app_shim(app_id)
 
 
 # ── Discovery & schema ────────────────────────────────────────────────────────
@@ -246,6 +243,28 @@ async def stop_core_app_run(app_id: str, run_id: str) -> Response:
     return Response(status_code=204)
 
 
+@router.post("/{app_id}/runs/stop-all", status_code=204, response_class=Response)
+async def stop_all_core_app_runs(app_id: str) -> Response:
+    """Stop every active run for a Core App.
+
+    Called by the UI via ``navigator.sendBeacon`` on page unload/refresh so that
+    pipelines are cleaned up automatically when the user leaves the dashboard.
+    Returns 204 even if some stops fail (best-effort).
+    """
+    shim = _require_shim(app_id)
+    runs = await shim.list_runs()
+    for run in runs:
+        run_id = run.get("runId") or run.get("run_id") or run.get("id", "")
+        if not run_id:
+            continue
+        try:
+            await shim.stop_run(run_id)
+            logger.info("stop_all_run_stopped", app_id=app_id, run_id=run_id)
+        except Exception as exc:
+            logger.warning("stop_all_run_failed", app_id=app_id, run_id=run_id, error=str(exc))
+    return Response(status_code=204)
+
+
 # ── Results stream ────────────────────────────────────────────────────────────
 
 @router.get("/{app_id}/results/stream")
@@ -255,12 +274,12 @@ async def stream_core_app_results(
 ) -> StreamingResponse:
     """Stream live inference results (captions, detections, …) as Server-Sent Events.
 
-    **MQTT path (preferred):** If the Core App shim declares an MQTT topic prefix
-    and the plugin's MQTT client is connected, results are served directly from the
-    MQTT broker — no round-trip to the Core App backend.
+    **Per-shim MQTT queue (preferred):** If the Core App shim owns an aiomqtt
+    subscriber (e.g. LVC), results are served from the shim's per-run queue —
+    no global MQTT client needed.
 
-    **SSE proxy fallback:** If MQTT is not available the route proxies the Core
-    App's own SSE endpoint (legacy behaviour, same as before).
+    **SSE proxy fallback:** If the shim has no queue the route proxies the Core
+    App's own SSE endpoint (legacy behaviour).
 
     The ``run_id`` query parameter narrows the stream to a single run's results.
     Without it, all results for the app are broadcast (backwards-compatible).
@@ -268,16 +287,14 @@ async def stream_core_app_results(
     Returns 501 if the app does not support streaming at all.
     """
     shim = _require_shim(app_id)
-    mqtt_client = get_mqtt_client()
-    topic_prefix = shim.mqtt_topic_prefix()
 
-    if mqtt_client is not None and topic_prefix:
-        # ── MQTT-driven SSE ──────────────────────────────────────────────────
-        if run_id:
-            queue: asyncio.Queue = mqtt_client.subscribe_run(topic_prefix, run_id)
-        else:
-            queue = mqtt_client.broadcast_queue(topic_prefix)
+    # ── Per-shim MQTT queue (aiomqtt subscriber, e.g. LVC) ───────────────────
+    if run_id:
+        queue: asyncio.Queue | None = shim.subscribe_run(run_id)
+    else:
+        queue = shim.get_broadcast_queue()
 
+    if queue is not None:
         async def _mqtt_sse() -> AsyncIterator[bytes]:
             heartbeat_interval = 1.0
             last_heartbeat = time.monotonic()
@@ -289,7 +306,6 @@ async def stream_core_app_results(
                         envelope = await asyncio.wait_for(queue.get(), timeout=timeout)
                         yield f"data: {json.dumps(envelope)}\n\n".encode()
                     except asyncio.TimeoutError:
-                        # Send a heartbeat so the client stays alive
                         heartbeat = json.dumps({"type": "heartbeat", "app_id": app_id})
                         yield f"data: {heartbeat}\n\n".encode()
                         last_heartbeat = time.monotonic()
@@ -297,7 +313,7 @@ async def stream_core_app_results(
                 pass
             finally:
                 if run_id:
-                    mqtt_client.release_run(run_id)
+                    shim.release_run(run_id)
 
         return StreamingResponse(
             _mqtt_sse(),

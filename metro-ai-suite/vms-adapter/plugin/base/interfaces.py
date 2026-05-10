@@ -25,6 +25,7 @@ chat thread is authoritative. Concretely:
 
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
@@ -197,10 +198,25 @@ class ICoreAppShim(ABC):
         """
         return []
 
+    # ── Per-app MQTT queue API ────────────────────────────────────────────────
+    # Shims that own an aiomqtt subscriber override these to expose result queues
+    # to the generic SSE route — no global MQTT client needed.
+
+    def subscribe_run(self, run_id: str) -> asyncio.Queue | None:
+        """Return a per-run asyncio.Queue for streaming results, or None if not supported."""
+        return None
+
+    def release_run(self, run_id: str) -> None:
+        """Release the per-run queue when the SSE client disconnects."""
+
+    def get_broadcast_queue(self) -> asyncio.Queue | None:
+        """Return a broadcast queue for all runs, or None if not supported."""
+        return None
+
     def mqtt_topic_prefix(self) -> str | None:
         """Return the MQTT topic prefix used by this Core App, or None if not using MQTT.
 
-        The plugin's ``MqttResultClient`` subscribes to ``{prefix}/#`` at startup
+        The shim's own aiomqtt subscriber subscribes to ``{prefix}/#`` at startup
         and routes messages to per-run queues consumed by the SSE result stream.
 
         Example: ``"live-video-captioning"`` → subscribes to
