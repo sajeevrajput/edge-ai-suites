@@ -105,6 +105,8 @@ This is the default configuration. The Mosquitto broker uses an anonymous-access
 The pipeline template that VAP uses for Nx Witness integration is `pallet_defect_detection_vms_mqtt`. This pipeline uses `gvametapublish` to forward inference metadata to the MQTT broker. Confirm it is present in the PDD pipeline configuration:
 
 ```bash
+cd [WORKDIR]/edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision
+
 cat apps/pallet-defect-detection/configs/pipeline-server-config.json | python3 -c "
 import json, sys
 cfg = json.load(sys.stdin)
@@ -117,6 +119,28 @@ You should see `pallet_defect_detection_vms_mqtt` in the output. This pipeline:
 - Accepts an RTSP source via `{auto_source}`.
 - Runs `gvadetect` for object detection.
 - Uses `gvametapublish` (the `destination` element) to publish inference results to the configured MQTT topic.
+
+If NOT present, add the following to the pipeline config at `[WORKDIR]/edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision/apps/pallet-defect-detection/configs/pipeline-server-config.json`.
+
+```json
+            {
+                "name": "pallet_defect_detection_vms_mqtt",
+                "source": "gstreamer",
+                "pipeline": "{auto_source} name=source ! decodebin3 ! gvadetect name=detection ! gvametaconvert add-empty-results=true add-rtp-timestamp=true name=metaconvert ! queue ! gvafpscounter ! queue ! gvametapublish name=destination ! appsink name=appsink",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "detection-properties": {
+                            "element": {
+                                "name": "detection",
+                                "format": "element-properties"
+                            }
+                        }
+                    }
+                },
+                "auto_start": false
+            }
+```
 
 ### 1.4 Download Models and Start PDD
 
@@ -630,7 +654,7 @@ If detections do not appear, see the [Troubleshooting](#troubleshooting) section
 
 ### 7.3 Stop the Pipeline Run
 
-When you want to stop the detection, go back to the VAP dashboard **Analytics Engine** panel and click **Stop** on the active run.
+When you want to stop the detection, go back to the VAP dashboard **Analytics Engine Conguration** panel for **Pallet Defect Detection** and click **Stop Analysis** on the active run.
 
 Or via the API:
 
