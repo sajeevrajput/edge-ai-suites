@@ -546,7 +546,7 @@ You can also enable a camera via the API:
 ```bash
 curl -X POST http://localhost:8085/v1/cameras/enable \
   -H "Content-Type: application/json" \
-  -d '{"camera_id": "nx:<device-uuid>", "enabled": true}'
+  -d '{"camera_ids": ["nx:<device-uuid>"], "enabled": true}'
 ```
 
 ### 6.4 Configure and Start a PDD Pipeline Run

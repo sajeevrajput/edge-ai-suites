@@ -114,10 +114,16 @@ Choose one or both options below. VAP discovers from all configured NVR instance
 Frigate is bundled inside the VAP Docker Compose stack — no separate installation is needed.
 
 #### A.1 Add Cameras to the Frigate Config
-
-Edit `vms_shim/frigate/config/config.yml` and add your RTSP camera streams:
+Edit `vms_shim/frigate/config/config.yml` and add each camera to **both** the `cameras:` section and the `go2rtc.streams:` section. VAP discovers cameras by calling Frigate's `GET /api/go2rtc/streams` API — the stream names come from `go2rtc.streams`, not from `cameras.inputs.path`.
 
 ```yaml
+go2rtc:
+  streams:
+    front-door:
+      - rtsp://user:pass@192.168.1.10:554/stream
+    warehouse-cam:
+      - rtsp://user:pass@192.168.1.11:554/stream
+
 cameras:
   front-door:
     ffmpeg:
@@ -133,8 +139,9 @@ cameras:
             - detect
 ```
 
-- The key under `cameras:` (for example, `front-door`) becomes the camera name shown in the VAP dashboard.
-- VAP reads the first `path` from `inputs` as the RTSP URL — no Frigate REST API call is needed.
+- The key under `go2rtc.streams:` (for example, `front-door`) becomes the camera name in the VAP dashboard.
+- VAP builds the RTSP URL as `rtsp://<frigate_host>:8554/<stream_name>` (go2rtc port `8554`).
+- Both `go2rtc.streams` and `cameras` entries must use the **same key name**.
 - Refer to the [Frigate configuration docs](https://docs.frigate.video/configuration/) for the full YAML schema.
 
 #### A.2 No Additional Steps
@@ -236,6 +243,7 @@ PG_PASSWORD=changeme
 
 # LVC — address as seen from inside the VAP container
 # If LVC is on the same host, use host.docker.internal
+LVC_HOST=host.docker.internal
 LVC_BASE_URL=http://host.docker.internal:4173
 
 # MediaMTX — used by the WebRTC video player
@@ -256,6 +264,7 @@ UI_PORT=3100
 PG_PASSWORD=changeme
 
 # LVC
+LVC_HOST=host.docker.internal
 LVC_BASE_URL=http://host.docker.internal:4173
 MEDIAMTX_URL=http://host.docker.internal:8889
 
@@ -280,9 +289,8 @@ Open `config/config.yaml` and confirm the sections match your setup.
 ```yaml
 core_apps:
   - type: live_captioning
-    app_id: "live_captioning"
-    display_name: "Live Video Captioning"
-    base_url: "http://${LVC_BASE_URL:-host.docker.internal:4173}"
+    base_url: "http://${LVC_HOST:-host.docker.internal}:${LVC_PORT:-4173}"
+    mediamtx_url: "http://${MEDIAMTX_HOST:-host.docker.internal}:${MEDIAMTX_PORT:-8889}"
 ```
 
 **Frigate NVR instance (if using Frigate):**
@@ -291,7 +299,9 @@ core_apps:
 nvr_instances:
   - name: frigate-main
     vendor: frigate
-    config_path: "vms_shim/frigate/config/config.yml"
+    base_url: "http://${FRIGATE_HOST}:5000"
+    auth:
+      auth_type: none
 ```
 
 **Nx Witness NVR instance (if using Nx Witness):**
@@ -424,7 +434,9 @@ curl -X POST http://localhost:8085/v1/cameras/enable \
 
 ### 5.5 What Happens When You Click Start
 
-1. VAP resolves the selected `camera_id` to an RTSP URL (from Frigate config or Nx Witness REST API).
+1. VAP resolves the selected `camera_id` to an RTSP URL:
+   - **Frigate camera**: calls `GET /api/go2rtc/streams` on Frigate; RTSP URL is `rtsp://<frigate_host>:8554/<stream_name>`.
+   - **Nx Witness camera**: calls `GET /rest/v4/devices` on Nx; RTSP URL is `rtsp://<NX_USERNAME>:<NX_PASSWORD>@<NX_HOST>:7001/<device-uuid>?onvif_replay=true`.
 2. Frame Resolution is mapped to `frameWidth`/`frameHeight` if not `default` (for example, `1280×720` → `{frameWidth: 1280, frameHeight: 720}`).
 3. VAP sends `POST /api/runs` to the LVC backend with all parameters.
 4. LVC's DLStreamer pipeline starts consuming the RTSP stream at the configured frame rate.

@@ -663,8 +663,12 @@ class NxWitnessVmsShim(IVmsShim):
 def _to_camera(d: dict, stream_url: str | None = None) -> Camera:
     nx_status = d.get("status", "")
     cam_status = "online" if nx_status in ("Online", "Recording") else "offline"
+    # Nx Witness returns IDs with or without curly braces depending on version.
+    # Normalise to bare UUID so camera_id is always nx:<uuid> without braces.
+    raw_id = d.get("id", "")
+    device_id = raw_id.strip("{}")
     return Camera(
-        camera_id=f"nx:{d.get('id', '')}",
+        camera_id=f"nx:{device_id}",
         name=d.get("name", ""),
         vendor="nx_witness",
         status=cam_status,
