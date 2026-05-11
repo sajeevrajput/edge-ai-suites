@@ -31,7 +31,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse,quote
 
 import httpx
 import structlog
@@ -153,7 +153,9 @@ class NxWitnessVmsShim(IVmsShim):
         auth = self._config.auth
 
         if auth.username:
-            return f"rtsp://{auth.username}:{auth.password}@{host}:{port}/{device_id}?onvif_replay=true"    #TODO credentials in plain text. must hide it
+            password = quote(str(auth.password), safe="")
+            username = quote(str(auth.username), safe="")
+            return f"rtsp://{username}:{password}@{host}:{port}/{device_id}?onvif_replay=true"
         else:
             return f"rtsp://{host}:{port}/{device_id}?onvif_replay=true"
 
