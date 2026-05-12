@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Tests for the Core App registry + dynamic discovery routes (LVC only)."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
 
 import { cn } from "@/lib/utils"

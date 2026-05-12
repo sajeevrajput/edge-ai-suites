@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """CRUD repository for cameras and metadata events."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """X-API-Key middleware.
 
 Per the ADD chat, auth is plugin-internal (the App→Plugin contract).

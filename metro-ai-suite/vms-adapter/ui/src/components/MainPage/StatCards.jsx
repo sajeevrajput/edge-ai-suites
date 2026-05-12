@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 import { t } from '@/utils/i18n';
 import { Card, CardContent } from '@/components/ui/card';
 import { Monitor, Camera, CheckCircle, Cpu } from 'lucide-react';

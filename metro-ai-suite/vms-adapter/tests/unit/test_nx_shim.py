@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Unit tests for the Nx Witness single-shim using standard /rest/v4 endpoints."""
 
 import pytest

@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Pydantic v2 domain models : single source of truth for all data structures."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Core App discovery + generic run-lifecycle API.
 
 This router gives the UI a unified contract to:
@@ -79,11 +82,12 @@ async def discover_core_apps(
     - ``available`` is ``false``
     - ``params_schema`` is ``null``
     - ``error`` contains the reason (displayed in the UI)
-    """
-    items: list[dict[str, Any]] = []
-    for shim in shims.values():
-        error_msg: str | None = None
 
+    All shims are probed in parallel so discovery time equals the slowest
+    single app, not the sum of all apps.
+    """
+    async def _probe(shim: ICoreAppShim) -> dict[str, Any]:
+        error_msg: str | None = None
         try:
             available = await shim.is_available()
         except Exception as exc:
@@ -109,8 +113,10 @@ async def discover_core_apps(
             available=available,
             has_schema=schema is not None,
         )
-        items.append(_shim_descriptor(shim, available, schema, error_msg))
-    return items
+        return _shim_descriptor(shim, available, schema, error_msg)
+
+    results = await asyncio.gather(*[_probe(shim) for shim in shims.values()])
+    return list(results)
 
 
 @router.get("/{app_id}/schema")
@@ -196,6 +202,8 @@ async def start_core_app_run(
             resolved_payload["frameHeight"] = preset[1]
 
     # 3. Remove any remaining synthetic/ui-only keys unknown to the Pydantic model
+    # Preserve captionHistory before stripping — it's a UI display setting returned in result
+    caption_history = resolved_payload.pop("captionHistory", 3)
     model_fields = set(model.model_fields.keys())
     for key in list(resolved_payload.keys()):
         if key not in model_fields:
@@ -213,6 +221,8 @@ async def start_core_app_run(
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
+    # Attach captionHistory so the UI knows how many captions to display
+    result["captionHistory"] = caption_history
     return result
 
 

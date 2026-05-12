@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """LVC-specific aiomqtt subscriber.
 
 Subscribes to ``live-video-captioning/#`` on the MQTT broker and routes

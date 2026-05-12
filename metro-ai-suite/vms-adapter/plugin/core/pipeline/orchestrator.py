@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Application orchestrator : startup, shutdown, dependency wiring.
 
 RTSP-only model: connect each VMS shim, register analytics manifest,

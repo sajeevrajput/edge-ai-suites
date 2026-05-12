@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Live Video Captioning Core App shim.
 
 Integrates the Intel Live Video Captioning application as a VMS core app.
@@ -45,10 +48,7 @@ class LiveCaptioningCoreAppShim(ICoreAppShim):
 
     def __init__(self, config: LiveCaptioningCoreAppConfig) -> None:
         self._config = config
-        self._api = LvcApiClient(
-            base_url=config.base_url,
-            timeout=config.delivery_timeout_seconds,
-        )
+        self._api = LvcApiClient(base_url=config.base_url)
         self._schema_mgr = LvcSchemaManager()
         self._mqtt_subscriber: Optional[LvcMqttSubscriber] = None
 
@@ -145,6 +145,9 @@ class LiveCaptioningCoreAppShim(ICoreAppShim):
         """Start a Live Captioning run triggered by a VMS event.
 
         ``clip_path`` is ignored — LVC works on live RTSP, not recorded clips.
+        All parameter defaults are discovered dynamically from the live LVC schema.
+        ``pipelineName`` is resolved by fetching the available pipelines if not
+        present in the schema defaults.
         """
         rtsp_url = event.vendor_meta.get("stream_url") or event.vendor_meta.get("rtsp_url")
         if not rtsp_url:
@@ -155,14 +158,20 @@ class LiveCaptioningCoreAppShim(ICoreAppShim):
             )
             return None
 
-        payload = {
-            "rtspUrl": rtsp_url,
-            "modelName": self._config.default_model,
-            "prompt": self._config.default_prompt,
-            "maxNewTokens": self._config.max_tokens,
-            "runName": f"vms-{event.camera_id}",
-            "pipelineName": self._config.default_pipeline,
-        }
+        # Merge all defaults discovered from the live LVC OpenAPI schema.
+        discovered = self._schema_mgr.get_defaults()
+        payload: dict[str, Any] = {**discovered}
+
+        # Always set the required fields.
+        payload["rtspUrl"] = rtsp_url
+        payload["runName"] = f"vms-{event.camera_id}"
+
+        # pipelineName has no schema default — fetch the first available pipeline.
+        if "pipelineName" not in payload:
+            pipelines = await self._api.get_pipelines()
+            if pipelines:
+                payload["pipelineName"] = pipelines[0]
+                logger.info("lvc_deliver_pipeline_resolved", pipeline=pipelines[0])
         run = await self._api.start_run(payload)
         if not run:
             return None

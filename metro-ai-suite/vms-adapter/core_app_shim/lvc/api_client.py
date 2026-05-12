@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """LVC HTTP API client.
 
 Wraps all HTTP calls made to the Live Video Captioning FastAPI backend.
@@ -61,13 +64,13 @@ class LvcApiClient:
     # ── Runs ──────────────────────────────────────────────────────────────────
 
     async def start_run(self, payload: dict[str, Any]) -> dict[str, Any] | None:
-        """POST /api/runs — start a new captioning pipeline run.
+        """POST /api/generate_captions_alerts — start a new captioning pipeline run.
 
         Returns the run dict on success, or None on failure (error logged).
         """
         client = self._ensure_client()
         try:
-            resp = await client.post("/api/runs", json=payload)
+            resp = await client.post("/api/generate_captions_alerts", json=payload)
             if not resp.is_success:
                 logger.error(
                     "lvc_start_run_failed",
@@ -82,10 +85,10 @@ class LvcApiClient:
             return None
 
     async def stop_run(self, run_id: str) -> bool:
-        """DELETE /api/runs/{run_id} — stop a pipeline run."""
+        """DELETE /api/generate_captions_alerts/{run_id} — stop a pipeline run."""
         client = self._ensure_client()
         try:
-            resp = await client.delete(f"/api/runs/{run_id}")
+            resp = await client.delete(f"/api/generate_captions_alerts/{run_id}")
             resp.raise_for_status()
             logger.info("lvc_run_stopped", run_id=run_id)
             return True
@@ -94,10 +97,10 @@ class LvcApiClient:
             return False
 
     async def list_runs(self) -> list[dict[str, Any]]:
-        """GET /api/runs — list all active runs."""
+        """GET /api/generate_captions_alerts — list all active runs."""
         client = self._ensure_client()
         try:
-            resp = await client.get("/api/runs")
+            resp = await client.get("/api/generate_captions_alerts")
             resp.raise_for_status()
             return resp.json()
         except httpx.HTTPError as exc:
@@ -105,10 +108,10 @@ class LvcApiClient:
             return []
 
     async def get_run(self, run_id: str) -> dict[str, Any] | None:
-        """GET /api/runs/{run_id} — get a specific run."""
+        """GET /api/generate_captions_alerts/{run_id} — get a specific run."""
         client = self._ensure_client()
         try:
-            resp = await client.get(f"/api/runs/{run_id}")
+            resp = await client.get(f"/api/generate_captions_alerts/{run_id}")
             resp.raise_for_status()
             return resp.json()
         except httpx.HTTPError as exc:
@@ -168,15 +171,15 @@ class LvcApiClient:
     @property
     def results_stream_url(self) -> str:
         """Full URL of the LVC multiplexed SSE metadata stream."""
-        return f"{self._base_url}/api/runs/metadata-stream"
+        return f"{self._base_url}/api/generate_captions_alerts/metadata-stream"
 
     # ── Health ────────────────────────────────────────────────────────────────
 
     async def is_reachable(self) -> bool:
-        """Quick health check — GET /api/runs returning < 500 means up."""
+        """Quick health check — GET /api/generate_captions_alerts returning < 500 means up."""
         client = self._ensure_client()
         try:
-            resp = await client.get("/api/runs")
+            resp = await client.get("/api/generate_captions_alerts", timeout=3.0)
             return resp.status_code < 500
         except httpx.HTTPError:
             return False

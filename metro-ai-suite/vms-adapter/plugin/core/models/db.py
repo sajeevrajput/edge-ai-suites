@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """SQLAlchemy 2 async ORM models for PostgreSQL persistence."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 # Multi-stage Dockerfile for VMS-UI
 # Stage 1: Build the React/Vite application
 FROM node:22-alpine AS builder

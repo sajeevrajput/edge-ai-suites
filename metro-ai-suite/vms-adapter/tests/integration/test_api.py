@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Integration tests for FastAPI API endpoints."""
 
 from types import SimpleNamespace

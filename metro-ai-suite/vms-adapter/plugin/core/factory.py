@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Shim factory : registry-based factory for VMS and Core-App shims.
 
 Vendors register themselves by name in ``_VMS_REGISTRY`` / ``_CORE_APP_REGISTRY``.

@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """DLStreamer metadata → Nx analytics object push payload translator.
 
 Converts the inference metadata published by DLStreamer Pipeline Server

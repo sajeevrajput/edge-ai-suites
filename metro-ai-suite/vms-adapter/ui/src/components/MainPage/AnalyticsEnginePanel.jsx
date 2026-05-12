@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * AnalyticsEnginePanel
  * --------------------
@@ -193,7 +196,7 @@ export default function AnalyticsEnginePanel({
           {/* Engine row */}
           <div className="vms-field-row bg-[#FAFBFF]">
             <span className="vms-field-label">{t('enginePanelTitle')}</span>
-            <span className="vms-badge vms-badge-blue-dk">Intel OEP</span>
+            <span className="vms-badge vms-badge-blue-dk">Open Edge Platform</span>
           </div>
 
           {/* Discovery error */}

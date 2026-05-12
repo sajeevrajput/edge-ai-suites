@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Abstract shim interfaces : single ``IVmsShim`` per VMS + optional ``ICoreAppShim``.
 
 This module is the implementation of the chat-decision-overridden ADD

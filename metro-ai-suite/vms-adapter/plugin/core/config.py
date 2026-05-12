@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Configuration management :YAML + Pydantic Settings with env var resolution."""
 
 from __future__ import annotations
@@ -72,11 +75,6 @@ class LiveCaptioningCoreAppConfig(BaseModel):
     type: Literal["live_captioning"] = "live_captioning"
     base_url: str
     mediamtx_url: str = ""
-    default_model: str = ""
-    default_prompt: str = "Describe what is happening in this video."
-    max_tokens: int = 100
-    delivery_timeout_seconds: int = 30
-    default_pipeline: str = "GenAI_Pipeline_on_CPU"
 
 
 class ObjectDetectionCoreAppConfig(BaseModel):

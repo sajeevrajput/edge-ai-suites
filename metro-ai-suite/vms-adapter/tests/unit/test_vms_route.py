@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Unit tests for POST /v1/vms/{name}/register with Nx analytics integration."""
 
 from __future__ import annotations

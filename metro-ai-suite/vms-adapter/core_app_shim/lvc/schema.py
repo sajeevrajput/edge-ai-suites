@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """LVC schema management.
 
 Fetches the Live Video Captioning OpenAPI spec at runtime, extracts the
@@ -48,6 +51,18 @@ class LvcSchemaManager:
         """Return the cached annotated properties dict (empty until :meth:`fetch` succeeds)."""
         return self._annotated_props
 
+    def get_defaults(self) -> dict[str, Any]:
+        """Return a mapping of field name → default value discovered from the live LVC schema.
+
+        Only includes fields that have an explicit ``default`` key in the OpenAPI spec.
+        Returns an empty dict if the schema has not been fetched yet.
+        """
+        return {
+            name: prop["default"]
+            for name, prop in self._annotated_props.items()
+            if "default" in prop and not prop.get("x-synthetic")
+        }
+
     async def fetch(self, client: LvcApiClient) -> dict[str, Any]:
         """Fetch and process the LVC schema, returning the annotated JSON Schema dict.
 
@@ -93,8 +108,8 @@ class LvcSchemaManager:
 
     @staticmethod
     def _extract_start_run_schema(openapi: dict[str, Any]) -> dict[str, Any]:
-        """Pull the StartRunRequest schema from POST /api/runs in the OpenAPI spec."""
-        body = openapi["paths"]["/api/runs"]["post"]["requestBody"]
+        """Pull the StartRunRequest schema from POST /api/generate_captions_alerts in the OpenAPI spec."""
+        body = openapi["paths"]["/api/generate_captions_alerts"]["post"]["requestBody"]
         schema: dict[str, Any] = body["content"]["application/json"]["schema"]
 
         # Resolve a top-level $ref if present
@@ -225,5 +240,15 @@ class LvcSchemaManager:
             "description": "Video frame resolution preset.",
             "enum": ["default", "1280x720", "640x480", "480x360"],
             "default": "default",
+            "x-synthetic": True,
+        }
+
+        # Inject synthetic captionHistory field (UI-only; controls how many captions to display)
+        properties["captionHistory"] = {
+            "type": "integer",
+            "title": "Caption History",
+            "description": "Number of past captions to display in the results panel.",
+            "default": 3,
+            "minimum": 0,
             "x-synthetic": True,
         }

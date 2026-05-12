@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 import { t } from '@/utils/i18n';
 
 export default function Header({ engineStatus = 'connected' }) {
@@ -29,7 +32,7 @@ export default function Header({ engineStatus = 'connected' }) {
         </div>
         <div className="flex flex-col leading-none">
           <span className="text-white font-bold text-[1rem] tracking-[-0.3px]">{t('appTitle')}</span>
-          <span className="text-[#4A9ED6] text-[0.7rem] font-medium mt-[2px]">Intel OEP Analytics Engine</span>
+          <span className="text-[#4A9ED6] text-[0.7rem] font-medium mt-[2px]">Open Edge Platform Analytics Engine</span>
         </div>
       </div>
 
@@ -38,7 +41,7 @@ export default function Header({ engineStatus = 'connected' }) {
         <div className="vms-engine-pill">
           <span className={`w-[7px] h-[7px] rounded-full shrink-0 shadow-[0_0_0_2px_rgba(255,255,255,0.08)] ${dotColor}`} />
           <span className="text-white/50 text-[0.73rem]">Analytics Engine</span>
-          <span className="text-white font-semibold">Intel OEP</span>
+          <span className="text-white font-semibold">Open Edge Platform</span>
           <span className={`text-[0.69rem] font-bold uppercase tracking-[0.6px] ${statusStyle.cls}`}>
             {statusStyle.label}
           </span>

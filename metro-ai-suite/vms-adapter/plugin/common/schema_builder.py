@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Dynamically build a Pydantic model from a JSON Schema dict at runtime.
 
 Used by Core App shims to convert a JSON Schema fetched from a Core App's

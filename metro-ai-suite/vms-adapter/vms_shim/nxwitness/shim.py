@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Nx Witness VMS shim - single class, standard REST API v4 only.
 
 All endpoints used here are documented in the official Nx Meta API tool

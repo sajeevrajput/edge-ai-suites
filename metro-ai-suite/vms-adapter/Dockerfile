@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 FROM python:3.13-slim AS base
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/

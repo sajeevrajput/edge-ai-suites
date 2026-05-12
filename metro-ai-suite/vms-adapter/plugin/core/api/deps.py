@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """API dependencies for FastAPI dependency injection."""
 
 from __future__ import annotations

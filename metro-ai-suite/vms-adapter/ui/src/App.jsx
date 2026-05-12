@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 import { useState, useCallback, useEffect } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';

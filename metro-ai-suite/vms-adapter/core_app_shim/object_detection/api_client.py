@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """DLStreamer Pipeline Server REST API client.
 
 Wraps all HTTP calls to the Pipeline Server REST API.
@@ -138,7 +141,7 @@ class ObjectDetectionApiClient:
         """Health check — GET /pipelines returning < 500 means the server is up."""
         client = self._ensure_client()
         try:
-            resp = await client.get("/pipelines")
+            resp = await client.get("/pipelines", timeout=3.0)
             return resp.status_code < 500
         except httpx.HTTPError:
             return False

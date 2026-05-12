@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Tv2 } from 'lucide-react';
 import LiveStreamTab from './LiveStreamTab';

@@ -1,3 +1,6 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getReady } from '@/services/api';
 

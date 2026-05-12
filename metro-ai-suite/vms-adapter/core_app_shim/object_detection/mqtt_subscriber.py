@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """MQTT subscriber for object detection inference metadata.
 
 Subscribes to the MQTT broker and routes incoming DLStreamer inference

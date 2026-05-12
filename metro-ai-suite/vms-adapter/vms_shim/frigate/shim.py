@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Frigate VMS shim : single class, RTSP-only ingest model.
 
 Camera definitions live in vms_shim/frigate/config/config.yml (mounted into

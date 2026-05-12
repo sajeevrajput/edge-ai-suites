@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Object Detection Core App shim.
 
 Integrates a DLStreamer Pipeline Server–based object detection application
