@@ -51,15 +51,13 @@ def test_translate_returns_list_and_timestamp():
     assert ts > 0
 
 
-def test_translate_rtp_timestamp_present_but_local_time_used():
-    # NTP timestamp is retained in payload but local wall-clock is always used.
+def test_translate_rtp_timestamp_used_when_present():
+    # NTP timestamp in payload → used directly (ns → ms).
     ntp_ns = 1_777_350_580_000_000_000
     payload = _sample_payload(with_rtp=False)
     payload["rtp"] = {"sender_ntp_unix_timestamp_ns": ntp_ns}
-    before = int(time.time() * 1000)
     _, ts = translate_dls_metadata(payload)
-    after = int(time.time() * 1000)
-    assert before <= ts <= after
+    assert ts == ntp_ns // 1_000_000
 
 
 def test_translate_wall_clock_used_when_no_rtp():

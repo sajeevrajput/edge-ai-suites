@@ -18,7 +18,6 @@ nvr_instances:
       username: "${NX_USERNAME}"
       password: "${NX_PASSWORD}"
       auth_type: digest
-    analytics_manifest_path: "config/nx_integration.json"
 
 core_apps:
   - type: live_captioning
