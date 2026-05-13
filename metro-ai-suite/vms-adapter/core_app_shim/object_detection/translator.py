@@ -63,8 +63,9 @@ def translate_dls_metadata(
     - list of Nx object dicts (may be empty if no valid detections)
     - timestamp_ms to use for the metadata push
 
-    The timestamp is taken from local wall-clock time. The RTP
-    ``sender_ntp_unix_timestamp_ns`` field is extracted but not used.
+    The timestamp is taken from ``rtp.sender_ntp_unix_timestamp_ns`` (converted
+    to milliseconds) when present, so the metadata aligns with the video frame
+    in Nx.  Falls back to local wall-clock time when the field is absent.
 
     The ``typeId`` of each object is resolved from the detection label via
     ``label_type_map``, falling back to ``python.detected.object`` for
@@ -72,8 +73,8 @@ def translate_dls_metadata(
     """
     _map = {k.lower(): v for k, v in (label_type_map or {}).items()}
     rtp = payload.get("rtp") or {}
-    _ntp_ns = rtp.get("sender_ntp_unix_timestamp_ns", 0)  # retained for future use
-    timestamp_ms = int(time.time() * 1000)
+    ntp_ns = rtp.get("sender_ntp_unix_timestamp_ns", 0)
+    timestamp_ms = ntp_ns // 1_000_000 if ntp_ns else int(time.time() * 1000)
 
     objects: list[dict[str, Any]] = []
     for obj in payload.get("objects", []):

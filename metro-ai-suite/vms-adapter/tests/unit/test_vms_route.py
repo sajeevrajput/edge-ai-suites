@@ -51,6 +51,7 @@ def _make_nx_shim_set(name="nx-main", manifest_path: str | None = None, nx_recor
         "request_id": "req-123",
     })
     shim.find_integration_in_vms = AsyncMock(return_value=nx_record)
+    shim.set_integration_credentials = MagicMock()
     return SimpleNamespace(name=name, config=config, vms_shim=shim)
 
 
@@ -232,12 +233,13 @@ def test_register_nx_with_manifest_file_path(client_factory, tmp_path):
     ss.vms_shim.register_analytics.assert_awaited_once()
 
 
-def test_register_nx_no_manifest_anywhere_returns_422(client_factory):
-    """No manifest in body and no manifest_path → 422."""
+def test_register_nx_no_manifest_path_uses_bundled_default(client_factory):
+    """No manifest in body and no manifest_path → bundled default is auto-discovered."""
     ss = _make_nx_shim_set(manifest_path=None)
     with client_factory([ss]) as (client, _):
         resp = client.post("/v1/vms/nx-main/register", json={"manifest": {}})
-    assert resp.status_code == 422
+    # Bundled nx_integration.json is auto-used; request should succeed
+    assert resp.status_code == 200
 
 
 def test_register_nx_manifest_file_not_found_returns_422(client_factory):
@@ -246,6 +248,23 @@ def test_register_nx_manifest_file_not_found_returns_422(client_factory):
     with client_factory([ss]) as (client, _):
         resp = client.post("/v1/vms/nx-main/register", json={"manifest": {}})
     assert resp.status_code == 422
+
+
+def test_register_nx_sets_integration_credentials_on_shim(client_factory):
+    """Fresh registration must call set_integration_credentials() so push works immediately."""
+    ss = _make_nx_shim_set()
+    ss.vms_shim.set_integration_credentials = MagicMock()
+    with client_factory([ss]) as (client, _):
+        resp = client.post("/v1/vms/nx-main/register", json={
+            "core_app_id": "dlstreamer",
+            "integration_manifest": _SAMPLE_MANIFESTS["integrationManifest"],
+            "engine_manifest": _SAMPLE_MANIFESTS["engineManifest"],
+        })
+
+    assert resp.status_code == 200
+    ss.vms_shim.set_integration_credentials.assert_called_once_with(
+        "integration_user", "secret"
+    )
 
 
 def test_register_nx_shim_error_returns_502(client_factory):

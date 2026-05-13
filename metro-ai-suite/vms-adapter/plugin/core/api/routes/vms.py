@@ -115,6 +115,13 @@ async def register_vms(
             detail=f"Nx integration registration failed: {result.get('reason', 'unknown')}",
         )
 
+    # Inject credentials into the live shim so metadata push works immediately
+    # without waiting for a service restart.
+    username = result.get("username") or ""
+    password = result.get("password") or ""
+    if username and password:
+        ss.vms_shim.set_integration_credentials(username, password)
+
     return integration.model_dump(exclude={"id"})
 
 
@@ -135,10 +142,14 @@ def _build_manifests(body: RegisterRequest, ss: NvrShimSet) -> dict | None:
     if body.manifest and "integrationManifest" in body.manifest and "engineManifest" in body.manifest:
         return body.manifest
 
-    # Fall back to config file path
+    # Fall back to config file path, or bundled default for nx_witness
     manifest_path = ss.config.analytics_manifest_path
     if not manifest_path:
-        return None
+        if ss.config.vendor == "nx_witness":
+            from vms_shim.nxwitness.shim import DEFAULT_MANIFEST_PATH
+            manifest_path = str(DEFAULT_MANIFEST_PATH)
+        else:
+            return None
 
     path = Path(manifest_path)
     if not path.exists():

@@ -3,7 +3,7 @@
         "id": "DLStreamerAnalyticsIntegrationVMS",
         "name": "DLStreamerAnalyticsIntegrationVMS",
         "description": "REST-only analytics integration example with DLStreamer Pipeline Server based Application",
-        "vendor": "Intel OEP",
+        "vendor": "Open Edge Platform",
         "version": "1.0.0",
         "engineSettingsModel": {
             "type": "Settings",

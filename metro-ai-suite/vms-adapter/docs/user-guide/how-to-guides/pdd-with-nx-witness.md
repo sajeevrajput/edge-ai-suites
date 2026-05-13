@@ -346,10 +346,10 @@ nvr_instances:
       username: "${NX_USERNAME}"
       password: "${NX_PASSWORD}"
       auth_type: digest
-    analytics_manifest_path: "config/nx_integration.json"
+    analytics_manifest_path: "vms_shim/nxwitness/nx_integration.json"  # optional: override bundled default
 ```
 
-The `analytics_manifest_path` points to `config/nx_integration.json`, which contains the Nx analytics integration manifest. VAP automatically registers this manifest with Nx Witness on startup.
+The `analytics_manifest_path` is **optional**. VAP automatically uses the bundled manifest at `vms_shim/nxwitness/nx_integration.json` when this field is absent. Set it only if you need to supply a custom manifest.
 
 **PDD Core App:**
 
@@ -392,7 +392,7 @@ label_type_map:
       pedestrian: vap.person
 ```
 
-Any `vap.*` typeId you add here is automatically registered in the Nx manifest. You do not need to manually edit `config/nx_integration.json`.
+Any `vap.*` typeId you add here is automatically registered in the Nx manifest. You do not need to manually edit `vms_shim/nxwitness/nx_integration.json`.
 
 ---
 
@@ -423,7 +423,7 @@ postgres          Up (healthy)
 
 When VAP starts, the Orchestrator automatically registers the analytics integration with Nx Witness. You do not need to register it manually. The process is:
 
-1. VAP reads `config/nx_integration.json` (the integration manifest).
+1. VAP reads the integration manifest — the bundled `vms_shim/nxwitness/nx_integration.json` by default, or a custom path if `analytics_manifest_path` is set in `config.yaml`.
 2. Any `label_type_map` entries from `config.yaml` are merged into the manifest automatically (so Nx knows all typeIds without manual edits).
 3. VAP calls `POST /rest/v4/analytics/integrations/*/requests` on the Nx API.
 4. VAP immediately approves the request via `POST .../requests/{requestId}/approve`.
@@ -674,7 +674,7 @@ docker compose down
 ```
  
 
-> **CAUTION**: Be careful not to remove the volume, by `docker compose down -v` as this will delete the DB, as well as any integration info, credentials you created. If done, then the integration in Nx would be stale. Either delete from the Nx Witness, or use a different VMS integration name in `config/nx_integration.json` file.
+> **CAUTION**: Be careful not to remove the volume, by `docker compose down -v` as this will delete the DB, as well as any integration info, credentials you created. If done, then the integration in Nx would be stale. Either delete from the Nx Witness, or use a different VMS integration name in `vms_shim/nxwitness/nx_integration.json` file.
 
 ---
 

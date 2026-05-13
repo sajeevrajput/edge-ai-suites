@@ -94,7 +94,7 @@ class Orchestrator:
             except Exception:
                 logger.exception("vms_connect_failed", nvr=ss.name)
                 continue
-            if ss.config.vendor == "nx_witness" and ss.config.analytics_manifest_path:
+            if ss.config.vendor == "nx_witness":
                 await self._autoregister_nx_integration(ss)
             else:
                 try:
@@ -132,7 +132,13 @@ class Orchestrator:
             logger.warning("autoregister_skipped_no_db", nvr=ss.name)
             return
 
-        manifest_path = Path(ss.config.analytics_manifest_path)  # type: ignore[arg-type]
+        from vms_shim.nxwitness.shim import DEFAULT_MANIFEST_PATH
+
+        manifest_path = (
+            Path(ss.config.analytics_manifest_path)
+            if ss.config.analytics_manifest_path
+            else DEFAULT_MANIFEST_PATH
+        )
         if not manifest_path.exists():
             logger.error(
                 "nx_manifest_file_not_found",

@@ -33,8 +33,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse,quote
+
+# Bundled default analytics integration manifest, co-located with this shim.
+# Used automatically when analytics_manifest_path is not set in config.
+DEFAULT_MANIFEST_PATH = Path(__file__).parent / "nx_integration.json"
 
 import httpx
 import structlog
