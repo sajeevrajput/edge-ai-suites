@@ -51,7 +51,7 @@ function formatStreamSeconds(seconds) {
 }
 
 function captionPositionLabel(index) {
-  return index === 0 ? 'Latest' : `latest -${index}`;
+  return index === 0 ? 'Latest' : `Latest -${index}`;
 }
 
 function captionTimestampLabel(entry) {
@@ -179,17 +179,6 @@ export default function LiveStreamTab({ lvcRuns = [], onStopLvc }) {
         <div className="vms-surface p-2 flex flex-col gap-1.5 max-h-[140px] overflow-y-auto">
           <div className="flex items-center justify-between">
             <p className="text-[0.62rem] font-bold uppercase tracking-[0.6px] text-[#6B7BA4]">Live Captions</p>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[0.62rem] text-[#A3B0CC]">Caption History:</span>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={captionHistory}
-                onChange={(e) => setCaptionHistoryOverride(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-12 text-[0.62rem] border border-[#C3DCF5] rounded px-1 py-0 bg-white text-[#0E1C47] outline-none text-center"
-              />
-            </div>
           </div>
           {runCaptions.length === 0 ? (
             <p className="text-[0.72rem] italic text-[#A3B0CC]">Waiting for captions…</p>

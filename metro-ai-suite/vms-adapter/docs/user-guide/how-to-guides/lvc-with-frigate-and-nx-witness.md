@@ -109,11 +109,27 @@ Choose one or both options below. VAP discovers from all configured NVR instance
 
 ---
 
-### Option A: Frigate (Local Config)
+### Option A: Frigate (Standalone)
 
-Frigate is bundled inside the VAP Docker Compose stack — no separate installation is needed.
+Frigate is **not** bundled inside the VAP Docker Compose stack. It must be running separately before you start VAP.
 
-#### A.1 Add Cameras to the Frigate Config
+#### A.1 Install and Start Frigate
+
+Follow the [official Frigate installation guide](https://docs.frigate.video/frigate/installation). The quickest way is Docker:
+
+```bash
+docker run -d \
+  --name frigate \
+  --restart=unless-stopped \
+  --shm-size=256m \
+  -p 5000:5000 \
+  -p 8554:8554 \
+  -v /path/to/your/frigate/config:/config \
+  -v /etc/localtime:/etc/localtime:ro \
+  ghcr.io/blakeblackshear/frigate:0.15.1
+```
+
+#### A.2 Add Cameras to the Frigate Config
 Edit `vms_shim/frigate/config/config.yml` and add each camera to **both** the `cameras:` section and the `go2rtc.streams:` section. VAP discovers cameras by calling Frigate's `GET /api/go2rtc/streams` API — the stream names come from `go2rtc.streams`, not from `cameras.inputs.path`.
 
 ```yaml
@@ -144,9 +160,13 @@ cameras:
 - Both `go2rtc.streams` and `cameras` entries must use the **same key name**.
 - Refer to the [Frigate configuration docs](https://docs.frigate.video/configuration/) for the full YAML schema.
 
-#### A.2 No Additional Steps
+#### A.3 Verify Frigate is Running
 
-Frigate starts automatically when you run `docker compose up -d --build`. Continue to [Part 3](#part-3--configure-vap).
+```bash
+curl http://localhost:5000/api/go2rtc/streams
+```
+
+You should see a JSON object listing your configured streams. Then set `FRIGATE_HOST` in your `.env` to point VAP at the running Frigate instance (use `host.docker.internal` if Frigate is on the same host as VAP). Continue to [Part 3](#part-3--configure-vap).
 
 ---
 
@@ -249,8 +269,9 @@ LVC_BASE_URL=http://host.docker.internal:4173
 # MediaMTX — used by the WebRTC video player
 MEDIAMTX_URL=http://host.docker.internal:8889
 
-# Frigate runs inside the same Docker Compose stack
-FRIGATE_HOST=frigate
+# Frigate — use host.docker.internal if Frigate runs on the same host as VAP,
+# otherwise use the Frigate host IP or hostname
+FRIGATE_HOST=host.docker.internal
 
 # VAP ports
 BACKEND_PORT=8085
@@ -345,10 +366,9 @@ NAME              STATUS
 vms-backend       Up (healthy)
 vms-ui            Up
 postgres          Up (healthy)
-frigate           Up
 ```
 
-> The `frigate` service only appears if Frigate is configured in `config.yaml`.
+> Frigate runs as a separate service outside this stack. Verify it is up with `docker ps | grep frigate` or `curl http://<FRIGATE_HOST>:5000/api/go2rtc/streams`.
 
 ### 4.2 Verify the LVC Schema Was Fetched
 
@@ -496,8 +516,10 @@ curl -X DELETE http://localhost:8085/v1/core-apps/live_captioning/runs/<run_id>
 **Symptom:** Clicking **Discover Cameras** returns an empty list.
 
 **Frigate checks:**
-1. Confirm cameras are defined in `vms_shim/frigate/config/config.yml` under the `cameras:` key.
-2. Check logs: `docker compose logs vms-backend | grep -i "frigate\|discover"`
+1. Confirm Frigate is running: `docker ps | grep frigate`
+2. Confirm cameras are defined in your Frigate `config.yml` under both `go2rtc.streams:` and `cameras:`.
+3. Verify Frigate streams are reachable: `curl http://<FRIGATE_HOST>:5000/api/go2rtc/streams`
+4. Check VAP logs: `docker compose logs vms-backend | grep -i "frigate\|discover"`
 
 **Nx Witness checks:**
 1. Verify `NX_HOST`, `NX_USERNAME`, `NX_PASSWORD` are correct in `.env`.

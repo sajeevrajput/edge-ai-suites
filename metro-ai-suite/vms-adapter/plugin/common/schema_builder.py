@@ -11,7 +11,7 @@ OpenAPI spec into a live Pydantic model that the plugin uses for:
 
 from __future__ import annotations
 
-from typing import Any, Optional, get_args, get_origin
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, create_model
 

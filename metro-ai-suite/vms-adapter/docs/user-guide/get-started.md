@@ -92,13 +92,42 @@ Open `.env` and update the variables for your environment:
 
 ---
 
-## Step 4 — Configure Frigate Cameras
+## Step 4 — Start Frigate (if using Frigate)
 
-> Skip this step if you are not using Frigate.
+> Skip this step if you are not using Frigate as your VMS.
 
-Edit `vms_shim/frigate/config/config.yml` to add your camera RTSP streams. VAP reads this file directly — no Frigate API call is needed for camera discovery.
+Frigate is **not** included in the VAP Docker Compose stack. You must install, configure, and start it separately before bringing up VAP.
+
+### 4.1 Install Frigate
+
+Follow the [official Frigate installation guide](https://docs.frigate.video/frigate/installation). The recommended approach is Docker:
+
+```bash
+docker run -d \
+  --name frigate \
+  --restart=unless-stopped \
+  --shm-size=256m \
+  -p 5000:5000 \
+  -p 8554:8554 \
+  -v /path/to/your/frigate/config:/config \
+  -v /etc/localtime:/etc/localtime:ro \
+  ghcr.io/blakeblackshear/frigate:0.15.1
+```
+
+Or use Frigate's own compose file from the [Frigate documentation](https://docs.frigate.video/frigate/installation/#docker-compose).
+
+### 4.2 Configure Cameras
+
+Edit your Frigate `config.yml` to add camera RTSP streams. Add each camera to **both** the `go2rtc.streams:` and `cameras:` sections — VAP discovers cameras via Frigate's `GET /api/go2rtc/streams` API:
 
 ```yaml
+go2rtc:
+  streams:
+    front-door:
+      - rtsp://user:pass@192.168.1.10:554/stream
+    warehouse-cam:
+      - rtsp://user:pass@192.168.1.11:554/stream
+
 cameras:
   front-door:
     ffmpeg:
@@ -106,9 +135,26 @@ cameras:
         - path: rtsp://user:pass@192.168.1.10:554/stream
           roles:
             - detect
+  warehouse-cam:
+    ffmpeg:
+      inputs:
+        - path: rtsp://user:pass@192.168.1.11:554/stream
+          roles:
+            - detect
 ```
 
-Refer to the [Frigate configuration docs](https://docs.frigate.video/configuration/) for the full schema.
+- The key under `go2rtc.streams:` (e.g. `front-door`) becomes the camera name in the VAP dashboard.
+- VAP builds RTSP URLs as `rtsp://<FRIGATE_HOST>:8554/<stream_name>`.
+- Both `go2rtc.streams` and `cameras` entries must use the **same key name**.
+- Refer to the [Frigate configuration docs](https://docs.frigate.video/configuration/) for the full YAML schema.
+
+### 4.3 Verify Frigate is Running
+
+```bash
+curl http://localhost:5000/api/go2rtc/streams
+```
+
+You should see a JSON object listing your configured streams. Then set `FRIGATE_HOST` in your `.env` to point VAP at the running Frigate instance (use `host.docker.internal` if Frigate is on the same host as VAP).
 
 ---
 
@@ -131,7 +177,6 @@ NAME              STATUS
 vms-backend       Up (healthy)
 vms-ui            Up
 postgres          Up (healthy)
-frigate           Up
 ```
 
 Verify the backend is up:
@@ -149,7 +194,6 @@ curl http://localhost:8085/v1/health
 | Operator Dashboard      | `http://localhost:3100`            |
 | Backend API             | `http://localhost:8085/v1`         |
 | API Docs (Swagger)      | `http://localhost:8085/docs`       |
-| Frigate UI              | `http://localhost:5000`            |
 
 ---
 
