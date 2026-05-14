@@ -2,24 +2,24 @@
 
 ## Overview
 
-The VMS-UI frontend is now containerized using Docker with nginx serving the production-optimized React build.
+The VMS-UI frontend is containerized using Docker with nginx serving the production-optimized React build.
+The UI is designed to run as part of the `vms-adapter` Docker Compose stack defined in the parent directory.
 
 ## Quick Start
 
 ```bash
-# Build the Docker image
-cd /home/intel/VMS/VMS-UI
-docker build -t vms-ui:latest .
+# From the vms-adapter root (parent of this directory)
+cd metro-ai-suite/vms-adapter
 
-# Run the container
-docker run -d \
-  --name vms-ui \
-  -p 8091:80 \
-  --add-host=host.docker.internal:host-gateway \
-  vms-ui:latest
+# Copy and configure environment
+cp .env.example .env
+# Edit .env as needed (see Environment Variables below)
 
-# Access the UI
-open http://localhost:8091
+# Build and start all services (postgres, backend, ui)
+docker compose up -d
+
+# Access the UI (default port 3100)
+open http://localhost:3100
 ```
 
 ## Docker Configuration
@@ -34,166 +34,140 @@ Multi-stage build:
 
 ### Nginx Configuration
 
+All routing is handled by `nginx.conf` inside the container:
+
 - **Static Assets**: Served from `/usr/share/nginx/html`
-- **API Proxy**: `/v1/*` → `http://host.docker.internal:8085/v1/*`
-- **SPA Routing**: All routes redirect to `index.html`
+- **API Proxy**: `/v1/*` → `http://backend:8080` (Docker Compose service DNS)
+- **WHEP Proxy**: `/whep/*` → `http://host.docker.internal:8889` (MediaMTX on the host)
+- **SSE Proxy**: `/v1/core-apps/*/results/stream` → `http://backend:8080` (buffering disabled)
+- **SPA Routing**: All non-file routes serve `index.html`
 - **Caching**: 1 year for static assets, no-cache for HTML
 - **Security Headers**: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection
-- **Health Check**: `/health` endpoint for container health monitoring
+- **Health Check**: `/health` endpoint returns `200 healthy`
 
 ### Port Configuration
 
 - **Container Port**: 80 (nginx default)
-- **Host Port**: 8091 (configurable via `-p` flag)
+- **Host Port**: `UI_PORT` env var (default: `3100`)
 
 ## Usage
 
-### Using Docker Run
+### Using Docker Compose (recommended)
 
 ```bash
-# Start container
-docker run -d \
-  --name vms-ui \
-  -p 8091:80 \
-  --add-host=host.docker.internal:host-gateway \
-  --restart unless-stopped \
-  vms-ui:latest
-
-# Stop container
-docker stop vms-ui
-
-# Remove container
-docker rm vms-ui
-
-# View logs
-docker logs -f vms-ui
-
-# Check health
-curl http://localhost:8091/health
-```
-
-### Using Docker Compose (Alternative)
-
-A `docker-compose.yml` is provided but has compatibility issues with docker-compose v1.29.2. Use docker run instead, or upgrade to docker compose v2.
-
-If using docker compose v2:
-```bash
-# Create .env file
-cp .env.example .env
-
-# Edit .env to set UI_PORT (default: 3000, change if port is in use)
-# Set BACKEND_HOST (default: host.docker.internal:8085)
-
-# Start
+# From vms-adapter/
 docker compose up -d
 
 # Stop
 docker compose down
+
+# Full clean restart (wipes DB volume)
+docker compose down -v && docker compose up -d
+
+# View UI logs
+docker compose logs -f ui
+
+# Check health
+curl http://localhost:3100/health
 ```
+
+### Standalone docker run
+
+If you need to run the UI container independently (outside of the Compose stack),
+the nginx `/v1/` proxy target must be reachable. The easiest way is to override
+`nginx.conf` or use a custom build that points at your backend:
+
+```bash
+docker build -t vms-adapter-ui ./ui
+
+docker run -d \
+  --name vms-adapter-ui \
+  -p 3100:80 \
+  --add-host=host.docker.internal:host-gateway \
+  vms-adapter-ui
+```
+
+> **Note**: In standalone mode nginx will still proxy `/v1/` to `http://backend:8080`,
+> which requires a Docker network containing a container named `backend`.
+> For a truly standalone run you would need to rebuild with a customised nginx.conf.
+
+## Environment Variables
+
+Configure via `vms-adapter/.env` (see `.env.example`):
+
+| Variable | Default | Description |
+|---|---|---|
+| `UI_PORT` | `3100` | Host port the UI is exposed on |
+| `VITE_MEDIAMTX_BASE` | *(unset — falls back to `window.location.hostname:8889`)* | Browser-reachable MediaMTX base URL for the iframe player |
+
+The nginx backend proxy target (`http://backend:8080`) is resolved via Docker Compose
+service DNS and is **not** configurable at runtime without rebuilding the image.
 
 ## Connecting to Backend
 
-The frontend container connects to the backend API using `host.docker.internal`, which resolves to the host machine's IP address.
+In the Docker Compose stack the UI container reaches the backend over the internal
+`vms-net` network using the service name `backend` (port 8080). This is hardcoded
+in `nginx.conf`.
 
-**Requirements**:
-- Use `--add-host=host.docker.internal:host-gateway` when running the container
-- Backend must be running on the host machine at port 8085
-
-**Alternative**: If both frontend and backend are in the same Docker network:
-1. Create a shared network: `docker network create vms-network`
-2. Run backend with: `--network vms-network`
-3. Run frontend with: `--network vms-network` 
-4. Update nginx.conf proxy to use backend container name instead of `host.docker.internal`
+**No `--add-host` or `host.docker.internal` is needed for the `/v1/` proxy** — that
+is only used for the `/whep/` MediaMTX proxy.
 
 ## Testing
 
 ```bash
-# Test health
-curl http://localhost:8091/health
-# Expected: "healthy"
+# Health check
+curl http://localhost:3100/health
+# Expected: healthy
 
-# Test UI is serving
-curl http://localhost:8091/ | grep "VMS Dashboard"
-# Expected: Title found
+# UI is serving
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3100/
+# Expected: 200
 
-# Test API proxy
-curl http://localhost:8091/v1/health
-# Expected: {"status":"ok"}
-
-# Test camera API
-curl http://localhost:8091/v1/cameras | jq '. | length'
-# Expected: Number of discovered cameras
+# API proxy (cameras)
+curl http://localhost:3100/v1/cameras
+# Expected: JSON array
 ```
-
-## Environment Variables
-
-The nginx configuration hardcodes the backend URL. To make it configurable:
-
-1. Use nginx template with envsubst
-2. Modify Dockerfile to run envsubst on startup
-3. Set BACKEND_HOST environment variable
-
-Current hardcoded backend: `http://host.docker.internal:8085`
 
 ## Troubleshooting
 
 ### Port Already in Use
 
-If port 8091 is in use, change the host port:
-```bash
-docker run -d --name vms-ui -p 8092:80 ... vms-ui:latest
-```
+Set `UI_PORT` in `.env` to a free port, then `docker compose up -d`.
 
 ### API Proxy Not Working
 
-1. Check backend is running: `curl http://localhost:8085/v1/health`
-2. Check host.docker.internal resolves: `docker exec vms-ui ping -c 1 host.docker.internal`
-3. Ensure `--add-host=host.docker.internal:host-gateway` is set
-4. Check nginx logs: `docker logs vms-ui`
+1. Check backend is running: `docker compose ps`
+2. Check backend logs: `docker compose logs backend`
+3. Check nginx logs: `docker compose logs ui`
+4. Verify service DNS: `docker exec vms-adapter-ui wget -qO- http://backend:8080/v1/cameras`
 
 ### Container Fails to Start
 
-1. Check logs: `docker logs vms-ui`
-2. Verify image built correctly: `docker images vms-ui`
-3. Check for port conflicts: `netstat -tulpn | grep 8091`
+1. Check logs: `docker compose logs ui`
+2. Verify image built: `docker images vms-adapter-ui`
+3. Check for port conflicts: `ss -tlnp | grep 3100`
 
 ## Production Deployment
 
-For production:
-
 1. **Build with specific tag**:
    ```bash
-   docker build -t vms-ui:v1.0.0 .
+   docker compose build ui
+   docker tag vms-adapter-ui vms-adapter-ui:v1.0.0
    ```
 
-2. **Use docker compose with proper networking**:
-   - Create a shared network for frontend + backend
-   - Use docker compose v2 or higher
-   - Set restart policies and resource limits
+2. **Use Docker Compose** (already configured):
+   - `vms-adapter/docker-compose.yml` defines all services with restart policies
+   - Adjust `UI_PORT`, `BACKEND_PORT` in `.env` as needed
 
-3. **Configure reverse proxy** (optional):
-   - Use nginx or Traefik in front of both services
-   - Handle SSL/TLS termination
-   - Centralize logging and monitoring
+3. **Health checks**: The container has a built-in healthcheck on `/health`.
 
-4. **Health checks**:
-   - Container has built-in healthcheck
-   - Monitor `/health` endpoint externally
-   - Set up alerts for container failures
+## Files
 
-## Files Created
+| File | Purpose |
+|---|---|
+| `Dockerfile` | Multi-stage build (Node builder → nginx:alpine) |
+| `nginx.conf` | nginx routing: static assets, `/v1/` API proxy, `/whep/` MediaMTX proxy, SPA fallback |
+| `.dockerignore` | Build context optimisation |
+| `.env.example` | UI environment variable template |
+| `../docker-compose.yml` | Full stack Compose definition (postgres + backend + ui) |
 
-- `Dockerfile` - Multi-stage build configuration
-- `nginx.conf` - Nginx server configuration  
-- `.dockerignore` - Build context optimization
-- `docker-compose.yml` - Docker Compose service definition
-- `.env.example` - Environment variable template
-- `README-DOCKER.md` - This documentation
-
-## Next Steps
-
-- Integrate frontend and backend in a single `docker-compose.yml` at repository root
-- Add environment variable support for configurable backend URL
-- Set up CI/CD pipeline for automated image builds
-- Push images to container registry (Docker Hub, GitHub Container Registry, etc.)
-- Configure SSL/TLS for HTTPS

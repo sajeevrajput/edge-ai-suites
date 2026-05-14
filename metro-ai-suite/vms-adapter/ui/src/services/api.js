@@ -4,8 +4,8 @@
 /**
  * VMS Plugin Service API client.
  *
- * All endpoints proxy through Vite dev-server /v1 → http://localhost:8082/v1.
- * In production set VITE_API_BASE env var; the proxy handles routing.
+ * In dev: Vite proxies /v1 → VITE_API_BASE (default http://localhost:8085).
+ * In production: nginx routes /v1 → http://backend:8080 via Docker service DNS.
  */
 
 const BASE = '/v1';

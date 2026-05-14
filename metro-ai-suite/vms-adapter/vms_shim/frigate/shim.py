@@ -8,7 +8,7 @@ the Frigate container). All reads go through the Frigate HTTP API:
 
   * GET  /api/version                                   - reachability probe
   * GET  /api/go2rtc/streams                            - camera list + RTSP stream names
-  * POST /api/events/<camera>/<label>/create            - trigger recording
+  * POST /api/events/<camera>/manual/create             - trigger recording
   * PUT  /api/events/<event_id>/end                     - end manual event
   * POST /api/events/<event_id>/sub_label               - push label / sub_label
   * GET  /api/<camera>/recordings/<start>,<end>/clip.mp4 - clip URL
@@ -22,6 +22,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 import structlog
@@ -46,6 +47,9 @@ class FrigateVmsShim(IVmsShim):
     # ------------------------------------------------------------------
 
     async def connect(self) -> None:
+        # Close any previously open client before creating a new one so that
+        # a failed probe does not leak sockets.
+        await self.disconnect()
         self._client = httpx.AsyncClient(base_url=self._config.base_url, timeout=30.0)
         try:
             resp = await self._client.get("/api/version")
@@ -54,7 +58,7 @@ class FrigateVmsShim(IVmsShim):
             logger.info("frigate_connected", version=resp.text.strip())
         except httpx.HTTPError as e:
             logger.error("frigate_connect_failed", error=str(e))
-            self._connected = False
+            await self.disconnect()
 
     async def disconnect(self) -> None:
         if self._client:
@@ -80,7 +84,10 @@ class FrigateVmsShim(IVmsShim):
             logger.error("frigate_discover_failed", error=str(e))
             return []
 
-        host = self._config.base_url.split("://", 1)[-1].split(":")[0]
+        parsed = urlparse(self._config.base_url)
+        # Use bracket notation for IPv6 literals (e.g. [::1]) as required by RTSP URLs.
+        hostname = parsed.hostname or ""
+        host = f"[{hostname}]" if ":" in hostname else hostname
         cameras: list[Camera] = []
         for stream_name in streams:
             cameras.append(Camera(
