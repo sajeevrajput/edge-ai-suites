@@ -13,23 +13,23 @@ from plugin.core.db.session import get_session_factory
 
 if TYPE_CHECKING:
     from plugin.core.config import AppConfig
-    from plugin.core.factory import NvrShimSet
+    from plugin.core.factory import VmsShimSet
     from plugin.base.interfaces import ICoreAppShim
 
 # Module-level state set by the orchestrator at startup
-_nvr_shim_sets: list["NvrShimSet"] = []
+_vms_shim_sets: list["VmsShimSet"] = []
 _core_app_shims: dict[str, "ICoreAppShim"] = {}
 _app_config: "AppConfig | None" = None
 
 
 def set_shims(
-    nvr_shim_sets: list["NvrShimSet"],
+    vms_shim_sets: list["VmsShimSet"],
     core_app_shims: "dict[str, ICoreAppShim] | ICoreAppShim | None",
     app_config: "AppConfig",
 ) -> None:
     """Called by the orchestrator at startup to inject shim instances."""
-    global _nvr_shim_sets, _core_app_shims, _app_config
-    _nvr_shim_sets = nvr_shim_sets
+    global _vms_shim_sets, _core_app_shims, _app_config
+    _vms_shim_sets = vms_shim_sets
     if core_app_shims is None:
         _core_app_shims = {}
     elif isinstance(core_app_shims, dict):
@@ -46,9 +46,9 @@ async def get_db_session():
         yield session
 
 
-async def get_nvr_shim_sets():
-    """Return the list of NVR shim sets."""
-    return _nvr_shim_sets
+async def get_vms_shim_sets():
+    """Return the list of VMS shim sets."""
+    return _vms_shim_sets
 
 
 async def get_core_app_shims() -> "dict[str, ICoreAppShim]":

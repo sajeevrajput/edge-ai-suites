@@ -8,9 +8,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from plugin.core.api.deps import get_db_session, get_nvr_shim_sets
+from plugin.core.api.deps import get_db_session, get_vms_shim_sets
 from plugin.core.db import repository as repo
-from plugin.core.factory import NvrShimSet
+from plugin.core.factory import VmsShimSet
 from plugin.core.models.domain import AnalysisResult, CommandResult
 from plugin.core.pipeline.results_handler import route_analysis_result
 
@@ -21,7 +21,7 @@ router = APIRouter()
 async def receive_analysis_results(
     result: AnalysisResult,
     db: AsyncSession = Depends(get_db_session),
-    shim_sets: list[NvrShimSet] = Depends(get_nvr_shim_sets),
+    shim_sets: list[VmsShimSet] = Depends(get_vms_shim_sets),
 ):
     """Async callback : Core App POSTs ``AnalysisResult`` here.
 

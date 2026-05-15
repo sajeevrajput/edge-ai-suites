@@ -10,8 +10,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from plugin.core.api.deps import get_db_session, get_nvr_shim_sets
-from plugin.core.factory import NvrShimSet
+from plugin.core.api.deps import get_db_session, get_vms_shim_sets
+from plugin.core.factory import VmsShimSet
 
 router = APIRouter()
 
@@ -25,7 +25,7 @@ async def health():
 @router.get("/ready")
 async def ready(
     db: AsyncSession = Depends(get_db_session),
-    shim_sets: list[NvrShimSet] = Depends(get_nvr_shim_sets),
+    shim_sets: list[VmsShimSet] = Depends(get_vms_shim_sets),
 ):
     """Readiness probe. DB is gating; VMS connectivity is informational."""
     try:

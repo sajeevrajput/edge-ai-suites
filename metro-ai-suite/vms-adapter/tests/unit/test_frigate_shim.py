@@ -7,13 +7,13 @@ from datetime import datetime
 
 import pytest
 
-from plugin.core.config import NvrInstanceConfig
+from plugin.core.config import VmsInstanceConfig
 from vms_shim.frigate.shim import FrigateVmsShim
 
 
 @pytest.fixture
-def frigate_config() -> NvrInstanceConfig:
-    return NvrInstanceConfig(
+def frigate_config() -> VmsInstanceConfig:
+    return VmsInstanceConfig(
         name="frigate-test", vendor="frigate",
         base_url="http://localhost:5000",
     )

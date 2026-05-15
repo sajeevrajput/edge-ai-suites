@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from plugin.core.api.deps import get_db_session, get_nvr_shim_sets
+from plugin.core.api.deps import get_db_session, get_vms_shim_sets
 from plugin.core.main import create_app
 
 
@@ -62,7 +62,7 @@ def test_ready_reports_db_and_vms_status(client):
     ]
 
     client.app.dependency_overrides[get_db_session] = override_db
-    client.app.dependency_overrides[get_nvr_shim_sets] = lambda: shim_sets
+    client.app.dependency_overrides[get_vms_shim_sets] = lambda: shim_sets
 
     try:
         resp = client.get("/v1/ready")

@@ -70,7 +70,7 @@ class ObjectDetectionCoreAppShim(ICoreAppShim):
             subscriber.run(
                 mqtt_host=self._config.mqtt_host,
                 mqtt_port=self._config.mqtt_port,
-                nvr_shim_sets=orchestrator.nvr_shim_sets,
+                vms_shim_sets=orchestrator.vms_shim_sets,
                 core_app_id=self.app_id,
                 label_type_map=self._config.label_type_map,
                 timestamp_offset_ms=self._config.metadata_timestamp_offset_ms,

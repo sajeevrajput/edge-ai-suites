@@ -34,7 +34,7 @@ export class VmsShimFactory {
   }
 
   /**
-   * Returns all registered shims (useful for NVR status overview panels).
+   * Returns all registered shims (useful for VMS status overview panels).
    * @returns {VmsShimBase[]}
    */
   static getAll() {

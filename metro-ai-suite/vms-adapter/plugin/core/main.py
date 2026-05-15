@@ -33,7 +33,7 @@ async def lifespan(application: FastAPI):
 def create_app() -> FastAPI:
     application = FastAPI(
         title="VMS Plugin Microservice",
-        description="I/O Plugin for VMS/NVR Integration with Core Apps",
+        description="I/O Plugin for VMS/VMS Integration with Core Apps",
         version="0.1.0",
         lifespan=lifespan,
     )

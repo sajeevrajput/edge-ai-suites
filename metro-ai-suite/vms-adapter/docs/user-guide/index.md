@@ -11,7 +11,7 @@ hide_directive-->
 
 # VMS Adapter Plugin
 
-**VMS Adapter Plugin (VAP)** is an I/O bridge between NVR/VMS systems and AI Core Apps. It connects Frigate and Nx Witness cameras to AI analytics applications such as Live Video Captioning and Pallet Defect Detection, and presents a unified operator dashboard for managing cameras and analytics runs.
+**VMS Adapter Plugin (VAP)** is an I/O bridge between VMS systems and AI Core Apps. It connects Frigate and Nx Witness cameras to AI analytics applications such as Live Video Captioning and Pallet Defect Detection, and presents a unified operator dashboard for managing cameras and analytics runs.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -19,7 +19,7 @@ hide_directive-->
 │                                                                     │
 │  ┌──────────┐    ┌─────────────────┐    ┌──────────────────────┐   │
 │  │ Frigate  │    │  FastAPI Backend │    │  Live Video          │   │
-│  │ (NVR)   ├───►│  (plugin/)       ├───►│  Captioning (LVC)    │   │
+│  │ (VMS)   ├───►│  (plugin/)       ├───►│  Captioning (LVC)    │   │
 │  └──────────┘    │                 │    │  Core App            │   │
 │  ┌──────────┐    │  - Camera sync  │    └──────────────────────┘   │
 │  │Nx Witness│    │  - Generic runs │    ┌──────────────────────┐   │
@@ -55,7 +55,7 @@ hide_directive-->
 
 **Warehouse Quality Control**: Route camera feeds from Frigate or Nx Witness to Pallet Defect Detection and automatically push detected defect bounding boxes back into Nx Witness for operator review.
 
-**Multi-Camera Analytics Management**: Discover all cameras from all connected NVR systems in one dashboard and selectively enable AI analytics on specific cameras without reconfiguring each system individually.
+**Multi-Camera Analytics Management**: Discover all cameras from all connected VMS systems in one dashboard and selectively enable AI analytics on specific cameras without reconfiguring each system individually.
 
 ## Learn More
 

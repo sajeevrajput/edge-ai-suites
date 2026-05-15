@@ -102,7 +102,7 @@ class ReadyResponse(BaseModel):
 
 class ConfigStatus(BaseModel):
     uptime_seconds: float = 0.0
-    nvr_instances: list[dict] = Field(default_factory=list)
+    vms_instances: list[dict] = Field(default_factory=list)
     core_apps: list[dict] = Field(default_factory=list)
 
 

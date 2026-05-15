@@ -59,4 +59,4 @@ The following external services must be reachable from the VAP backend container
 
 ## Validation
 
-Proceed to [Get Started](../get-started.md) once Docker is installed and your NVR and Core App services are reachable.
+Proceed to [Get Started](../get-started.md) once Docker is installed and your VMS and Core App services are reachable.

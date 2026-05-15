@@ -4,7 +4,7 @@
 # VMS Plugin Microservice : Default Configuration
 # All ${ENV_VAR} references are resolved from environment variables at startup.
 
-nvr_instances:
+vms_instances:
   - name: frigate-main
     vendor: frigate
     base_url: "http://${FRIGATE_HOST}:5000"

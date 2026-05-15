@@ -21,7 +21,7 @@ At the end of this tutorial you will have:
   ```
 
 - At least one IP camera with an accessible RTSP stream.
-- Choose your NVR source: **Frigate**, **Nx Witness**, or both.
+- Choose your VMS source: **Frigate**, **Nx Witness**, or both.
 
 ---
 
@@ -30,7 +30,7 @@ At the end of this tutorial you will have:
 ```
 Camera (RTSP)
   │
-  ├── Frigate NVR (local config.yml)
+  ├── Frigate VMS (local config.yml)
   │       VAP reads config directly, no API needed
   │
   └── Nx Witness VMS (REST API v4)
@@ -105,7 +105,7 @@ LVC exposes two services that VAP depends on:
 
 ## Part 2 — Set Up Camera Sources
 
-Choose one or both options below. VAP discovers from all configured NVR instances simultaneously.
+Choose one or both options below. VAP discovers from all configured VMS instances simultaneously.
 
 ---
 
@@ -314,10 +314,10 @@ core_apps:
     mediamtx_url: "http://${MEDIAMTX_HOST:-host.docker.internal}:${MEDIAMTX_PORT:-8889}"
 ```
 
-**Frigate NVR instance (if using Frigate):**
+**Frigate VMS instance (if using Frigate):**
 
 ```yaml
-nvr_instances:
+vms_instances:
   - name: frigate-main
     vendor: frigate
     base_url: "http://${FRIGATE_HOST}:5000"
@@ -325,10 +325,10 @@ nvr_instances:
       auth_type: none
 ```
 
-**Nx Witness NVR instance (if using Nx Witness):**
+**Nx Witness VMS instance (if using Nx Witness):**
 
 ```yaml
-nvr_instances:
+vms_instances:
   - name: nx-main
     vendor: nx_witness
     base_url: "https://${NX_HOST}:7001"
@@ -338,7 +338,7 @@ nvr_instances:
       auth_type: digest
 ```
 
-> To use both Frigate and Nx Witness, include both entries under `nvr_instances`.
+> To use both Frigate and Nx Witness, include both entries under `vms_instances`.
 
 ---
 
@@ -398,7 +398,7 @@ http://localhost:3100
 ### 5.2 Discover Cameras
 
 1. In the **Camera Discovery** panel, click **Discover Cameras**.
-2. VAP queries all configured NVR sources and stores results in PostgreSQL.
+2. VAP queries all configured VMS sources and stores results in PostgreSQL.
 3. The camera list updates:
    - Frigate cameras appear as: `frigate:front-door`, `frigate:warehouse-cam`
    - Nx Witness cameras appear as: `nx:e3e9a385-7fe0-3ba5-5482-a86cde7faf48`
@@ -582,8 +582,8 @@ curl -X DELETE http://localhost:8085/v1/core-apps/live_captioning/runs/<run_id>
 | Install and start LVC + MediaMTX | `metro-ai-suite/live-video-analysis/live-video-captioning/` → `docker compose up -d` |
 | **Frigate:** add cameras to `config.yml` | `vms_shim/frigate/config/config.yml` |
 | **Nx Witness:** download from [nxvms.com/download/releases/windows](https://nxvms.com/download/releases/windows), install Client & Server, add cameras, enable digest auth | Nx Witness Desktop Client on Windows |
-| Set `LVC_BASE_URL`, `MEDIAMTX_URL`, and NVR credentials in `.env` | `metro-ai-suite/vms-adapter/.env` |
-| Configure NVR instance(s) in `config.yaml` | `config/config.yaml` |
+| Set `LVC_BASE_URL`, `MEDIAMTX_URL`, and VMS credentials in `.env` | `metro-ai-suite/vms-adapter/.env` |
+| Configure VMS instance(s) in `config.yaml` | `config/config.yaml` |
 | Start VAP | `cd metro-ai-suite/vms-adapter` → `docker compose up -d --build` |
 | Discover cameras | Dashboard → Discover Cameras |
 | Enable cameras for analytics | Dashboard → Camera toggle |

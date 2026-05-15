@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from plugin.core.pipeline.orchestrator import Orchestrator
-from plugin.core.config import AppConfig, NvrAuthConfig, NvrInstanceConfig, DatabaseConfig, ApiConfig
+from plugin.core.config import AppConfig, VmsAuthConfig, VmsInstanceConfig, DatabaseConfig, ApiConfig
 from vms_shim.nxwitness.shim import NxWitnessVmsShim
 
 
@@ -25,12 +25,12 @@ _SAMPLE_MANIFESTS = {
 
 def _make_config(manifest_path: str) -> AppConfig:
     return AppConfig(
-        nvr_instances=[
-            NvrInstanceConfig(
+        vms_instances=[
+            VmsInstanceConfig(
                 name="nx-main",
                 vendor="nx_witness",
                 base_url="https://localhost:7001",
-                auth=NvrAuthConfig(username="admin", password="pass"),
+                auth=VmsAuthConfig(username="admin", password="pass"),
                 analytics_manifest_path=manifest_path,
             )
         ],
@@ -41,11 +41,11 @@ def _make_config(manifest_path: str) -> AppConfig:
 
 
 def _make_shim(manifest_path: str = "", nx_record=None) -> NxWitnessVmsShim:
-    config = NvrInstanceConfig(
+    config = VmsInstanceConfig(
         name="nx-main",
         vendor="nx_witness",
         base_url="https://localhost:7001",
-        auth=NvrAuthConfig(username="admin", password="pass"),
+        auth=VmsAuthConfig(username="admin", password="pass"),
         analytics_manifest_path=manifest_path,
     )
     shim = NxWitnessVmsShim(config)
@@ -73,11 +73,11 @@ async def _run_on_startup(shim: NxWitnessVmsShim, db_record, nx_record):
         json.dump(_SAMPLE_MANIFESTS, f)
         manifest_path = f.name
 
-    shim._config = NvrInstanceConfig(
+    shim._config = VmsInstanceConfig(
         name=shim._config.name,
         vendor="nx_witness",
         base_url="https://localhost:7001",
-        auth=NvrAuthConfig(username="admin", password="pass"),
+        auth=VmsAuthConfig(username="admin", password="pass"),
         analytics_manifest_path=manifest_path,
     )
     shim.find_integration_in_vms = AsyncMock(return_value=nx_record)

@@ -1,11 +1,11 @@
 # Get Started
 
-The **VMS Adapter Plugin (VAP)** bridges NVR/VMS systems (Frigate, Nx Witness) with AI analytics Core Apps (Live Video Captioning, Pallet Defect Detection). This guide shows how to deploy the full stack with Docker Compose and run your first analytics session.
+The **VMS Adapter Plugin (VAP)** bridges VMS systems (Frigate, Nx Witness) with AI analytics Core Apps (Live Video Captioning, Pallet Defect Detection). This guide shows how to deploy the full stack with Docker Compose and run your first analytics session.
 
 This guide shows how to:
 
 - **Set up prerequisites**: Start LVC or PDD before VAP, since VAP fetches their schemas at startup.
-- **Configure the environment**: Point VAP at your NVR and Core App services.
+- **Configure the environment**: Point VAP at your VMS and Core App services.
 - **Run the operator dashboard**: Discover cameras, enable streams, and start analytics runs.
 
 ## Prerequisites
@@ -14,7 +14,7 @@ This guide shows how to:
 - Install Docker: [Installation Guide](https://docs.docker.com/get-docker/).
 - Install Docker Compose: [Installation Guide](https://docs.docker.com/compose/install/).
 - One or more of the following running and reachable:
-  - **Frigate** NVR with cameras configured (RTSP streams)
+  - **Frigate** VMS with cameras configured (RTSP streams)
   - **Nx Witness** VMS with accessible REST API (`NX_HOST`, `NX_USERNAME`, `NX_PASSWORD`)
 - At least one Core App running before VAP starts:
   - **Live Video Captioning (LVC)** — for AI captioning
@@ -199,7 +199,7 @@ curl http://localhost:8085/v1/health
 
 ## Step 7 — Discover Cameras
 
-In the dashboard, click **Discover Cameras** to sync cameras from all connected NVR systems. You can also trigger discovery via the API:
+In the dashboard, click **Discover Cameras** to sync cameras from all connected VMS systems. You can also trigger discovery via the API:
 
 ```bash
 curl -X POST http://localhost:8085/v1/cameras/discover

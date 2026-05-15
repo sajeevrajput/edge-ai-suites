@@ -14,7 +14,7 @@ from typing import Callable
 import structlog
 
 from plugin.base.interfaces import ICoreAppShim, IVmsShim
-from plugin.core.config import AppConfig, AnyCorAppConfig, NvrInstanceConfig
+from plugin.core.config import AppConfig, AnyCorAppConfig, VmsInstanceConfig
 from vms_shim.frigate.shim import FrigateVmsShim
 from vms_shim.nxwitness.shim import NxWitnessVmsShim
 from core_app_shim.lvc import LiveCaptioningCoreAppShim
@@ -23,7 +23,7 @@ from core_app_shim.object_detection import ObjectDetectionCoreAppShim
 logger = structlog.get_logger(__name__)
 
 
-VmsShimBuilder = Callable[[NvrInstanceConfig], IVmsShim]
+VmsShimBuilder = Callable[[VmsInstanceConfig], IVmsShim]
 CoreAppShimBuilder = Callable[[AnyCorAppConfig], ICoreAppShim]
 
 _VMS_REGISTRY: dict[str, VmsShimBuilder] = {
@@ -47,10 +47,10 @@ def register_core_app(app_type: str, builder: CoreAppShimBuilder) -> None:
     _CORE_APP_REGISTRY[app_type] = builder
 
 
-class NvrShimSet:
-    """Holds the single ``IVmsShim`` for one configured NVR instance."""
+class VmsShimSet:
+    """Holds the single ``IVmsShim`` for one configured VMS instance."""
 
-    def __init__(self, name: str, config: NvrInstanceConfig, vms_shim: IVmsShim):
+    def __init__(self, name: str, config: VmsInstanceConfig, vms_shim: IVmsShim):
         self.name = name
         self.config = config
         self.vms_shim = vms_shim
@@ -58,15 +58,15 @@ class NvrShimSet:
 
 class ShimFactory:
     @staticmethod
-    def create_nvr_shims(config: AppConfig) -> list[NvrShimSet]:
-        sets: list[NvrShimSet] = []
-        for nvr in config.nvr_instances:
-            builder = _VMS_REGISTRY.get(nvr.vendor)
+    def create_vms_shims(config: AppConfig) -> list[VmsShimSet]:
+        sets: list[VmsShimSet] = []
+        for vms_inst in config.vms_instances:
+            builder = _VMS_REGISTRY.get(vms_inst.vendor)
             if builder is None:
-                logger.warning("unknown_vendor", vendor=nvr.vendor, name=nvr.name)
+                logger.warning("unknown_vendor", vendor=vms_inst.vendor, name=vms_inst.name)
                 continue
-            sets.append(NvrShimSet(name=nvr.name, config=nvr, vms_shim=builder(nvr)))
-            logger.info("nvr_shim_created", name=nvr.name, vendor=nvr.vendor)
+            sets.append(VmsShimSet(name=vms_inst.name, config=vms_inst, vms_shim=builder(vms_inst)))
+            logger.info("vms_shim_created", name=vms_inst.name, vendor=vms_inst.vendor)
         return sets
 
     @staticmethod

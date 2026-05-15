@@ -10,18 +10,18 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from plugin.core.api.deps import get_db_session, get_nvr_shim_sets
-from plugin.core.config import NvrAuthConfig, NvrInstanceConfig
+from plugin.core.api.deps import get_db_session, get_vms_shim_sets
+from plugin.core.config import VmsAuthConfig, VmsInstanceConfig
 from plugin.core.main import create_app
 from fastapi.testclient import TestClient
 
 
 def _make_shim_set(name: str, vendor: str):
-    config = NvrInstanceConfig(
+    config = VmsInstanceConfig(
         name=name,
         vendor=vendor,
         base_url="https://localhost:7001",
-        auth=NvrAuthConfig(username="admin", password="test"),
+        auth=VmsAuthConfig(username="admin", password="test"),
     )
     shim = AsyncMock()
     shim.handle_register = AsyncMock(return_value={"status": "ok", "vendor": vendor})
@@ -44,7 +44,7 @@ def client_factory():
         async def override_db():
             yield mock_db
 
-        app.dependency_overrides[get_nvr_shim_sets] = override_shims
+        app.dependency_overrides[get_vms_shim_sets] = override_shims
         app.dependency_overrides[get_db_session] = override_db
         yield TestClient(app, raise_server_exceptions=False)
 

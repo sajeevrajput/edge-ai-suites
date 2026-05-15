@@ -17,7 +17,7 @@ import structlog
 from plugin.base.interfaces import ICoreAppShim
 from plugin.core.config import AppConfig, load_config
 from plugin.core.db.session import close_db, init_db
-from plugin.core.factory import NvrShimSet, ShimFactory
+from plugin.core.factory import VmsShimSet, ShimFactory
 
 logger = structlog.get_logger(__name__)
 
@@ -26,7 +26,7 @@ logger = structlog.get_logger(__name__)
 class Orchestrator:
     def __init__(self, config: AppConfig):
         self.config = config
-        self.nvr_shim_sets: list[NvrShimSet] = []
+        self.vms_shim_sets: list[VmsShimSet] = []
         self.core_app_shims: dict[str, ICoreAppShim] = {}
         self._shutdown_event = asyncio.Event()
         self._mqtt_tasks: list[asyncio.Task] = []
@@ -37,19 +37,19 @@ class Orchestrator:
         await init_db(self.config.database.url)
         logger.info("database_initialized")
 
-        self.nvr_shim_sets = ShimFactory.create_nvr_shims(self.config)
+        self.vms_shim_sets = ShimFactory.create_vms_shims(self.config)
         self.core_app_shims = ShimFactory.create_core_app_shims(self.config)
 
-        for ss in self.nvr_shim_sets:
+        for ss in self.vms_shim_sets:
             try:
                 await ss.vms_shim.connect()
             except Exception:
-                logger.exception("vms_connect_failed", nvr=ss.name)
+                logger.exception("vms_connect_failed", vms=ss.name)
                 continue
             try:
                 await ss.vms_shim.on_startup(self)
             except Exception:
-                logger.exception("vms_startup_hook_failed", nvr=ss.name)
+                logger.exception("vms_startup_hook_failed", vms=ss.name)
 
         self._wire_core_app_resolvers()
 
@@ -62,7 +62,7 @@ class Orchestrator:
                 logger.warning("core_app_schema_fetch_skipped", app_id=shim.app_id)
 
         from plugin.core.api.deps import set_shims
-        set_shims(self.nvr_shim_sets, self.core_app_shims, self.config)
+        set_shims(self.vms_shim_sets, self.core_app_shims, self.config)
 
         await self._reconcile_sessions()
 
@@ -72,7 +72,7 @@ class Orchestrator:
             except Exception:
                 logger.exception("core_app_startup_hook_failed", app_id=shim.app_id)
 
-        logger.info("orchestrator_started", nvr_count=len(self.nvr_shim_sets))
+        logger.info("orchestrator_started", vms_count=len(self.vms_shim_sets))
 
     def add_background_task(self, task: asyncio.Task) -> None:
         """Register a background task for orderly cancellation on shutdown."""
@@ -82,7 +82,7 @@ class Orchestrator:
         """Inject an RTSP resolver that defers to IVmsShim.get_live_stream_url."""
 
         async def resolve_rtsp(camera_id: str) -> str | None:
-            for ss in self.nvr_shim_sets:
+            for ss in self.vms_shim_sets:
                 if camera_id.startswith(ss.vms_shim.camera_id_prefix):
                     try:
                         url = await ss.vms_shim.get_live_stream_url(camera_id)
@@ -156,11 +156,11 @@ class Orchestrator:
         if self._mqtt_tasks:
             await asyncio.gather(*self._mqtt_tasks, return_exceptions=True)
             logger.info("mqtt_subscribers_stopped", count=len(self._mqtt_tasks))
-        for ss in self.nvr_shim_sets:
+        for ss in self.vms_shim_sets:
             try:
                 await ss.vms_shim.disconnect()
             except Exception:
-                logger.exception("vms_disconnect_error", nvr=ss.name)
+                logger.exception("vms_disconnect_error", vms=ss.name)
         await close_db()
         logger.info("orchestrator_stopped")
 

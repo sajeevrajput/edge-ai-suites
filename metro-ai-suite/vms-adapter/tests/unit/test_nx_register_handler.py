@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-from plugin.core.config import NvrAuthConfig, NvrInstanceConfig
+from plugin.core.config import VmsAuthConfig, VmsInstanceConfig
 from vms_shim.nxwitness.shim import NxWitnessVmsShim
 from vms_shim.nxwitness.models import NxAnalyticsIntegration
 
@@ -35,11 +35,11 @@ _SAMPLE_MANIFESTS = {
 
 
 def _make_shim(manifest_path: str | None = None) -> NxWitnessVmsShim:
-    config = NvrInstanceConfig(
+    config = VmsInstanceConfig(
         name="nx-main",
         vendor="nx_witness",
         base_url="https://localhost:7001",
-        auth=NvrAuthConfig(username="admin", password="test"),
+        auth=VmsAuthConfig(username="admin", password="test"),
         analytics_manifest_path=manifest_path,
     )
     shim = NxWitnessVmsShim(config)

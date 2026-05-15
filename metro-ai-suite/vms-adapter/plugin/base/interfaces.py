@@ -130,7 +130,7 @@ class IVmsShim(ABC):
         Args:
             body: Raw JSON request body as a dict.
             db: Active ``AsyncSession`` injected from FastAPI's dependency.
-            vms_name: Name of the NVR instance being registered.
+            vms_name: Name of the VMS instance being registered.
         """
         return await self.register_analytics(body.get("manifest", {}))
 

@@ -50,8 +50,8 @@ def _resolve_recursive(obj):
     return obj
 
 
-class NvrAuthConfig(BaseModel):
-    """NVR auth credentials.
+class VmsAuthConfig(BaseModel):
+    """VMS auth credentials.
 
     Per the ADD chat (comment 26), the plugin **facilitates** auth — it
     does not maintain long-lived sessions. Credentials here are used only
@@ -63,11 +63,11 @@ class NvrAuthConfig(BaseModel):
     auth_type: Literal["basic", "digest", "none"] = "none"
 
 
-class NvrInstanceConfig(BaseModel):
+class VmsInstanceConfig(BaseModel):
     name: str
     vendor: str
     base_url: str = ""
-    auth: NvrAuthConfig = Field(default_factory=NvrAuthConfig)
+    auth: VmsAuthConfig = Field(default_factory=VmsAuthConfig)
     # Path to a JSON file containing Nx analytics integration manifests.
     # Expected keys: integrationManifest, engineManifest, deviceAgentManifest, pinCode.
     # Used only by the nx_witness vendor.
@@ -110,7 +110,7 @@ class DatabaseConfig(BaseModel):
 
 
 class AppConfig(BaseModel):
-    nvr_instances: list[NvrInstanceConfig] = Field(default_factory=list)
+    vms_instances: list[VmsInstanceConfig] = Field(default_factory=list)
     core_apps: list[_DiscriminatedCoreAppConfig] = Field(default_factory=list)  # type: ignore[valid-type]
     api: ApiConfig = Field(default_factory=ApiConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)

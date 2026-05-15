@@ -1,7 +1,7 @@
 # VMS Adapter Plugin
 
-An I/O bridge between NVR/VMS systems (**Frigate**, **Nx Witness**) and AI Core Apps
-(**Live Video Captioning**). Combines a FastAPI backend, pluggable NVR shims, a
+An I/O bridge between VMS systems (**Frigate**, **Nx Witness**) and AI Core Apps
+(**Live Video Captioning**). Combines a FastAPI backend, pluggable VMS shims, a
 generic Core App API, and a React operator dashboard into a single Docker Compose
 deployment.
 
@@ -11,7 +11,7 @@ deployment.
 │                                                                     │
 │  ┌──────────┐    ┌─────────────────┐    ┌──────────────────────┐   │
 │  │ Frigate  │    │  FastAPI Backend │    │  Live Video          │   │
-│  │ (NVR)   ├───►│  (plugin/)       ├───►│  Captioning (LVC)    │   │
+│  │ (VMS)   ├───►│  (plugin/)       ├───►│  Captioning (LVC)    │   │
 │  └──────────┘    │                 │    │  Core App            │   │
 │  ┌──────────┐    │  - Camera sync  │    └──────────┬───────────┘   │
 │  │Nx Witness│    │  - Generic runs │               │               │
@@ -104,7 +104,7 @@ vms-adapter/
 │   └── nginx.conf                  #  Reverse proxy: /v1 → backend, /whep → MediaMTX
 │
 ├── config/
-│   └── config.yaml                 # Runtime config (cameras, NVR endpoints, LVC URL)
+│   └── config.yaml                 # Runtime config (cameras, VMS endpoints, LVC URL)
 ├── tests/                          # pytest unit + integration tests
 ├── Dockerfile                      # Backend image
 ├── docker-compose.yml              # backend + ui + postgres + frigate
@@ -221,9 +221,9 @@ docker compose down -v       # stop and remove Postgres volume
 
 ## Architecture Overview
 
-### NVR Shims (`vms_shim/`)
+### VMS Shims (`vms_shim/`)
 
-Each NVR vendor is represented by a class implementing `IVmsShim`:
+Each VMS vendor is represented by a class implementing `IVmsShim`:
 
 | Shim | Source | Camera discovery |
 |---|---|---|
@@ -300,7 +300,7 @@ to LVC — `1280x720 → {frameWidth:1280, frameHeight:720}`.
 |---|---|---|
 | `GET` | `/v1/cameras` | List all persisted cameras |
 | `GET` | `/v1/cameras/{camera_id}` | Get a single camera |
-| `POST` | `/v1/cameras/discover` | Sync cameras from all NVR shims |
+| `POST` | `/v1/cameras/discover` | Sync cameras from all VMS shims |
 | `POST` | `/v1/cameras/enable` | Enable / disable a camera |
 | `GET` | `/v1/cameras/{camera_id}/live-stream` | Get live RTSP stream URL |
 | `GET` | `/v1/cameras/{camera_id}/clip` | Get clip URL for a time range |
@@ -374,7 +374,7 @@ npm run build
 |---|---|
 | Backend | Python 3.12, FastAPI, Uvicorn, SQLAlchemy 2 (async), PostgreSQL 15, Pydantic v2, httpx, structlog |
 | Frontend | React 19, Vite, Tailwind CSS 4, shadcn/ui, Lucide icons |
-| NVR | Frigate 0.15 (go2rtc RTSP), Nx Witness REST v4 |
+| VMS | Frigate 0.15 (go2rtc RTSP), Nx Witness REST v4 |
 | AI | Intel Live Video Captioning (DLStreamer + VLM), MediaMTX (WebRTC), MQTT |
 | Infra | Docker Compose (4 services: backend, ui/nginx, postgres, frigate) |
 

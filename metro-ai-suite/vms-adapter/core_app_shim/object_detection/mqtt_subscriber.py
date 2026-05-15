@@ -26,7 +26,7 @@ import structlog
 from .translator import translate_dls_metadata
 
 if TYPE_CHECKING:
-    from plugin.core.factory import NvrShimSet
+    from plugin.core.factory import VmsShimSet
 
 logger = structlog.get_logger(__name__)
 
@@ -38,7 +38,7 @@ class MqttSubscriber:
 
         subscriber = MqttSubscriber()
         task = asyncio.create_task(
-            subscriber.run(mqtt_host, mqtt_port, nvr_shim_sets)
+            subscriber.run(mqtt_host, mqtt_port, vms_shim_sets)
         )
         # on shutdown:
         task.cancel()
@@ -48,7 +48,7 @@ class MqttSubscriber:
         self,
         mqtt_host: str,
         mqtt_port: int,
-        nvr_shim_sets: list[NvrShimSet],
+        vms_shim_sets: list[VmsShimSet],
         core_app_id: str = "pdd",
         label_type_map: dict[str, str] | None = None,
         timestamp_offset_ms: int = 0,
@@ -69,7 +69,7 @@ class MqttSubscriber:
             return
 
         # Build a name → shim lookup for fast dispatch
-        shim_map: dict[str, Any] = {ss.name: ss.vms_shim for ss in nvr_shim_sets}
+        shim_map: dict[str, Any] = {ss.name: ss.vms_shim for ss in vms_shim_sets}
         _label_map: dict[str, str] = {k.lower(): v for k, v in (label_type_map or {}).items()}
 
         # Wildcard: single-level + matches any vms_name; trailing + matches any camera_id

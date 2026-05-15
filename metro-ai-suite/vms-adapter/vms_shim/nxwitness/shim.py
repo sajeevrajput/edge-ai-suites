@@ -46,7 +46,7 @@ import httpx
 import structlog
 
 from plugin.base.interfaces import IVmsShim
-from plugin.core.config import NvrInstanceConfig
+from plugin.core.config import VmsInstanceConfig
 from plugin.core.models.domain import Camera, CommandResult
 
 if TYPE_CHECKING:
@@ -95,7 +95,7 @@ def _merge_label_types_into_manifest(
 class NxWitnessVmsShim(IVmsShim):
     """Single shim for Nx Witness using only standard /rest/v4 endpoints."""
 
-    def __init__(self, config: NvrInstanceConfig):
+    def __init__(self, config: VmsInstanceConfig):
         self._config = config
         self._client: httpx.AsyncClient | None = None
         self._connected = False
@@ -416,7 +416,7 @@ class NxWitnessVmsShim(IVmsShim):
         try:
             factory = get_session_factory()
         except RuntimeError:
-            logger.warning("autoregister_skipped_no_db", nvr=self._config.name)
+            logger.warning("autoregister_skipped_no_db", vms=self._config.name)
             return
 
         manifest_path = (
@@ -427,7 +427,7 @@ class NxWitnessVmsShim(IVmsShim):
         if not manifest_path.exists():
             logger.error(
                 "nx_manifest_file_not_found",
-                nvr=self._config.name,
+                vms=self._config.name,
                 path=str(manifest_path),
             )
             return
@@ -438,7 +438,7 @@ class NxWitnessVmsShim(IVmsShim):
         except Exception as exc:
             logger.error(
                 "nx_manifest_file_parse_failed",
-                nvr=self._config.name,
+                vms=self._config.name,
                 path=str(manifest_path),
                 error=str(exc),
             )
@@ -455,7 +455,7 @@ class NxWitnessVmsShim(IVmsShim):
         if db_record and nx_record:
             logger.info(
                 "nx_integration_already_registered",
-                nvr=self._config.name,
+                vms=self._config.name,
                 core_app_id=core_app_id,
                 username=db_record.nx_username,
             )
@@ -463,13 +463,13 @@ class NxWitnessVmsShim(IVmsShim):
                 self.set_integration_credentials(db_record.nx_username, db_record.nx_password)
                 logger.info(
                     "nx_integration_credentials_restored",
-                    nvr=self._config.name,
+                    vms=self._config.name,
                     username=db_record.nx_username,
                 )
             else:
                 logger.warning(
                     "nx_integration_no_password_in_db",
-                    nvr=self._config.name,
+                    vms=self._config.name,
                     core_app_id=core_app_id,
                     detail="Metadata push unavailable — recreate the integration to store credentials.",
                 )
@@ -478,7 +478,7 @@ class NxWitnessVmsShim(IVmsShim):
         if not db_record and nx_record:
             logger.error(
                 "nx_integration_exists_in_vms_not_in_db",
-                nvr=self._config.name,
+                vms=self._config.name,
                 core_app_id=core_app_id,
                 detail=(
                     "The Nx VMS already has an integration with this manifest ID but the "
@@ -491,7 +491,7 @@ class NxWitnessVmsShim(IVmsShim):
         if db_record and not nx_record:
             logger.error(
                 "nx_integration_exists_in_db_not_in_vms",
-                nvr=self._config.name,
+                vms=self._config.name,
                 core_app_id=core_app_id,
                 detail=(
                     "The VAP database has an integration record but it is missing from the "
@@ -510,7 +510,7 @@ class NxWitnessVmsShim(IVmsShim):
         try:
             result = await self.register_analytics(manifests)
         except Exception:
-            logger.exception("nx_autoregister_failed", nvr=self._config.name)
+            logger.exception("nx_autoregister_failed", vms=self._config.name)
             return
 
         _VALID_STATUSES = {"pending", "registered", "approved", "failed"}
@@ -532,7 +532,7 @@ class NxWitnessVmsShim(IVmsShim):
 
         logger.info(
             "nx_integration_autoregistered",
-            nvr=self._config.name,
+            vms=self._config.name,
             core_app_id=core_app_id,
             status=db_status,
             username=result.get("username"),

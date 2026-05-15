@@ -5,16 +5,16 @@
 
 import pytest
 
-from plugin.core.config import NvrAuthConfig, NvrInstanceConfig
+from plugin.core.config import VmsAuthConfig, VmsInstanceConfig
 from vms_shim.nxwitness.shim import NxWitnessVmsShim
 
 
 @pytest.fixture
-def nx_config() -> NvrInstanceConfig:
-    return NvrInstanceConfig(
+def nx_config() -> VmsInstanceConfig:
+    return VmsInstanceConfig(
         name="nx-test", vendor="nx_witness",
         base_url="https://localhost:7001",
-        auth=NvrAuthConfig(username="admin", password="test", auth_type="digest"),
+        auth=VmsAuthConfig(username="admin", password="test", auth_type="digest"),
     )
 
 

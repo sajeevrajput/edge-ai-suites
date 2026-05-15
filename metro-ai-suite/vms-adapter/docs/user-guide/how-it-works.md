@@ -1,11 +1,11 @@
 # How It Works
 
-The VMS Adapter Plugin (VAP) is a modular orchestration service that routes video streams from NVR/VMS systems to AI analytics Core Apps, and relays results back to the operator dashboard or VMS.
+The VMS Adapter Plugin (VAP) is a modular orchestration service that routes video streams from VMS systems to AI analytics Core Apps, and relays results back to the operator dashboard or VMS.
 
 ## Architecture
 
 ```
-NVR / VMS Systems
+VMS / VMS Systems
   ┌──────────┐   RTSP / REST    ┌──────────────────────────────────────────┐
   │ Frigate  ├─────────────────►│                                          │
   └──────────┘                  │           VMS Adapter Plugin             │
@@ -99,7 +99,7 @@ Nx Witness VMS
 
 ### VMS Shims (`vms_shim/`)
 
-Each NVR vendor is represented by a class implementing the `IVmsShim` interface:
+Each VMS vendor is represented by a class implementing the `IVmsShim` interface:
 
 | **Shim**            | **Source**           | **Camera Discovery**                        |
 |---------------------|----------------------|---------------------------------------------|

@@ -10,7 +10,7 @@
  *   - write-back capability flags (mirrors IVmsCommandShim on backend)
  *
  * This mirrors the backend's ShimFactory + IVmsShim / IVmsCommandShim pattern
- * but lives entirely in the UI layer — no direct NVR network calls from the browser.
+ * but lives entirely in the UI layer — no direct VMS network calls from the browser.
  */
 export class VmsShimBase {
   /** @type {string} vendor key matching Camera.vendor from backend */

@@ -11,9 +11,9 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from plugin.core.api.deps import get_db_session, get_nvr_shim_sets
+from plugin.core.api.deps import get_db_session, get_vms_shim_sets
 from plugin.core.db import repository as repo
-from plugin.core.factory import NvrShimSet
+from plugin.core.factory import VmsShimSet
 from plugin.core.models.domain import (
     Camera,
     CameraEnableRequest,
@@ -26,7 +26,7 @@ from plugin.core.models.domain import (
 router = APIRouter()
 
 
-def _shim_for(camera_id: str, shim_sets: list[NvrShimSet]) -> NvrShimSet | None:
+def _shim_for(camera_id: str, shim_sets: list[VmsShimSet]) -> VmsShimSet | None:
     for ss in shim_sets:
         if camera_id.startswith(ss.vms_shim.camera_id_prefix):
             return ss
@@ -42,10 +42,10 @@ async def list_cameras(db: AsyncSession = Depends(get_db_session)):
 @router.post("/cameras/discover", response_model=list[CameraView])
 async def discover_cameras(
     db: AsyncSession = Depends(get_db_session),
-    shim_sets: list[NvrShimSet] = Depends(get_nvr_shim_sets),
+    shim_sets: list[VmsShimSet] = Depends(get_vms_shim_sets),
 ):
     """Active discovery scan across all NVRs : upserts results into DB (30s timeout)."""
-    async def _discover_one(ss: NvrShimSet) -> list[Camera]:
+    async def _discover_one(ss: VmsShimSet) -> list[Camera]:
         try:
             return await ss.vms_shim.discover_cameras()
         except Exception:
@@ -82,7 +82,7 @@ async def enable_cameras(
 @router.get("/cameras/{camera_id}/live-stream", response_model=StreamUrlResponse)
 async def get_live_stream(
     camera_id: str,
-    shim_sets: list[NvrShimSet] = Depends(get_nvr_shim_sets),
+    shim_sets: list[VmsShimSet] = Depends(get_vms_shim_sets),
 ):
     ss = _shim_for(camera_id, shim_sets)
     if ss is None:
@@ -98,7 +98,7 @@ async def get_clip(
     camera_id: str,
     from_dt: datetime = Query(..., alias="from"),
     to_dt: datetime = Query(..., alias="to"),
-    shim_sets: list[NvrShimSet] = Depends(get_nvr_shim_sets),
+    shim_sets: list[VmsShimSet] = Depends(get_vms_shim_sets),
 ):
     ss = _shim_for(camera_id, shim_sets)
     if ss is None:

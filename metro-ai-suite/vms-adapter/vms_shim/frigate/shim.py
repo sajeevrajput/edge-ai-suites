@@ -28,7 +28,7 @@ import httpx
 import structlog
 
 from plugin.base.interfaces import IVmsShim
-from plugin.core.config import NvrInstanceConfig
+from plugin.core.config import VmsInstanceConfig
 from plugin.core.models.domain import Camera, CommandResult
 
 logger = structlog.get_logger(__name__)
@@ -37,7 +37,7 @@ logger = structlog.get_logger(__name__)
 class FrigateVmsShim(IVmsShim):
     """Single shim for Frigate (read + write + register)."""
 
-    def __init__(self, config: NvrInstanceConfig):
+    def __init__(self, config: VmsInstanceConfig):
         self._config = config
         self._client: httpx.AsyncClient | None = None
         self._connected = False

@@ -8,8 +8,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from plugin.core.api.deps import get_db_session, get_nvr_shim_sets
-from plugin.core.factory import NvrShimSet
+from plugin.core.api.deps import get_db_session, get_vms_shim_sets
+from plugin.core.factory import VmsShimSet
 
 router = APIRouter()
 
@@ -18,7 +18,7 @@ router = APIRouter()
 async def register_vms(
     name: str,
     request: Request,
-    shim_sets: list[NvrShimSet] = Depends(get_nvr_shim_sets),
+    shim_sets: list[VmsShimSet] = Depends(get_vms_shim_sets),
     db: AsyncSession = Depends(get_db_session),
 ):
     """Push an analytics manifest to one VMS.

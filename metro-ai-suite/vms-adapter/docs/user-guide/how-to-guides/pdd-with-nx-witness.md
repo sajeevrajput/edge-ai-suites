@@ -338,7 +338,7 @@ Open `config/config.yaml` and ensure the following sections are correctly config
 **Nx Witness VMS instance:**
 
 ```yaml
-nvr_instances:
+vms_instances:
   - name: nx-main
     vendor: nx_witness
     base_url: "https://${NX_HOST}:7001"
@@ -439,13 +439,13 @@ You should see entries like:
 
 ```
 nx_integration_approved username=DLStreamerAnalyticsIntegrationVMS request_id=...
-nx_integration_autoregistered nvr=nx-main core_app_id=DLStreamerAnalyticsIntegrationVMS status=approved
+nx_integration_autoregistered vms=nx-main core_app_id=DLStreamerAnalyticsIntegrationVMS status=approved
 ```
 
 > **If VAP has already registered before** (database record exists and integration exists in Nx), VAP restores the integration credentials from its database and skips re-registration. You will see:
 > ```
-> nx_integration_already_registered nvr=nx-main core_app_id=DLStreamerAnalyticsIntegrationVMS
-> nx_integration_credentials_restored nvr=nx-main username=DLStreamerAnalyticsIntegrationVMS
+> nx_integration_already_registered vms=nx-main core_app_id=DLStreamerAnalyticsIntegrationVMS
+> nx_integration_credentials_restored vms=nx-main username=DLStreamerAnalyticsIntegrationVMS
 > ```
 
 ### 4.3 Verify the Integration in Nx Witness

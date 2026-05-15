@@ -4,7 +4,7 @@
 import { VmsShimBase } from './VmsShimBase';
 
 /**
- * FrigateShim — UI shim for Frigate NVR.
+ * FrigateShim — UI shim for Frigate VMS.
  *
  * Capabilities mirror FrigateCommandShim in the backend:
  *   push_label        ✅  POST /api/events/{id}/sub_label
