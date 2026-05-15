@@ -4,9 +4,10 @@
 /**
  * LiveStreamTab — Live Video Captioning stream viewer.
  *
- * Video: MediaMTX iframe (bypasses nginx; MediaMTX handles WebRTC natively).
- * Stream readiness: polls WHEP endpoint until pipeline starts publishing,
- * then force-reloads the iframe so MediaMTX's player connects to a live feed.
+ * Video: MediaMTX iframe. Requires VITE_MEDIAMTX_BASE to be set to the
+ * publicly reachable MediaMTX origin (e.g. http://192.168.1.10:8889).
+ * Stream readiness: polls the /whep reverse-proxy until the pipeline
+ * starts publishing, then force-reloads the iframe.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -14,17 +15,24 @@ import { Video, Wifi, WifiOff, StopCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import useLvcStream from '@/hooks/useLvcStream';
 
-const MEDIAMTX_PORT = import.meta.env.VITE_MEDIAMTX_PORT || '8889';
+// Strip any trailing slash so URL construction is consistent.
+// Fall back to window.location.hostname:8889 when the env var is not set at
+// build time (e.g. plain `docker compose build` without passing build args),
+// preserving the previous behaviour.
+const MEDIAMTX_BASE = (import.meta.env.VITE_MEDIAMTX_BASE || '').replace(/\/$/, '');
 
 function mediamtxPlayerUrl(peerId, reloadKey) {
   if (!peerId) return null;
+  const base = MEDIAMTX_BASE || `http://${window.location.hostname}:8889`;
   // reloadKey forces a fresh iframe load after pipeline starts publishing
-  return `http://${window.location.hostname}:${MEDIAMTX_PORT}/${peerId}?_k=${reloadKey}`;
+  return `${base}/${peerId}?_k=${reloadKey}`;
 }
 
-/** Poll MediaMTX WHEP until stream is publishing (non-404 response). */
+/** Poll MediaMTX WHEP via the /whep reverse-proxy until stream is publishing (non-404 response). */
 async function waitForStream(peerId, signal, intervalMs = 2500) {
-  const whepUrl = `http://${window.location.hostname}:${MEDIAMTX_PORT}/${peerId}/whep`;
+  // Use the /whep proxy (vite.config.js in dev, nginx.conf in prod) — avoids
+  // hard-coded hostnames and mixed-content issues on HTTPS deployments.
+  const whepUrl = `/whep/${peerId}/whep`;
   while (!signal.aborted) {
     try {
       const resp = await fetch(whepUrl, {

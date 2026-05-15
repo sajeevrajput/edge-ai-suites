@@ -132,6 +132,7 @@ class AppConfig(BaseModel):
 
 class Settings(BaseSettings):
     config_path: str = "/app/config/config.yaml"
+    database_url: str = ""
     model_config = {"env_prefix": "VMS_PLUGIN_"}
 
 
@@ -152,4 +153,13 @@ def load_config(path: str | Path | None = None) -> AppConfig:
 
     with open(config_path) as f:
         raw = yaml.safe_load(f)
-    return AppConfig(**raw)
+
+    config = AppConfig(**raw)
+
+    # VMS_PLUGIN_DATABASE_URL, when set, takes precedence over the value
+    # resolved from config.yaml so operators can override it without editing
+    # the config file (e.g. in docker-compose.yml).
+    if settings.database_url:
+        config.database.url = settings.database_url
+
+    return config
