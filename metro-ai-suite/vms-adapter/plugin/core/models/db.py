@@ -48,37 +48,6 @@ class MetadataEventRow(Base):
     )
 
 
-class NxAnalyticsIntegrationRow(Base):
-    """Persists Nx analytics integration records (one per VMS + core app pair)."""
-    __tablename__ = "nx_analytics_integrations"
-
-    id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True,
-        default=lambda: str(uuid.uuid4()),
-    )
-    vms_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    core_app_id: Mapped[str] = mapped_column(String(100), nullable=False)
-    integration_manifest: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    engine_manifest: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    device_agent_manifest: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    nx_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    nx_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    nx_request_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="pending",
-    )
-    registered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
-    __table_args__ = (
-        # One integration per (vms, core_app) pair
-        Index("uq_nx_integration_vms_app", "vms_name", "core_app_id", unique=True),
-        CheckConstraint(
-            "status IN ('pending', 'registered', 'approved', 'failed')",
-            name="ck_nx_integration_status",
-        ),
-    )
-
-
 class AnalyticsSessionRow(Base):
     __tablename__ = "analytics_sessions"
 

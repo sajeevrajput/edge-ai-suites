@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 class Camera(BaseModel):
     camera_id: str = Field(description="Vendor-prefixed stable ID, e.g. frigate:front-door")
     name: str
-    vendor: Literal["frigate", "nx_witness"]
+    vendor: str
     status: Literal["online", "offline", "unknown"] = "unknown"
     stream_url: str | None = None
     enabled: bool = False
@@ -26,7 +26,7 @@ class Camera(BaseModel):
 class CameraView(BaseModel):
     camera_id: str
     name: str
-    vendor: Literal["frigate", "nx_witness"]
+    vendor: str
     status: Literal["online", "offline", "unknown"]
     enabled: bool
     stream_url: str | None = None
@@ -128,32 +128,13 @@ class ClipUrlResponse(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-    """Request body for POST /v1/vms/{name}/register."""
+    """Generic request body for POST /v1/vms/{name}/register.
+
+    Vendor-specific fields (e.g. Nx structured manifests) live in the
+    corresponding shim's request model (e.g. NxRegisterRequest).
+    """
     manifest: dict = Field(default_factory=dict)
-    # Identifies which core app this integration belongs to (e.g. "dlstreamer", "lvc")
     core_app_id: str = "default"
-    # Nx-specific: structured manifests (take priority over manifest dict)
-    integration_manifest: dict | None = None
-    engine_manifest: dict | None = None
-    device_agent_manifest: dict | None = None
-    pin_code: str = "1234"
-
-
-# ── Nx Analytics Integration models ─────────────────────────────────────────
-
-class NxAnalyticsIntegration(BaseModel):
-    """Nx Analytics Integration record persisted to the DB after Phase 1 registration."""
-    id: str
-    vms_name: str
-    core_app_id: str
-    integration_manifest: dict = Field(default_factory=dict)
-    engine_manifest: dict = Field(default_factory=dict)
-    device_agent_manifest: dict | None = None
-    nx_username: str | None = None
-    nx_password: str | None = None
-    nx_request_id: str | None = None
-    status: Literal["pending", "registered", "approved", "failed"] = "pending"
-    registered_at: datetime | None = None
 
 
 # ── Session models ───────────────────────────────────────────────────────────

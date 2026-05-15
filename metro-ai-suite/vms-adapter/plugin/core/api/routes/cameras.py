@@ -28,8 +28,7 @@ router = APIRouter()
 
 def _shim_for(camera_id: str, shim_sets: list[NvrShimSet]) -> NvrShimSet | None:
     for ss in shim_sets:
-        prefix = "nx:" if ss.config.vendor == "nx_witness" else f"{ss.config.vendor}:"
-        if camera_id.startswith(prefix):
+        if camera_id.startswith(ss.vms_shim.camera_id_prefix):
             return ss
     return None
 

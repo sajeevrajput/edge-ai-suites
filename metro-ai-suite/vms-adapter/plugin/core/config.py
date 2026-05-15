@@ -12,8 +12,11 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import yaml
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
+
+from core_app_shim.lvc.config import LiveCaptioningCoreAppConfig  # noqa: F401
+from core_app_shim.object_detection.config import ObjectDetectionCoreAppConfig  # noqa: F401
 
 
 _ENV_VAR_PATTERN = re.compile(r"\$\{(\w+)(?::-(.*?))?\}")
@@ -62,7 +65,7 @@ class NvrAuthConfig(BaseModel):
 
 class NvrInstanceConfig(BaseModel):
     name: str
-    vendor: Literal["frigate", "nx_witness"]
+    vendor: str
     base_url: str = ""
     auth: NvrAuthConfig = Field(default_factory=NvrAuthConfig)
     # Path to a JSON file containing Nx analytics integration manifests.
@@ -70,39 +73,16 @@ class NvrInstanceConfig(BaseModel):
     # Used only by the nx_witness vendor.
     analytics_manifest_path: str | None = None
 
+    @field_validator("vendor")
+    @classmethod
+    def _validate_vendor(cls, v: str) -> str:
+        # Lazy import to avoid circular dependency (factory imports config)
+        from plugin.core.factory import _VMS_REGISTRY
+        known = set(_VMS_REGISTRY.keys())
+        if v not in known:
+            raise ValueError(f"Unknown vendor '{v}'. Registered vendors: {sorted(known)}")
+        return v
 
-class LiveCaptioningCoreAppConfig(BaseModel):
-    type: Literal["live_captioning"] = "live_captioning"
-    base_url: str
-    mediamtx_url: str = ""
-
-
-class ObjectDetectionCoreAppConfig(BaseModel):
-    """Config for DLStreamer Pipeline Server–based object detection apps (e.g. PDD)."""
-    type: Literal["object_detection"] = "object_detection"
-    # Identifies this app instance in API URLs (e.g. "pdd" → /v1/core-apps/pdd/runs)
-    app_id: str = "pdd"
-    display_name: str = "Object Detection"
-    base_url: str  # Pipeline Server REST URL
-    mqtt_host: str = "localhost"
-    mqtt_port: int = 1883
-    # Broker address as seen by the Pipeline Server (used in the destination payload
-    # so gvametapublish can connect). Defaults to the Pipeline Server's MQTT_HOST env var
-    # value (container name on the PDD network). Set to "host.docker.internal" if the
-    # broker is only reachable via the host's published port.
-    pipeline_server_mqtt_host: str = "mqtt-broker"
-    pipeline_server_mqtt_port: int = 1883
-    # Maps detection labels (case-insensitive) to Nx Witness object typeIds.
-    # Any label not present here falls back to "python.detected.object".
-    # These typeIds are also merged into the Nx analytics manifest at startup
-    # so that Nx accepts pushed objects for all configured types.
-    # Example:
-    #   label_type_map:
-    #     car: vap.vehicle
-    #     truck: vap.vehicle
-    #     person: vap.person
-    #     forklift: custom.forklift
-    label_type_map: dict[str, str] = Field(default_factory=dict)
 
 
 AnyCorAppConfig = LiveCaptioningCoreAppConfig | ObjectDetectionCoreAppConfig

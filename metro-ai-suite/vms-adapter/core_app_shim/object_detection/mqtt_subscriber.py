@@ -51,6 +51,7 @@ class MqttSubscriber:
         nvr_shim_sets: list[NvrShimSet],
         core_app_id: str = "pdd",
         label_type_map: dict[str, str] | None = None,
+        timestamp_offset_ms: int = 0,
     ) -> None:
         """Subscribe to MQTT and dispatch messages until cancelled.
 
@@ -93,6 +94,7 @@ class MqttSubscriber:
                             shim_map,
                             core_app_id,
                             _label_map,
+                            timestamp_offset_ms,
                         )
             except asyncio.CancelledError:
                 logger.info("mqtt_subscriber_stopped")
@@ -112,6 +114,7 @@ class MqttSubscriber:
         shim_map: dict[str, Any],
         core_app_id: str,
         label_type_map: dict[str, str] | None = None,
+        timestamp_offset_ms: int = 0,
     ) -> None:
         """Parse topic, translate payload, and dispatch to VMS shim."""
         import json
@@ -142,7 +145,7 @@ class MqttSubscriber:
             logger.warning("mqtt_payload_parse_failed", topic=topic, error=str(exc))
             return
 
-        objects, timestamp_ms = translate_dls_metadata(metadata, label_type_map)
+        objects, timestamp_ms = translate_dls_metadata(metadata, label_type_map, timestamp_offset_ms)
         if not objects:
             logger.debug("mqtt_no_objects_in_frame", topic=topic)
             return

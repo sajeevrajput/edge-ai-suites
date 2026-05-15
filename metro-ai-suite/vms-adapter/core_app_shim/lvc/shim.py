@@ -25,17 +25,20 @@ so the generic ``/v1/core-apps/{app_id}/…`` routes work without any LVC-specif
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
 from pydantic import BaseModel
 
-from plugin.core.config import LiveCaptioningCoreAppConfig
 from plugin.core.models.domain import AnalysisResult, MetadataEvent
 from plugin.base.interfaces import ICoreAppShim
+from .config import LiveCaptioningCoreAppConfig
 from .api_client import LvcApiClient
 from .schema import LvcSchemaManager
 from .mqtt_subscriber import LvcMqttSubscriber
+
+if TYPE_CHECKING:
+    from plugin.core.pipeline.orchestrator import Orchestrator
 
 logger = structlog.get_logger(__name__)
 
@@ -57,6 +60,28 @@ class LiveCaptioningCoreAppShim(ICoreAppShim):
     def set_subscriber(self, subscriber: LvcMqttSubscriber) -> None:
         """Inject the aiomqtt subscriber started by the orchestrator."""
         self._mqtt_subscriber = subscriber
+
+    async def on_startup(self, orchestrator: Orchestrator) -> None:
+        """Start LVC MQTT subscriber background task."""
+        if not orchestrator.config.mqtt.host:
+            logger.info("lvc_mqtt_not_configured_skipping", app_id=self.app_id)
+            return
+        subscriber = LvcMqttSubscriber()
+        self.set_subscriber(subscriber)
+        task = asyncio.create_task(
+            subscriber.run(
+                mqtt_host=orchestrator.config.mqtt.host,
+                mqtt_port=orchestrator.config.mqtt.port,
+            ),
+            name=f"lvc-mqtt-subscriber-{self.app_id}",
+        )
+        orchestrator.add_background_task(task)
+        logger.info(
+            "lvc_mqtt_subscriber_task_started",
+            app_id=self.app_id,
+            mqtt_host=orchestrator.config.mqtt.host,
+            mqtt_port=orchestrator.config.mqtt.port,
+        )
 
     def subscribe_run(self, run_id: str) -> asyncio.Queue | None:
         """Return a per-run result queue, or None if MQTT is not connected."""

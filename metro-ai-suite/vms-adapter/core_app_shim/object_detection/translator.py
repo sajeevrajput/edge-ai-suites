@@ -49,6 +49,7 @@ def _label_to_type_id(label: str, label_type_map: dict[str, str]) -> str:
 def translate_dls_metadata(
     payload: dict[str, Any],
     label_type_map: dict[str, str] | None = None,
+    timestamp_offset_ms: int = 0,
 ) -> tuple[list[dict[str, Any]], int]:
     """Convert a DLS inference metadata payload to Nx push format.
 
@@ -58,6 +59,11 @@ def translate_dls_metadata(
             typeId.  Labels absent from the map resolve to
             ``python.detected.object``.  Typically comes from
             ``ObjectDetectionCoreAppConfig.label_type_map``.
+        timestamp_offset_ms: Milliseconds added to the computed timestamp before
+            pushing.  Use a negative value (e.g. ``-300``) to compensate for
+            inference pipeline latency and align metadata with the video frame
+            in Nx.  Configured via
+            ``ObjectDetectionCoreAppConfig.metadata_timestamp_offset_ms``.
 
     Returns a tuple of:
     - list of Nx object dicts (may be empty if no valid detections)
@@ -66,6 +72,7 @@ def translate_dls_metadata(
     The timestamp is taken from ``rtp.sender_ntp_unix_timestamp_ns`` (converted
     to milliseconds) when present, so the metadata aligns with the video frame
     in Nx.  Falls back to local wall-clock time when the field is absent.
+    ``timestamp_offset_ms`` is applied in both cases.
 
     The ``typeId`` of each object is resolved from the detection label via
     ``label_type_map``, falling back to ``python.detected.object`` for
@@ -74,7 +81,7 @@ def translate_dls_metadata(
     _map = {k.lower(): v for k, v in (label_type_map or {}).items()}
     rtp = payload.get("rtp") or {}
     ntp_ns = rtp.get("sender_ntp_unix_timestamp_ns", 0)
-    timestamp_ms = ntp_ns // 1_000_000 if ntp_ns else int(time.time() * 1000)
+    timestamp_ms = (ntp_ns // 1_000_000 if ntp_ns else int(time.time() * 1000)) + timestamp_offset_ms
 
     objects: list[dict[str, Any]] = []
     for obj in payload.get("objects", []):

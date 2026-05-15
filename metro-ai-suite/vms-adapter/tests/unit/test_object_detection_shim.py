@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from core_app_shim.object_detection.shim import ObjectDetectionCoreAppShim
-from plugin.core.config import ObjectDetectionCoreAppConfig
+from core_app_shim.object_detection.config import ObjectDetectionCoreAppConfig
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

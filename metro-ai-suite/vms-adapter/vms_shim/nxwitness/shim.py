@@ -31,10 +31,11 @@ built using the documented ``/rest/v4/devices/{id}/footage`` endpoint.
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse,quote
 
 # Bundled default analytics integration manifest, co-located with this shim.
@@ -48,7 +49,47 @@ from plugin.base.interfaces import IVmsShim
 from plugin.core.config import NvrInstanceConfig
 from plugin.core.models.domain import Camera, CommandResult
 
+if TYPE_CHECKING:
+    from plugin.core.pipeline.orchestrator import Orchestrator
+
 logger = structlog.get_logger(__name__)
+
+
+def _merge_label_types_into_manifest(
+    manifests: dict,
+    label_type_map: dict[str, str],
+) -> None:
+    """Merge typeIds from ``label_type_map`` into the Nx manifest dicts in-place.
+
+    Adds any typeId that appears as a value in ``label_type_map`` (and is not
+    already declared) to both ``engineManifest.typeLibrary.objectTypes`` and
+    ``deviceAgentManifest.supportedTypes``.  This keeps the registered manifest
+    in sync with whatever labels are configured without requiring manual JSON edits.
+    """
+    extra_type_ids = set(label_type_map.values())
+    if not extra_type_ids:
+        return
+
+    # -- engineManifest.typeLibrary.objectTypes --
+    engine = manifests.setdefault("engineManifest", {})
+    type_library = engine.setdefault("typeLibrary", {})
+    object_types: list[dict] = type_library.setdefault("objectTypes", [])
+    existing_ids = {t.get("id") for t in object_types}
+    for type_id in sorted(extra_type_ids):
+        if type_id not in existing_ids:
+            object_types.append({"id": type_id, "name": type_id})
+            existing_ids.add(type_id)
+
+    # -- deviceAgentManifest.supportedTypes --
+    da_manifest = manifests.setdefault("deviceAgentManifest", {})
+    supported: list[dict] = da_manifest.setdefault("supportedTypes", [])
+    existing_supported = {t.get("objectTypeId") for t in supported}
+    for type_id in sorted(extra_type_ids):
+        if type_id not in existing_supported:
+            supported.append({
+                "objectTypeId": type_id,
+                "attributes": ["boundingBox", "confidence"],
+            })
 
 
 class NxWitnessVmsShim(IVmsShim):
@@ -68,6 +109,10 @@ class NxWitnessVmsShim(IVmsShim):
         self._engine_id: str | None = None
         # Device agents that have already been enabled for this session
         self._enabled_device_agents: set[str] = set()
+
+    @property
+    def camera_id_prefix(self) -> str:
+        return "nx:"
 
     # -- Lifecycle ------------------------------------------------------
     async def connect(self) -> None:
@@ -362,6 +407,262 @@ class NxWitnessVmsShim(IVmsShim):
                 pass
             self._integration_client = None
         logger.info("nx_integration_credentials_set", username=username)
+
+    async def on_startup(self, orchestrator: Orchestrator) -> None:
+        """Register Nx analytics integration on startup if not already approved in DB."""
+        from plugin.core.db.session import get_session_factory
+        from vms_shim.nxwitness import repository as nx_repo
+
+        try:
+            factory = get_session_factory()
+        except RuntimeError:
+            logger.warning("autoregister_skipped_no_db", nvr=self._config.name)
+            return
+
+        manifest_path = (
+            Path(self._config.analytics_manifest_path)
+            if self._config.analytics_manifest_path
+            else DEFAULT_MANIFEST_PATH
+        )
+        if not manifest_path.exists():
+            logger.error(
+                "nx_manifest_file_not_found",
+                nvr=self._config.name,
+                path=str(manifest_path),
+            )
+            return
+
+        try:
+            with open(manifest_path) as f:
+                manifests = json.load(f)
+        except Exception as exc:
+            logger.error(
+                "nx_manifest_file_parse_failed",
+                nvr=self._config.name,
+                path=str(manifest_path),
+                error=str(exc),
+            )
+            return
+
+        core_app_id = manifests.get("integrationManifest", {}).get("id", "default")
+        manifest_id = core_app_id
+
+        async with factory() as db:
+            db_record = await nx_repo.get_nx_integration(db, self._config.name, core_app_id)
+
+        nx_record = await self.find_integration_in_vms(manifest_id)
+
+        if db_record and nx_record:
+            logger.info(
+                "nx_integration_already_registered",
+                nvr=self._config.name,
+                core_app_id=core_app_id,
+                username=db_record.nx_username,
+            )
+            if db_record.nx_username and db_record.nx_password:
+                self.set_integration_credentials(db_record.nx_username, db_record.nx_password)
+                logger.info(
+                    "nx_integration_credentials_restored",
+                    nvr=self._config.name,
+                    username=db_record.nx_username,
+                )
+            else:
+                logger.warning(
+                    "nx_integration_no_password_in_db",
+                    nvr=self._config.name,
+                    core_app_id=core_app_id,
+                    detail="Metadata push unavailable — recreate the integration to store credentials.",
+                )
+            return
+
+        if not db_record and nx_record:
+            logger.error(
+                "nx_integration_exists_in_vms_not_in_db",
+                nvr=self._config.name,
+                core_app_id=core_app_id,
+                detail=(
+                    "The Nx VMS already has an integration with this manifest ID but the "
+                    "VAP database has no record of it. Clean up the integration in Nx or "
+                    "call POST /v1/vms/{name}/register to force re-registration."
+                ),
+            )
+            return
+
+        if db_record and not nx_record:
+            logger.error(
+                "nx_integration_exists_in_db_not_in_vms",
+                nvr=self._config.name,
+                core_app_id=core_app_id,
+                detail=(
+                    "The VAP database has an integration record but it is missing from the "
+                    "Nx VMS. The integration may have been deleted from Nx manually. "
+                    "Delete the DB record and restart, or recreate the integration in Nx."
+                ),
+            )
+            return
+
+        # Merge any label_type_map typeIds from object_detection core apps into the manifest.
+        from core_app_shim.object_detection.config import ObjectDetectionCoreAppConfig
+        for ca_cfg in orchestrator.config.core_apps:
+            if isinstance(ca_cfg, ObjectDetectionCoreAppConfig) and ca_cfg.label_type_map:
+                _merge_label_types_into_manifest(manifests, ca_cfg.label_type_map)
+
+        try:
+            result = await self.register_analytics(manifests)
+        except Exception:
+            logger.exception("nx_autoregister_failed", nvr=self._config.name)
+            return
+
+        _VALID_STATUSES = {"pending", "registered", "approved", "failed"}
+        nx_status = result.get("status", "failed")
+        db_status = nx_status if nx_status in _VALID_STATUSES else "failed"
+        async with factory() as db:
+            await nx_repo.upsert_nx_integration(
+                db,
+                vms_name=self._config.name,
+                core_app_id=core_app_id,
+                integration_manifest=manifests.get("integrationManifest", {}),
+                engine_manifest=manifests.get("engineManifest", {}),
+                device_agent_manifest=manifests.get("deviceAgentManifest"),
+                nx_username=result.get("username"),
+                nx_password=result.get("password"),
+                nx_request_id=result.get("request_id"),
+                status=db_status,
+            )
+
+        logger.info(
+            "nx_integration_autoregistered",
+            nvr=self._config.name,
+            core_app_id=core_app_id,
+            status=db_status,
+            username=result.get("username"),
+        )
+
+        password = result.get("password") or ""
+        username = result.get("username") or ""
+        if username and password:
+            self.set_integration_credentials(username, password)
+
+    async def handle_register(self, body: dict[str, Any], db: Any, vms_name: str) -> Any:
+        """Handle POST /vms/{name}/register for Nx Witness.
+
+        Resolves manifests from the request body or config, checks DB and Nx VMS
+        state, performs registration if needed, persists credentials, and injects
+        them into the live shim so metadata push works immediately.
+
+        Raises ``fastapi.HTTPException`` for conflict (409), bad-request (422),
+        and upstream-error (502) cases.
+        """
+        from fastapi import HTTPException
+        from vms_shim.nxwitness import repository as nx_repo
+
+        manifests = self._build_register_manifests(body)
+        if manifests is None:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "No analytics manifests provided. Supply integrationManifest + engineManifest "
+                    "in the request body, or set analytics_manifest_path in config YAML."
+                ),
+            )
+
+        core_app_id = body.get("core_app_id", "default")
+        manifest_id = manifests.get("integrationManifest", {}).get("id", core_app_id)
+
+        db_record = await nx_repo.get_nx_integration(db, vms_name, core_app_id)
+        nx_record = await self.find_integration_in_vms(manifest_id)
+
+        if db_record and nx_record:
+            return db_record.model_dump(exclude={"id"})
+
+        if not db_record and nx_record:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Integration '{manifest_id}' already exists in Nx VMS but has no DB record. "
+                    "Delete the integration from Nx and retry, or contact your administrator."
+                ),
+            )
+
+        if db_record and not nx_record:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Integration '{manifest_id}' is recorded in the DB but is missing from Nx VMS. "
+                    "The integration may have been deleted from Nx manually. "
+                    "Delete the DB record and retry registration."
+                ),
+            )
+
+        result = await self.register_analytics(manifests)
+
+        raw_status = result.get("status", "failed")
+        _VALID_STATUSES = {"pending", "registered", "approved", "failed"}
+        db_status = raw_status if raw_status in _VALID_STATUSES else "failed"
+
+        integration = await nx_repo.upsert_nx_integration(
+            db,
+            vms_name=vms_name,
+            core_app_id=core_app_id,
+            integration_manifest=manifests.get("integrationManifest", {}),
+            engine_manifest=manifests.get("engineManifest", {}),
+            device_agent_manifest=manifests.get("deviceAgentManifest"),
+            nx_username=result.get("username"),
+            nx_password=result.get("password"),
+            nx_request_id=result.get("request_id"),
+            status=db_status,
+        )
+
+        if raw_status == "error":
+            raise HTTPException(
+                status_code=502,
+                detail=f"Nx integration registration failed: {result.get('reason', 'unknown')}",
+            )
+
+        username = result.get("username") or ""
+        password = result.get("password") or ""
+        if username and password:
+            self.set_integration_credentials(username, password)
+
+        return integration.model_dump(exclude={"id"})
+
+    def _build_register_manifests(self, body: dict[str, Any]) -> dict | None:
+        """Resolve analytics manifests from the request body or config file."""
+        integration_manifest = body.get("integration_manifest")
+        engine_manifest = body.get("engine_manifest")
+
+        if integration_manifest and engine_manifest:
+            manifests: dict = {
+                "integrationManifest": integration_manifest,
+                "engineManifest": engine_manifest,
+                "pinCode": body.get("pin_code", "1234"),
+            }
+            device_agent_manifest = body.get("device_agent_manifest")
+            if device_agent_manifest:
+                manifests["deviceAgentManifest"] = device_agent_manifest
+            return manifests
+
+        flat_manifest = body.get("manifest", {})
+        if flat_manifest and "integrationManifest" in flat_manifest and "engineManifest" in flat_manifest:
+            return flat_manifest
+
+        manifest_path = self._config.analytics_manifest_path or str(DEFAULT_MANIFEST_PATH)
+        path = Path(manifest_path)
+        if not path.exists():
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=422,
+                detail=f"analytics_manifest_path '{manifest_path}' not found",
+            )
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except Exception as exc:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=422,
+                detail=f"Failed to parse manifest file '{manifest_path}': {exc}",
+            ) from exc
 
     async def _ensure_integration_session(self) -> bool:
         """Lazily login as the integration user and cache the bearer token.

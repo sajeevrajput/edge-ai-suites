@@ -11,9 +11,10 @@ from fastapi.testclient import TestClient
 
 from plugin.core.api.deps import set_shims
 from plugin.core.api.routes import core_apps as core_apps_routes
-from plugin.core.config import AppConfig, LiveCaptioningCoreAppConfig
+from plugin.core.config import AppConfig
 from plugin.core.factory import ShimFactory
 from core_app_shim.lvc import LiveCaptioningCoreAppShim
+from core_app_shim.lvc.config import LiveCaptioningCoreAppConfig
 
 
 @pytest.fixture

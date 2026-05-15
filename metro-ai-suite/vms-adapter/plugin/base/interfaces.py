@@ -29,13 +29,26 @@ chat thread is authoritative. Concretely:
 from __future__ import annotations
 
 import asyncio
+import copy
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
 from plugin.core.models.domain import AnalysisResult, Camera, CommandResult, MetadataEvent
+
+if TYPE_CHECKING:
+    from plugin.core.pipeline.orchestrator import Orchestrator
+
+
+DEFAULT_VMS_MANIFEST: dict = {
+    "engineId": "vms-adapter-plugin",
+    "displayName": "VMS Adapter Plugin",
+    "version": "1.0",
+    "objectTypes": [{"id": "vms_plugin.detection", "name": "Detection"}],
+    "eventTypes": [],
+}
 
 
 class IVmsShim(ABC):
@@ -67,6 +80,17 @@ class IVmsShim(ABC):
     @abstractmethod
     async def register_analytics(self, manifest: dict[str, Any]) -> dict[str, Any]: ...
 
+    @property
+    @abstractmethod
+    def camera_id_prefix(self) -> str:
+        """Vendor-specific camera ID prefix (e.g. ``"nx:"``, ``"frigate:"``).
+
+        Camera IDs stored in the DB are vendor-prefixed strings like
+        ``"nx:abc123"`` or ``"frigate:front-door"``. This prefix is used by
+        routing code to dispatch a camera_id to the correct shim.
+        """
+        ...
+
     async def find_integration_in_vms(self, manifest_id: str) -> dict[str, Any] | None:
         """Check if an analytics integration exists in the VMS by its manifest ID.
 
@@ -82,6 +106,33 @@ class IVmsShim(ABC):
         Called after Nx integration registration. Override in VMS shims that
         support analytics metadata push (e.g. NxWitnessVmsShim).
         """
+
+    async def on_startup(self, orchestrator: Orchestrator) -> None:
+        """Vendor-specific startup hook called after connect().
+
+        Default registers the generic analytics manifest. Override in shims that
+        need richer startup logic (e.g. Nx autoregister with DB state tracking).
+        Exceptions are handled by the caller; implementations may also catch
+        internally to allow partial startup.
+        """
+        await self.register_analytics(copy.deepcopy(DEFAULT_VMS_MANIFEST))
+
+    async def handle_register(self, body: dict[str, Any], db: Any, vms_name: str) -> Any:
+        """Handle POST /vms/{name}/register for this vendor.
+
+        Default: delegates directly to ``register_analytics(body["manifest"])``
+        and returns the raw result dict.
+
+        Override in shims that need richer registration logic (e.g. Nx Witness,
+        which persists integration state to the DB and checks for conflicts).
+        Implementations may raise ``fastapi.HTTPException`` to return HTTP errors.
+
+        Args:
+            body: Raw JSON request body as a dict.
+            db: Active ``AsyncSession`` injected from FastAPI's dependency.
+            vms_name: Name of the NVR instance being registered.
+        """
+        return await self.register_analytics(body.get("manifest", {}))
 
     async def push_analytics_objects(
         self,
@@ -230,3 +281,10 @@ class ICoreAppShim(ABC):
         the SSE route will fall back to proxying the app's HTTP SSE endpoint.
         """
         return None
+
+    async def on_startup(self, orchestrator: Orchestrator) -> None:
+        """App-specific startup hook called after schema prefetch and dep injection.
+
+        Default is a no-op. Override in shims that need to start background tasks
+        (e.g. MQTT subscribers) or perform startup I/O.
+        """

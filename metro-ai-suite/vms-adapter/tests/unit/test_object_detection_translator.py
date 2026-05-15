@@ -67,6 +67,23 @@ def test_translate_wall_clock_used_when_no_rtp():
     assert before <= ts <= after
 
 
+def test_translate_timestamp_offset_applied_to_wall_clock():
+    offset = -300
+    before = int(time.time() * 1000) + offset
+    _, ts = translate_dls_metadata(_sample_payload(with_rtp=False), timestamp_offset_ms=offset)
+    after = int(time.time() * 1000) + offset
+    assert before <= ts <= after
+
+
+def test_translate_timestamp_offset_applied_to_ntp():
+    ntp_ns = 1_777_350_580_000_000_000
+    offset = -500
+    payload = _sample_payload(with_rtp=False)
+    payload["rtp"] = {"sender_ntp_unix_timestamp_ns": ntp_ns}
+    _, ts = translate_dls_metadata(payload, timestamp_offset_ms=offset)
+    assert ts == ntp_ns // 1_000_000 + offset
+
+
 def test_translate_single_object_fields():
     objects, _ = translate_dls_metadata(_sample_payload())
     assert len(objects) == 1

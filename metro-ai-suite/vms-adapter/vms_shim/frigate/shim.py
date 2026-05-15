@@ -45,6 +45,10 @@ class FrigateVmsShim(IVmsShim):
     # Lifecycle
     # ------------------------------------------------------------------
 
+    @property
+    def camera_id_prefix(self) -> str:
+        return "frigate:"
+
     async def connect(self) -> None:
         self._client = httpx.AsyncClient(base_url=self._config.base_url, timeout=30.0)
         try:

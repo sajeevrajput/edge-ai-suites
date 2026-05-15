@@ -24,15 +24,19 @@ generic ``/v1/core-apps/{app_id}/…`` routes work without app-specific code.
 
 from __future__ import annotations
 
-from typing import Any
+import asyncio
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from pydantic import BaseModel, create_model
 
 from plugin.base.interfaces import ICoreAppShim
-from plugin.core.config import ObjectDetectionCoreAppConfig
 from plugin.core.models.domain import AnalysisResult, MetadataEvent
+from .config import ObjectDetectionCoreAppConfig
 from .api_client import ObjectDetectionApiClient
+
+if TYPE_CHECKING:
+    from plugin.core.pipeline.orchestrator import Orchestrator
 
 logger = structlog.get_logger(__name__)
 
@@ -57,6 +61,29 @@ class ObjectDetectionCoreAppShim(ICoreAppShim):
     @property
     def display_name(self) -> str:  # type: ignore[override]
         return self._config.display_name
+
+    async def on_startup(self, orchestrator: Orchestrator) -> None:
+        """Start object detection MQTT subscriber background task."""
+        from core_app_shim.object_detection.mqtt_subscriber import MqttSubscriber
+        subscriber = MqttSubscriber()
+        task = asyncio.create_task(
+            subscriber.run(
+                mqtt_host=self._config.mqtt_host,
+                mqtt_port=self._config.mqtt_port,
+                nvr_shim_sets=orchestrator.nvr_shim_sets,
+                core_app_id=self.app_id,
+                label_type_map=self._config.label_type_map,
+                timestamp_offset_ms=self._config.metadata_timestamp_offset_ms,
+            ),
+            name=f"mqtt-subscriber-{self.app_id}",
+        )
+        orchestrator.add_background_task(task)
+        logger.info(
+            "mqtt_subscriber_task_started",
+            app_id=self.app_id,
+            mqtt_host=self._config.mqtt_host,
+            mqtt_port=self._config.mqtt_port,
+        )
 
     @property
     def param_model(self) -> type[BaseModel]:
