@@ -100,6 +100,8 @@ services:
     image: eclipse-mosquitto
     networks:
       - industrial-edge-vision
+    ports:
+      - "1883:1883"
     volumes:
       - ${APP_DIR}/configs/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       
