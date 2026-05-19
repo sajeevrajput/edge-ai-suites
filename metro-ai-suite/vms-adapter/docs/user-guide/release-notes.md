@@ -14,9 +14,9 @@ Details about the changes and known issues in each release of the VMS Adapter Pl
 
 - **Pallet Defect Detection Integration**: Route camera feeds to a DLStreamer Pipeline Server for warehouse defect detection. Bounding-box detections are translated from DLStreamer GVA JSON format and pushed back to Nx Witness as analytics objects via the Nx REST v4 analytics API.
 
-- **Dynamic Schema Forms**: The operator dashboard renders analytics configuration forms directly from each Core App's live OpenAPI schema. No frontend changes are required when Core App parameters change.
+- **Dynamic Schema Forms**: The operator dashboard renders analytics configuration forms directly from each Analytics App's live OpenAPI schema. No frontend changes are required when Analytics App parameters change.
 
-- **Generic Core App API**: A single set of REST routes (`/v1/core-apps/{app_id}/…`) handles all AI analytics integrations with a consistent lifecycle: start, list, stop, and stream results.
+- **Generic Analytics App API**: A single set of REST routes (`/v1/analytics-apps/{app_id}/…`) handles all AI analytics integrations with a consistent lifecycle: start, list, stop, and stream results.
 
 - **Operator Dashboard**: React 19 + Vite + Tailwind CSS dashboard served by nginx. Includes camera discovery and enable/disable controls, analytics run management, WebRTC live stream with caption overlay, and analysis results timeline.
 

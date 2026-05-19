@@ -11,7 +11,7 @@ hide_directive-->
 
 # VMS Adapter Plugin
 
-**VMS Adapter Plugin (VAP)** is an I/O bridge between VMS systems and AI Core Apps. It connects Frigate and Nx Witness cameras to AI analytics applications such as Live Video Captioning and Pallet Defect Detection, and presents a unified operator dashboard for managing cameras and analytics runs.
+**VMS Adapter Plugin (VAP)** is an I/O bridge between VMS systems and AI Analytics Apps. It connects Frigate and Nx Witness cameras to AI analytics applications such as Live Video Captioning and Pallet Defect Detection, and presents a unified operator dashboard for managing cameras and analytics runs.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -20,12 +20,12 @@ hide_directive-->
 │  ┌──────────┐    ┌─────────────────┐    ┌──────────────────────┐   │
 │  │ Frigate  │    │  FastAPI Backend │    │  Live Video          │   │
 │  │ (VMS)   ├───►│  (plugin/)       ├───►│  Captioning (LVC)    │   │
-│  └──────────┘    │                 │    │  Core App            │   │
+│  └──────────┘    │                 │    │  Analytics App            │   │
 │  ┌──────────┐    │  - Camera sync  │    └──────────────────────┘   │
 │  │Nx Witness│    │  - Generic runs │    ┌──────────────────────┐   │
 │  │ (VMS)   ├───►│  - Result proxy │    │  Pallet Defect       │   │
 │  └──────────┘    └────────┬────────┘    │  Detection (PDD)     │   │
-│                           │             │  Core App            │   │
+│                           │             │  Analytics App            │   │
 │                  ┌────────▼────────┐    └──────────────────────┘   │
 │                  │   React UI      │                                │
 │                  │   (nginx)       │                                │
@@ -37,7 +37,7 @@ hide_directive-->
 
 **Multi-VMS Support**: Connect cameras from Frigate and Nx Witness simultaneously from a single plugin instance.
 
-**Pluggable Core Apps**: AI analytics applications plug in as shims. New apps require no route changes — just a new shim class.
+**Pluggable Analytics Apps**: AI analytics applications plug in as shims. New apps require no route changes — just a new shim class.
 
 **Live Video Captioning Integration**: Generate real-time AI captions from camera streams using DLStreamer and Vision Language Models.
 
@@ -45,9 +45,9 @@ hide_directive-->
 
 **Operator Dashboard**: React-based UI for discovering cameras, enabling/disabling streams, configuring analytics parameters, and viewing live results.
 
-**Generic Core App API**: A single set of REST routes (`/v1/core-apps/{app_id}/…`) handles all AI analytics integrations with a consistent lifecycle (start, list, stop, stream results).
+**Generic Analytics App API**: A single set of REST routes (`/v1/analytics-apps/{app_id}/…`) handles all AI analytics integrations with a consistent lifecycle (start, list, stop, stream results).
 
-**Dynamic Schema Forms**: The dashboard renders analytics configuration forms directly from each Core App's live OpenAPI schema — no UI changes needed when parameters change.
+**Dynamic Schema Forms**: The dashboard renders analytics configuration forms directly from each Analytics App's live OpenAPI schema — no UI changes needed when parameters change.
 
 ## Use Cases
 

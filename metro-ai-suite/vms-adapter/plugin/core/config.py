@@ -15,8 +15,8 @@ import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
-from core_app_shim.lvc.config import LiveCaptioningCoreAppConfig  # noqa: F401
-from core_app_shim.object_detection.config import ObjectDetectionCoreAppConfig  # noqa: F401
+from analytics_app_shim.lvc.config import LiveCaptioningAnalyticsAppConfig  # noqa: F401
+from analytics_app_shim.object_detection.config import ObjectDetectionAnalyticsAppConfig  # noqa: F401
 
 
 _ENV_VAR_PATTERN = re.compile(r"\$\{(\w+)(?::-(.*?))?\}")
@@ -85,11 +85,11 @@ class VmsInstanceConfig(BaseModel):
 
 
 
-AnyCorAppConfig = LiveCaptioningCoreAppConfig | ObjectDetectionCoreAppConfig
+AnyCorAppConfig = LiveCaptioningAnalyticsAppConfig | ObjectDetectionAnalyticsAppConfig
 
 # Discriminated union for Pydantic to pick the right config model from the YAML `type` field.
-_DiscriminatedCoreAppConfig = Annotated[
-    LiveCaptioningCoreAppConfig | ObjectDetectionCoreAppConfig,
+_DiscriminatedAnalyticsAppConfig = Annotated[
+    LiveCaptioningAnalyticsAppConfig | ObjectDetectionAnalyticsAppConfig,
     Field(discriminator="type"),
 ]
 
@@ -111,7 +111,7 @@ class DatabaseConfig(BaseModel):
 
 class AppConfig(BaseModel):
     vms_instances: list[VmsInstanceConfig] = Field(default_factory=list)
-    core_apps: list[_DiscriminatedCoreAppConfig] = Field(default_factory=list)  # type: ignore[valid-type]
+    analytics_apps: list[_DiscriminatedAnalyticsAppConfig] = Field(default_factory=list)  # type: ignore[valid-type]
     api: ApiConfig = Field(default_factory=ApiConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     mqtt: MqttConfig = Field(default_factory=MqttConfig)
@@ -120,14 +120,14 @@ class AppConfig(BaseModel):
     @classmethod
     def resolve_env_vars(cls, values):
         values = _resolve_recursive(values)
-        if isinstance(values, dict) and "core_app" in values and "core_apps" not in values:
-            legacy = values.pop("core_app")
-            values["core_apps"] = [legacy] if legacy else []
+        if isinstance(values, dict) and "analytics_app" in values and "analytics_apps" not in values:
+            legacy = values.pop("analytics_app")
+            values["analytics_apps"] = [legacy] if legacy else []
         return values
 
     @property
-    def core_app(self) -> "AnyCorAppConfig | None":
-        return self.core_apps[0] if self.core_apps else None
+    def analytics_app(self) -> "AnyCorAppConfig | None":
+        return self.analytics_apps[0] if self.analytics_apps else None
 
 
 class Settings(BaseSettings):

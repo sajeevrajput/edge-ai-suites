@@ -444,11 +444,11 @@ class NxWitnessVmsShim(IVmsShim):
             )
             return
 
-        core_app_id = manifests.get("integrationManifest", {}).get("id", "default")
-        manifest_id = core_app_id
+        analytics_app_id = manifests.get("integrationManifest", {}).get("id", "default")
+        manifest_id = analytics_app_id
 
         async with factory() as db:
-            db_record = await nx_repo.get_nx_integration(db, self._config.name, core_app_id)
+            db_record = await nx_repo.get_nx_integration(db, self._config.name, analytics_app_id)
 
         nx_record = await self.find_integration_in_vms(manifest_id)
 
@@ -456,7 +456,7 @@ class NxWitnessVmsShim(IVmsShim):
             logger.info(
                 "nx_integration_already_registered",
                 vms=self._config.name,
-                core_app_id=core_app_id,
+                analytics_app_id=analytics_app_id,
                 username=db_record.nx_username,
             )
             if db_record.nx_username and db_record.nx_password:
@@ -470,7 +470,7 @@ class NxWitnessVmsShim(IVmsShim):
                 logger.warning(
                     "nx_integration_no_password_in_db",
                     vms=self._config.name,
-                    core_app_id=core_app_id,
+                    analytics_app_id=analytics_app_id,
                     detail="Metadata push unavailable — recreate the integration to store credentials.",
                 )
             return
@@ -479,7 +479,7 @@ class NxWitnessVmsShim(IVmsShim):
             logger.error(
                 "nx_integration_exists_in_vms_not_in_db",
                 vms=self._config.name,
-                core_app_id=core_app_id,
+                analytics_app_id=analytics_app_id,
                 detail=(
                     "The Nx VMS already has an integration with this manifest ID but the "
                     "VAP database has no record of it. Clean up the integration in Nx or "
@@ -492,7 +492,7 @@ class NxWitnessVmsShim(IVmsShim):
             logger.error(
                 "nx_integration_exists_in_db_not_in_vms",
                 vms=self._config.name,
-                core_app_id=core_app_id,
+                analytics_app_id=analytics_app_id,
                 detail=(
                     "The VAP database has an integration record but it is missing from the "
                     "Nx VMS. The integration may have been deleted from Nx manually. "
@@ -501,10 +501,10 @@ class NxWitnessVmsShim(IVmsShim):
             )
             return
 
-        # Merge any label_type_map typeIds from object_detection core apps into the manifest.
-        from core_app_shim.object_detection.config import ObjectDetectionCoreAppConfig
-        for ca_cfg in orchestrator.config.core_apps:
-            if isinstance(ca_cfg, ObjectDetectionCoreAppConfig) and ca_cfg.label_type_map:
+        # Merge any label_type_map typeIds from object_detection analytics apps into the manifest.
+        from analytics_app_shim.object_detection.config import ObjectDetectionAnalyticsAppConfig
+        for ca_cfg in orchestrator.config.analytics_apps:
+            if isinstance(ca_cfg, ObjectDetectionAnalyticsAppConfig) and ca_cfg.label_type_map:
                 _merge_label_types_into_manifest(manifests, ca_cfg.label_type_map)
 
         try:
@@ -520,7 +520,7 @@ class NxWitnessVmsShim(IVmsShim):
             await nx_repo.upsert_nx_integration(
                 db,
                 vms_name=self._config.name,
-                core_app_id=core_app_id,
+                analytics_app_id=analytics_app_id,
                 integration_manifest=manifests.get("integrationManifest", {}),
                 engine_manifest=manifests.get("engineManifest", {}),
                 device_agent_manifest=manifests.get("deviceAgentManifest"),
@@ -533,7 +533,7 @@ class NxWitnessVmsShim(IVmsShim):
         logger.info(
             "nx_integration_autoregistered",
             vms=self._config.name,
-            core_app_id=core_app_id,
+            analytics_app_id=analytics_app_id,
             status=db_status,
             username=result.get("username"),
         )
@@ -566,10 +566,10 @@ class NxWitnessVmsShim(IVmsShim):
                 ),
             )
 
-        core_app_id = body.get("core_app_id", "default")
-        manifest_id = manifests.get("integrationManifest", {}).get("id", core_app_id)
+        analytics_app_id = body.get("analytics_app_id", "default")
+        manifest_id = manifests.get("integrationManifest", {}).get("id", analytics_app_id)
 
-        db_record = await nx_repo.get_nx_integration(db, vms_name, core_app_id)
+        db_record = await nx_repo.get_nx_integration(db, vms_name, analytics_app_id)
         nx_record = await self.find_integration_in_vms(manifest_id)
 
         if db_record and nx_record:
@@ -603,7 +603,7 @@ class NxWitnessVmsShim(IVmsShim):
         integration = await nx_repo.upsert_nx_integration(
             db,
             vms_name=vms_name,
-            core_app_id=core_app_id,
+            analytics_app_id=analytics_app_id,
             integration_manifest=manifests.get("integrationManifest", {}),
             engine_manifest=manifests.get("engineManifest", {}),
             device_agent_manifest=manifests.get("deviceAgentManifest"),

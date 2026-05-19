@@ -58,12 +58,12 @@ def translate_dls_metadata(
         label_type_map: Optional mapping of detection label (lower-cased) to Nx
             typeId.  Labels absent from the map resolve to
             ``python.detected.object``.  Typically comes from
-            ``ObjectDetectionCoreAppConfig.label_type_map``.
+            ``ObjectDetectionAnalyticsAppConfig.label_type_map``.
         timestamp_offset_ms: Milliseconds added to the computed timestamp before
             pushing.  Use a negative value (e.g. ``-300``) to compensate for
             inference pipeline latency and align metadata with the video frame
             in Nx.  Configured via
-            ``ObjectDetectionCoreAppConfig.metadata_timestamp_offset_ms``.
+            ``ObjectDetectionAnalyticsAppConfig.metadata_timestamp_offset_ms``.
 
     Returns a tuple of:
     - list of Nx object dicts (may be empty if no valid detections)

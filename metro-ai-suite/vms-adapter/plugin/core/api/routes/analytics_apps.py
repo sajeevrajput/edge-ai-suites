@@ -1,26 +1,26 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Core App discovery + generic run-lifecycle API.
+"""Analytics App discovery + generic run-lifecycle API.
 
 This router gives the UI a unified contract to:
 
-* discover every Core App registered with the I/O plugin
-  ``GET  /v1/core-apps/discover``
-* fetch a Core App's parameter schema as JSON Schema
-  ``GET  /v1/core-apps/{app_id}/schema``
+* discover every Analytics App registered with the I/O plugin
+  ``GET  /v1/analytics-apps/discover``
+* fetch a Analytics App's parameter schema as JSON Schema
+  ``GET  /v1/analytics-apps/{app_id}/schema``
 * start / stop / list pipeline runs — **generic, works for any app_id**
-  ``POST   /v1/core-apps/{app_id}/runs``
-  ``GET    /v1/core-apps/{app_id}/runs``
-  ``GET    /v1/core-apps/{app_id}/runs/{run_id}``
-  ``DELETE /v1/core-apps/{app_id}/runs/{run_id}``
-* stream live results (captions, detections, …) from the core app
-  ``GET  /v1/core-apps/{app_id}/results/stream``
+  ``POST   /v1/analytics-apps/{app_id}/runs``
+  ``GET    /v1/analytics-apps/{app_id}/runs``
+  ``GET    /v1/analytics-apps/{app_id}/runs/{run_id}``
+  ``DELETE /v1/analytics-apps/{app_id}/runs/{run_id}``
+* stream live results (captions, detections, …) from the analytics app
+  ``GET  /v1/analytics-apps/{app_id}/results/stream``
 * fetch dynamic dropdown options (models, pipelines, …)
-  ``GET  /v1/core-apps/{app_id}/options/{option_type}``
+  ``GET  /v1/analytics-apps/{app_id}/options/{option_type}``
 
-Adding a **new core app** requires only a new shim class implementing
-``ICoreAppShim`` — zero route changes needed here.
+Adding a **new analytics app** requires only a new shim class implementing
+``IAnalyticsAppShim`` — zero route changes needed here.
 """
 
 from __future__ import annotations
@@ -38,18 +38,18 @@ from pydantic import ValidationError
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from plugin.core.api.deps import get_core_app_shims, get_db_session, require_core_app_shim
+from plugin.core.api.deps import get_analytics_app_shims, get_db_session, require_analytics_app_shim
 from plugin.core.db import repository as repo
-from plugin.base.interfaces import ICoreAppShim
+from plugin.base.interfaces import IAnalyticsAppShim
 
 logger = structlog.get_logger(__name__)
-router = APIRouter(prefix="/core-apps", tags=["Core Apps"])
+router = APIRouter(prefix="/analytics-apps", tags=["Analytics Apps"])
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _shim_descriptor(
-    shim: ICoreAppShim,
+    shim: IAnalyticsAppShim,
     available: bool,
     schema: dict | None,
     error: str | None = None,
@@ -66,19 +66,19 @@ def _shim_descriptor(
     return desc
 
 
-def _require_shim(app_id: str) -> ICoreAppShim:
-    return require_core_app_shim(app_id)
+def _require_shim(app_id: str) -> IAnalyticsAppShim:
+    return require_analytics_app_shim(app_id)
 
 
 # ── Discovery & schema ────────────────────────────────────────────────────────
 
 @router.get("/discover")
-async def discover_core_apps(
-    shims: dict[str, ICoreAppShim] = Depends(get_core_app_shims),
+async def discover_analytics_apps(
+    shims: dict[str, IAnalyticsAppShim] = Depends(get_analytics_app_shims),
 ) -> list[dict[str, Any]]:
-    """List every registered Core App with its live availability and schema.
+    """List every registered Analytics App with its live availability and schema.
 
-    When a Core App is unreachable:
+    When a Analytics App is unreachable:
     - ``available`` is ``false``
     - ``params_schema`` is ``null``
     - ``error`` contains the reason (displayed in the UI)
@@ -86,12 +86,12 @@ async def discover_core_apps(
     All shims are probed in parallel so discovery time equals the slowest
     single app, not the sum of all apps.
     """
-    async def _probe(shim: ICoreAppShim) -> dict[str, Any]:
+    async def _probe(shim: IAnalyticsAppShim) -> dict[str, Any]:
         error_msg: str | None = None
         try:
             available = await shim.is_available()
         except Exception as exc:
-            logger.warning("core_app_availability_check_failed", app_id=shim.app_id, error=str(exc))
+            logger.warning("analytics_app_availability_check_failed", app_id=shim.app_id, error=str(exc))
             available = False
             error_msg = str(exc)
 
@@ -100,7 +100,7 @@ async def discover_core_apps(
             try:
                 schema = await shim.fetch_schema()
             except Exception as exc:
-                logger.warning("core_app_fetch_schema_failed", app_id=shim.app_id, error=str(exc))
+                logger.warning("analytics_app_fetch_schema_failed", app_id=shim.app_id, error=str(exc))
                 schema = None
                 error_msg = str(exc)
         else:
@@ -108,7 +108,7 @@ async def discover_core_apps(
                 error_msg = f"{shim.display_name} backend is not reachable"
 
         logger.info(
-            "core_app_discovered",
+            "analytics_app_discovered",
             app_id=shim.app_id,
             available=available,
             has_schema=schema is not None,
@@ -120,8 +120,8 @@ async def discover_core_apps(
 
 
 @router.get("/{app_id}/schema")
-async def get_core_app_schema(app_id: str) -> dict[str, Any]:
-    """Return the live JSON Schema for a Core App's start parameters.
+async def get_analytics_app_schema(app_id: str) -> dict[str, Any]:
+    """Return the live JSON Schema for a Analytics App's start parameters.
 
     Returns 503 if the schema has not been loaded yet (call GET /discover first).
     """
@@ -137,7 +137,7 @@ async def get_core_app_schema(app_id: str) -> dict[str, Any]:
 # ── Run lifecycle — POST / GET / DELETE /{app_id}/runs ────────────────────────
 
 @router.post("/{app_id}/runs")
-async def start_core_app_run(
+async def start_analytics_app_run(
     app_id: str,
     payload: dict[str, Any] = Body(default_factory=dict),
     db: AsyncSession = Depends(get_db_session),
@@ -155,7 +155,7 @@ async def start_core_app_run(
 
     Returns 503 if the schema has not been loaded yet (call GET /discover first).
     Returns 422 with per-field errors if payload fails validation.
-    Returns 502 if the core app backend returns an error.
+    Returns 502 if the analytics app backend returns an error.
     """
     shim = _require_shim(app_id)
 
@@ -177,7 +177,7 @@ async def start_core_app_run(
                 resolved_payload[f"{field_name}_ref"] = cam_value
                 resolved_payload[field_name] = camera.stream_url
                 logger.info(
-                    "core_app_camera_resolved",
+                    "analytics_app_camera_resolved",
                     field=field_name,
                     camera_id=cam_value,
                     stream_url=camera.stream_url,
@@ -227,14 +227,14 @@ async def start_core_app_run(
 
 
 @router.get("/{app_id}/runs")
-async def list_core_app_runs(app_id: str) -> list[dict[str, Any]]:
-    """List all active runs for a core app."""
+async def list_analytics_app_runs(app_id: str) -> list[dict[str, Any]]:
+    """List all active runs for a analytics app."""
     shim = _require_shim(app_id)
     return await shim.list_runs()
 
 
 @router.get("/{app_id}/runs/{run_id}")
-async def get_core_app_run(app_id: str, run_id: str) -> dict[str, Any]:
+async def get_analytics_app_run(app_id: str, run_id: str) -> dict[str, Any]:
     """Get details of a single run."""
     shim = _require_shim(app_id)
     run = await shim.get_run(run_id)
@@ -244,7 +244,7 @@ async def get_core_app_run(app_id: str, run_id: str) -> dict[str, Any]:
 
 
 @router.delete("/{app_id}/runs/{run_id}", status_code=204, response_class=Response)
-async def stop_core_app_run(app_id: str, run_id: str) -> Response:
+async def stop_analytics_app_run(app_id: str, run_id: str) -> Response:
     """Stop a running pipeline run."""
     shim = _require_shim(app_id)
     ok = await shim.stop_run(run_id)
@@ -254,8 +254,8 @@ async def stop_core_app_run(app_id: str, run_id: str) -> Response:
 
 
 @router.post("/{app_id}/runs/stop-all", status_code=204, response_class=Response)
-async def stop_all_core_app_runs(app_id: str) -> Response:
-    """Stop every active run for a Core App.
+async def stop_all_analytics_app_runs(app_id: str) -> Response:
+    """Stop every active run for a Analytics App.
 
     Called by the UI via ``navigator.sendBeacon`` on page unload/refresh so that
     pipelines are cleaned up automatically when the user leaves the dashboard.
@@ -278,13 +278,13 @@ async def stop_all_core_app_runs(app_id: str) -> Response:
 # ── Results stream ────────────────────────────────────────────────────────────
 
 @router.get("/{app_id}/results/stream")
-async def stream_core_app_results(
+async def stream_analytics_app_results(
     app_id: str,
     run_id: Optional[str] = Query(default=None, description="Filter results to a specific run ID"),
 ) -> StreamingResponse:
     """Stream live inference results (captions, detections, …) as Server-Sent Events.
 
-    **Per-shim MQTT queue (preferred):** If the Core App shim owns an aiomqtt
+    **Per-shim MQTT queue (preferred):** If the Analytics App shim owns an aiomqtt
     subscriber (e.g. LVC), results are served from the shim's per-run queue —
     no global MQTT client needed.
 
@@ -348,7 +348,7 @@ async def stream_core_app_results(
                     async for chunk in response.aiter_bytes():
                         yield chunk
             except httpx.HTTPError as exc:
-                logger.error("core_app_sse_proxy_error", app_id=app_id, error=str(exc))
+                logger.error("analytics_app_sse_proxy_error", app_id=app_id, error=str(exc))
                 yield b'data: {"error": "stream disconnected"}\n\n'
 
     return StreamingResponse(
@@ -365,10 +365,10 @@ async def stream_core_app_results(
 # ── Options (dynamic dropdowns) ───────────────────────────────────────────────
 
 @router.get("/{app_id}/options/{option_type}")
-async def get_core_app_options(app_id: str, option_type: str) -> list[Any]:
+async def get_analytics_app_options(app_id: str, option_type: str) -> list[Any]:
     """Return a list of options for a named dropdown (e.g. 'models', 'pipelines').
 
-    Each core app shim implements ``get_options(option_type)`` and returns
+    Each analytics app shim implements ``get_options(option_type)`` and returns
     a list of strings or ``{label, value}`` objects.
     Returns an empty list for unknown option types.
     """

@@ -34,7 +34,7 @@ def _make_config(manifest_path: str) -> AppConfig:
                 analytics_manifest_path=manifest_path,
             )
         ],
-        core_apps=[],
+        analytics_apps=[],
         database=DatabaseConfig(url="postgresql+asyncpg://vms:vms@localhost/vms"),
         api=ApiConfig(),
     )

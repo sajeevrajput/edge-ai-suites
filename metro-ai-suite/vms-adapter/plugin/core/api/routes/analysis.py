@@ -23,7 +23,7 @@ async def receive_analysis_results(
     db: AsyncSession = Depends(get_db_session),
     shim_sets: list[VmsShimSet] = Depends(get_vms_shim_sets),
 ):
-    """Async callback : Core App POSTs ``AnalysisResult`` here.
+    """Async callback : Analytics App POSTs ``AnalysisResult`` here.
 
     The plugin persists the (event, result) pair if the event is unknown
     (the App may be the source of truth in RTSP-only mode), then routes

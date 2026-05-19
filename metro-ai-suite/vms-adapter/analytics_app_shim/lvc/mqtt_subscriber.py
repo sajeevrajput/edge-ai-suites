@@ -7,8 +7,8 @@ Subscribes to ``live-video-captioning/#`` on the MQTT broker and routes
 incoming caption results to per-run ``asyncio.Queue`` instances consumed
 by the SSE result-stream route.
 
-Same pattern as :mod:`core_app_shim.object_detection.mqtt_subscriber` —
-each Core App owns its own MQTT subscriber; there is no shared global client.
+Same pattern as :mod:`analytics_app_shim.object_detection.mqtt_subscriber` —
+each Analytics App owns its own MQTT subscriber; there is no shared global client.
 
 Topic convention: ``live-video-captioning/{run_id}``
 Payload (LVC format): ``{"metadata": {"result": "...", "timestamp_seconds": 41.94}, "blob": ""}``

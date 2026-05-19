@@ -1,10 +1,10 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Object Detection Core App shim.
+"""Object Detection Analytics App shim.
 
 Integrates a DLStreamer Pipeline Server–based object detection application
-(e.g. Pallet Defect Detection) as a VAP core app.
+(e.g. Pallet Defect Detection) as a VAP analytics app.
 
 Data flow:
   Camera RTSP ──► DLStreamer Pipeline Server
@@ -13,13 +13,13 @@ Data flow:
 
 Architecture
 ────────────
-``ObjectDetectionCoreAppShim`` is composed of:
+``ObjectDetectionAnalyticsAppShim`` is composed of:
 
 * :class:`~.api_client.ObjectDetectionApiClient`  — HTTP calls to the Pipeline Server
 * :class:`~.mqtt_subscriber.MqttSubscriber`        — started externally by the orchestrator
 
-This shim implements :class:`~plugin.base.interfaces.ICoreAppShim` so the
-generic ``/v1/core-apps/{app_id}/…`` routes work without app-specific code.
+This shim implements :class:`~plugin.base.interfaces.IAnalyticsAppShim` so the
+generic ``/v1/analytics-apps/{app_id}/…`` routes work without app-specific code.
 """
 
 from __future__ import annotations
@@ -30,9 +30,9 @@ from typing import TYPE_CHECKING, Any
 import structlog
 from pydantic import BaseModel, create_model
 
-from plugin.base.interfaces import ICoreAppShim
+from plugin.base.interfaces import IAnalyticsAppShim
 from plugin.core.models.domain import AnalysisResult, MetadataEvent
-from .config import ObjectDetectionCoreAppConfig
+from .config import ObjectDetectionAnalyticsAppConfig
 from .api_client import ObjectDetectionApiClient
 
 if TYPE_CHECKING:
@@ -41,10 +41,10 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class ObjectDetectionCoreAppShim(ICoreAppShim):
-    """ICoreAppShim implementation for DLStreamer Pipeline Server–based apps."""
+class ObjectDetectionAnalyticsAppShim(IAnalyticsAppShim):
+    """IAnalyticsAppShim implementation for DLStreamer Pipeline Server–based apps."""
 
-    def __init__(self, config: ObjectDetectionCoreAppConfig) -> None:
+    def __init__(self, config: ObjectDetectionAnalyticsAppConfig) -> None:
         self._config = config
         self._api = ObjectDetectionApiClient(base_url=config.base_url)
         self._param_model: type[BaseModel] = BaseModel
@@ -64,14 +64,14 @@ class ObjectDetectionCoreAppShim(ICoreAppShim):
 
     async def on_startup(self, orchestrator: Orchestrator) -> None:
         """Start object detection MQTT subscriber background task."""
-        from core_app_shim.object_detection.mqtt_subscriber import MqttSubscriber
+        from analytics_app_shim.object_detection.mqtt_subscriber import MqttSubscriber
         subscriber = MqttSubscriber()
         task = asyncio.create_task(
             subscriber.run(
                 mqtt_host=self._config.mqtt_host,
                 mqtt_port=self._config.mqtt_port,
                 vms_shim_sets=orchestrator.vms_shim_sets,
-                core_app_id=self.app_id,
+                analytics_app_id=self.app_id,
                 label_type_map=self._config.label_type_map,
                 timestamp_offset_ms=self._config.metadata_timestamp_offset_ms,
             ),
@@ -89,7 +89,7 @@ class ObjectDetectionCoreAppShim(ICoreAppShim):
     def param_model(self) -> type[BaseModel]:
         return self._param_model
 
-    # ── ICoreAppShim — schema ─────────────────────────────────────────────────
+    # ── IAnalyticsAppShim — schema ─────────────────────────────────────────────────
 
     async def fetch_schema(self) -> dict[str, Any]:
         """Build a JSON Schema from the available pipeline templates.
@@ -157,7 +157,7 @@ class ObjectDetectionCoreAppShim(ICoreAppShim):
 
         return schema
 
-    # ── ICoreAppShim — lifecycle ──────────────────────────────────────────────
+    # ── IAnalyticsAppShim — lifecycle ──────────────────────────────────────────────
 
     def _build_mqtt_topic(self, camera_id_ref: str) -> str:
         """Build the MQTT publish topic from the original camera_id.
@@ -256,7 +256,7 @@ class ObjectDetectionCoreAppShim(ICoreAppShim):
             "pipeline_root": pipeline_root,
         }
 
-    # ── ICoreAppShim — run management ─────────────────────────────────────────
+    # ── IAnalyticsAppShim — run management ─────────────────────────────────────────
 
     async def list_runs(self) -> list[dict[str, Any]]:
         return await self._api.list_runs()
@@ -272,7 +272,7 @@ class ObjectDetectionCoreAppShim(ICoreAppShim):
         """Get status of a pipeline instance by its hex UUID run_id."""
         return await self._api.get_run(run_id)
 
-    # ── ICoreAppShim — deliver (not used — push model) ────────────────────────
+    # ── IAnalyticsAppShim — deliver (not used — push model) ────────────────────────
 
     async def deliver(
         self, event: MetadataEvent, clip_path: str,

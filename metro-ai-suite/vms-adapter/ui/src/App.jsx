@@ -9,7 +9,7 @@ import { Camera, Zap } from 'lucide-react';
 import Header from '@/components/Navbar';
 import { StatCards, CameraDiscoveryPanel, AnalyticsEnginePanel, AnalysisResultsPanel } from '@/components/MainPage';
 
-import { discoverCameras, listCameras, setCameraEnabled, stopCoreAppRun, listCoreAppRuns } from '@/services/api';
+import { discoverCameras, listCameras, setCameraEnabled, stopAnalyticsAppRun, listAnalyticsAppRuns } from '@/services/api';
 import { useHealth } from '@/hooks';
 import { t } from '@/utils/i18n';
 
@@ -19,7 +19,7 @@ export default function App() {
   const [lvcRuns,      setLvcRuns]      = useState([]);
   const [odRuns,       setOdRuns]       = useState([]);
   const [discovering,  setDiscovering]  = useState(false);
-  const [coreApp,      setCoreApp]      = useState('');
+  const [analyticsApp,      setAnalyticsApp]      = useState('');
 
   const engineStatus = useHealth();
   const enabledCount = cameras.filter((c) => c.enabled).length;
@@ -29,7 +29,7 @@ export default function App() {
     const stopAllOnUnload = () => {
       if (lvcRuns.length === 0) return;
       // sendBeacon is the only reliable way to fire a request on page unload.
-      navigator.sendBeacon('/v1/core-apps/live_captioning/runs/stop-all');
+      navigator.sendBeacon('/v1/analytics-apps/live_captioning/runs/stop-all');
     };
     window.addEventListener('beforeunload', stopAllOnUnload);
     return () => window.removeEventListener('beforeunload', stopAllOnUnload);
@@ -42,7 +42,7 @@ export default function App() {
     }).catch(() => {/* backend not ready yet — user can Discover manually */});
 
     // Load active LVC runs on mount.
-    listCoreAppRuns('live_captioning').then((runs) => {
+    listAnalyticsAppRuns('live_captioning').then((runs) => {
       if (Array.isArray(runs) && runs.length > 0) setLvcRuns(runs);
     }).catch(() => {});
   }, []);
@@ -50,7 +50,7 @@ export default function App() {
   // Poll LVC every 5 seconds so runs started from LVC's own UI appear automatically.
   useEffect(() => {
     const id = setInterval(() => {
-      listCoreAppRuns('live_captioning').then((runs) => {
+      listAnalyticsAppRuns('live_captioning').then((runs) => {
         if (!Array.isArray(runs)) return;
         setLvcRuns((prev) => {
           // Only update if the run list actually changed (compare runIds)
@@ -90,7 +90,7 @@ export default function App() {
 
   const handleStopLvc = useCallback(async (runId) => {
     try {
-      await stopCoreAppRun('live_captioning', runId);
+      await stopAnalyticsAppRun('live_captioning', runId);
       setLvcRuns((prev) => prev.filter((r) => (r.runId || r.run_id) !== runId));
       toast.success('Live Captioning run stopped');
     } catch (err) {
@@ -105,7 +105,7 @@ export default function App() {
       // Optimistically add the run immediately so the Live Stream tab appears
       setLvcRuns((prev) => [...prev, run]);
       // Then fetch the enriched run list from the API (guarantees peerId is present)
-      listCoreAppRuns('live_captioning').then((runs) => {
+      listAnalyticsAppRuns('live_captioning').then((runs) => {
         if (Array.isArray(runs) && runs.length > 0) setLvcRuns(runs);
       }).catch(() => {/* fallback to optimistic run */});
     } else {
@@ -118,7 +118,7 @@ export default function App() {
   const handleStopAnalysis = useCallback(async (appId, runId) => {
     if (!appId || !runId) return;
     try {
-      await stopCoreAppRun(appId, runId);
+      await stopAnalyticsAppRun(appId, runId);
       if (appId === 'live_captioning') {
         setLvcRuns((prev) => prev.filter((r) => (r.runId || r.run_id) !== runId));
       } else {
@@ -225,7 +225,7 @@ export default function App() {
                   <span className="w-[7px] h-[7px] rounded-full bg-[#0DBF8C] animate-pulse-dot" />
                   <span className="text-[0.72rem] font-medium text-[#6B7BA4]">{t('navPipelineActive')}</span>
                   <div className="w-px h-4 bg-[#DDE3F0]" />
-                  <span className="vms-badge vms-badge-purple">{coreApp}</span>
+                  <span className="vms-badge vms-badge-purple">{analyticsApp}</span>
                 </div>
               )}
             </div>
@@ -233,7 +233,7 @@ export default function App() {
 
           {/* ── Section Content ── */}
           <div className="px-7 pt-5">
-            <StatCards stats={{ nvrs:2, discovered:cameras.length, enabled:enabledCount, coreApp }} />
+            <StatCards stats={{ nvrs:2, discovered:cameras.length, enabled:enabledCount, analyticsApp }} />
 
             {activeSection === 'cameras' && (
               <div className="mt-5 animate-slide-in">
@@ -249,9 +249,9 @@ export default function App() {
             {activeSection === 'analytics' && (
               <div className="mt-5 flex flex-col gap-0 animate-slide-in">
                 <AnalyticsEnginePanel
-                  coreApp={coreApp}
+                  analyticsApp={analyticsApp}
                   cameras={cameras}
-                  onCoreAppChange={setCoreApp}
+                  onAnalyticsAppChange={setAnalyticsApp}
                   activeRuns={{ live_captioning: lvcRuns, pdd: odRuns }}
                   onStartAnalysis={handleStartAnalysis}
                   onStopAnalysis={handleStopAnalysis}

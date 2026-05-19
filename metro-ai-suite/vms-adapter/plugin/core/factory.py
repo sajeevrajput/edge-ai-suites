@@ -1,10 +1,10 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Shim factory : registry-based factory for VMS and Core-App shims.
+"""Shim factory : registry-based factory for VMS and Analytics-App shims.
 
-Vendors register themselves by name in ``_VMS_REGISTRY`` / ``_CORE_APP_REGISTRY``.
-Adding a new VMS / Core-App is a one-line registration; no factory edits needed.
+Vendors register themselves by name in ``_VMS_REGISTRY`` / ``_ANALYTICS_APP_REGISTRY``.
+Adding a new VMS / Analytics-App is a one-line registration; no factory edits needed.
 """
 
 from __future__ import annotations
@@ -13,27 +13,27 @@ from typing import Callable
 
 import structlog
 
-from plugin.base.interfaces import ICoreAppShim, IVmsShim
+from plugin.base.interfaces import IAnalyticsAppShim, IVmsShim
 from plugin.core.config import AppConfig, AnyCorAppConfig, VmsInstanceConfig
 from vms_shim.frigate.shim import FrigateVmsShim
 from vms_shim.nxwitness.shim import NxWitnessVmsShim
-from core_app_shim.lvc import LiveCaptioningCoreAppShim
-from core_app_shim.object_detection import ObjectDetectionCoreAppShim
+from analytics_app_shim.lvc import LiveCaptioningAnalyticsAppShim
+from analytics_app_shim.object_detection import ObjectDetectionAnalyticsAppShim
 
 logger = structlog.get_logger(__name__)
 
 
 VmsShimBuilder = Callable[[VmsInstanceConfig], IVmsShim]
-CoreAppShimBuilder = Callable[[AnyCorAppConfig], ICoreAppShim]
+AnalyticsAppShimBuilder = Callable[[AnyCorAppConfig], IAnalyticsAppShim]
 
 _VMS_REGISTRY: dict[str, VmsShimBuilder] = {
     "frigate": FrigateVmsShim,
     "nx_witness": NxWitnessVmsShim,
 }
 
-_CORE_APP_REGISTRY: dict[str, CoreAppShimBuilder] = {
-    "live_captioning": LiveCaptioningCoreAppShim,
-    "object_detection": ObjectDetectionCoreAppShim,
+_ANALYTICS_APP_REGISTRY: dict[str, AnalyticsAppShimBuilder] = {
+    "live_captioning": LiveCaptioningAnalyticsAppShim,
+    "object_detection": ObjectDetectionAnalyticsAppShim,
 }
 
 
@@ -42,9 +42,9 @@ def register_vms(vendor: str, builder: VmsShimBuilder) -> None:
     _VMS_REGISTRY[vendor] = builder
 
 
-def register_core_app(app_type: str, builder: CoreAppShimBuilder) -> None:
-    """Register a new Core App type → shim constructor."""
-    _CORE_APP_REGISTRY[app_type] = builder
+def register_analytics_app(app_type: str, builder: AnalyticsAppShimBuilder) -> None:
+    """Register a new Analytics App type → shim constructor."""
+    _ANALYTICS_APP_REGISTRY[app_type] = builder
 
 
 class VmsShimSet:
@@ -70,23 +70,23 @@ class ShimFactory:
         return sets
 
     @staticmethod
-    def create_core_app_shims(config: AppConfig) -> dict[str, ICoreAppShim]:
-        registry: dict[str, ICoreAppShim] = {}
-        for ca in config.core_apps:
-            builder = _CORE_APP_REGISTRY.get(ca.type)
+    def create_analytics_app_shims(config: AppConfig) -> dict[str, IAnalyticsAppShim]:
+        registry: dict[str, IAnalyticsAppShim] = {}
+        for ca in config.analytics_apps:
+            builder = _ANALYTICS_APP_REGISTRY.get(ca.type)
             if builder is None:
-                logger.warning("unknown_core_app_type", type=ca.type)
+                logger.warning("unknown_analytics_app_type", type=ca.type)
                 continue
             shim = builder(ca)
             if shim.app_id in registry:
-                logger.warning("duplicate_core_app_id", app_id=shim.app_id)
+                logger.warning("duplicate_analytics_app_id", app_id=shim.app_id)
                 continue
             registry[shim.app_id] = shim
-            logger.info("core_app_shim_created", app_id=shim.app_id)
+            logger.info("analytics_app_shim_created", app_id=shim.app_id)
         return registry
 
     @staticmethod
-    def create_core_app_shim(config: AppConfig) -> ICoreAppShim | None:
-        registry = ShimFactory.create_core_app_shims(config)
+    def create_analytics_app_shim(config: AppConfig) -> IAnalyticsAppShim | None:
+        registry = ShimFactory.create_analytics_app_shims(config)
         return next(iter(registry.values()), None)
 

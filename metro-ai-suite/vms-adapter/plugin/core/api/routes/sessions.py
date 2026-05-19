@@ -18,12 +18,12 @@ router = APIRouter(prefix="/sessions", tags=["Sessions"])
 @router.get("", response_model=list[AnalyticsSession])
 async def list_sessions(
     camera_id: str | None = Query(None, description="Filter by camera ID"),
-    core_app_id: str | None = Query(None, description="Filter by app (e.g. dlstreamer, live_captioning)"),
+    analytics_app_id: str | None = Query(None, description="Filter by app (e.g. dlstreamer, live_captioning)"),
     status: str | None = Query(None, description="Filter by status: active or stopped"),
     db: AsyncSession = Depends(get_db_session),
 ):
     """List analytics sessions, optionally filtered by camera, app, or status."""
-    return await repo.list_sessions(db, camera_id=camera_id, core_app_id=core_app_id, status=status)
+    return await repo.list_sessions(db, camera_id=camera_id, analytics_app_id=analytics_app_id, status=status)
 
 
 @router.get("/{session_id}", response_model=AnalyticsSession)

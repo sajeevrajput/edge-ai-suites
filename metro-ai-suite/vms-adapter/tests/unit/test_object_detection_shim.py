@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Unit tests for ObjectDetectionCoreAppShim."""
+"""Unit tests for ObjectDetectionAnalyticsAppShim."""
 
 from __future__ import annotations
 
@@ -9,13 +9,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from core_app_shim.object_detection.shim import ObjectDetectionCoreAppShim
-from core_app_shim.object_detection.config import ObjectDetectionCoreAppConfig
+from analytics_app_shim.object_detection.shim import ObjectDetectionAnalyticsAppShim
+from analytics_app_shim.object_detection.config import ObjectDetectionAnalyticsAppConfig
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
-def _make_config(**kwargs) -> ObjectDetectionCoreAppConfig:
+def _make_config(**kwargs) -> ObjectDetectionAnalyticsAppConfig:
     defaults = {
         "type": "object_detection",
         "app_id": "pdd",
@@ -27,11 +27,11 @@ def _make_config(**kwargs) -> ObjectDetectionCoreAppConfig:
         "pipeline_server_mqtt_port": 1883,
     }
     defaults.update(kwargs)
-    return ObjectDetectionCoreAppConfig(**defaults)
+    return ObjectDetectionAnalyticsAppConfig(**defaults)
 
 
-def _make_shim(**kwargs) -> ObjectDetectionCoreAppShim:
-    return ObjectDetectionCoreAppShim(_make_config(**kwargs))
+def _make_shim(**kwargs) -> ObjectDetectionAnalyticsAppShim:
+    return ObjectDetectionAnalyticsAppShim(_make_config(**kwargs))
 
 
 # ── Basic identity ─────────────────────────────────────────────────────────────
@@ -47,9 +47,9 @@ def test_shim_display_name():
 
 
 def test_shim_implements_interface():
-    from plugin.base.interfaces import ICoreAppShim
+    from plugin.base.interfaces import IAnalyticsAppShim
     shim = _make_shim()
-    assert isinstance(shim, ICoreAppShim)
+    assert isinstance(shim, IAnalyticsAppShim)
 
 
 def test_camera_fields_returns_camera_id():

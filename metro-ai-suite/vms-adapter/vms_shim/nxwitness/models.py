@@ -18,7 +18,7 @@ from plugin.core.models.db import Base
 
 
 class NxAnalyticsIntegrationRow(Base):
-    """Persists Nx analytics integration records (one per VMS + core app pair)."""
+    """Persists Nx analytics integration records (one per VMS + analytics app pair)."""
 
     __tablename__ = "nx_analytics_integrations"
 
@@ -27,7 +27,7 @@ class NxAnalyticsIntegrationRow(Base):
         default=lambda: str(uuid.uuid4()),
     )
     vms_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    core_app_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    analytics_app_id: Mapped[str] = mapped_column(String(100), nullable=False)
     integration_manifest: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     engine_manifest: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     device_agent_manifest: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -40,8 +40,8 @@ class NxAnalyticsIntegrationRow(Base):
     registered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
-        # One integration per (vms, core_app) pair
-        Index("uq_nx_integration_vms_app", "vms_name", "core_app_id", unique=True),
+        # One integration per (vms, analytics_app) pair
+        Index("uq_nx_integration_vms_app", "vms_name", "analytics_app_id", unique=True),
         CheckConstraint(
             "status IN ('pending', 'registered', 'approved', 'failed')",
             name="ck_nx_integration_status",
@@ -54,7 +54,7 @@ class NxAnalyticsIntegration(BaseModel):
 
     id: str
     vms_name: str
-    core_app_id: str
+    analytics_app_id: str
     integration_manifest: dict = Field(default_factory=dict)
     engine_manifest: dict = Field(default_factory=dict)
     device_agent_manifest: dict | None = None
@@ -69,7 +69,7 @@ class NxRegisterRequest(BaseModel):
     """Request body for POST /v1/vms/{name}/register (Nx Witness and generic vendors)."""
 
     manifest: dict = Field(default_factory=dict)
-    core_app_id: str = "default"
+    analytics_app_id: str = "default"
     # Nx-specific structured manifests (take priority over the flat manifest dict)
     integration_manifest: dict | None = None
     engine_manifest: dict | None = None

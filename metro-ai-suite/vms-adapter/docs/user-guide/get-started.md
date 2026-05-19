@@ -1,11 +1,11 @@
 # Get Started
 
-The **VMS Adapter Plugin (VAP)** bridges VMS systems (Frigate, Nx Witness) with AI analytics Core Apps (Live Video Captioning, Pallet Defect Detection). This guide shows how to deploy the full stack with Docker Compose and run your first analytics session.
+The **VMS Adapter Plugin (VAP)** bridges VMS systems (Frigate, Nx Witness) with AI analytics Analytics Apps (Live Video Captioning, Pallet Defect Detection). This guide shows how to deploy the full stack with Docker Compose and run your first analytics session.
 
 This guide shows how to:
 
 - **Set up prerequisites**: Start LVC or PDD before VAP, since VAP fetches their schemas at startup.
-- **Configure the environment**: Point VAP at your VMS and Core App services.
+- **Configure the environment**: Point VAP at your VMS and Analytics App services.
 - **Run the operator dashboard**: Discover cameras, enable streams, and start analytics runs.
 
 ## Prerequisites
@@ -16,7 +16,7 @@ This guide shows how to:
 - One or more of the following running and reachable:
   - **Frigate** VMS with cameras configured (RTSP streams)
   - **Nx Witness** VMS with accessible REST API (`NX_HOST`, `NX_USERNAME`, `NX_PASSWORD`)
-- At least one Core App running before VAP starts:
+- At least one Analytics App running before VAP starts:
   - **Live Video Captioning (LVC)** — for AI captioning
   - **Pallet Defect Detection (PDD)** — for warehouse defect detection with Nx write-back
 
@@ -212,7 +212,7 @@ The backend queries all configured VMS shims (Frigate, Nx Witness) and persists 
 ## Step 8 — Enable Cameras and Start Analytics
 
 1. In the **Camera Discovery** panel, enable the cameras you want to use for analytics.
-2. In the **Analytics Engine** panel, select a Core App (for example, **Live Video Captioning** or **Pallet Defect Detection**).
+2. In the **Analytics Engine** panel, select a Analytics App (for example, **Live Video Captioning** or **Pallet Defect Detection**).
 3. Configure the analytics parameters (model, prompt, pipeline, and so on) and click **Start Run**.
 4. View live captions or detection results in the **Live Stream** and **Analysis Results** panels.
 

@@ -1,9 +1,9 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Live Video Captioning Core App shim.
+"""Live Video Captioning Analytics App shim.
 
-Integrates the Intel Live Video Captioning application as a VMS core app.
+Integrates the Intel Live Video Captioning application as a VMS analytics app.
 
 Data flow:
   Camera RTSP ──► LVC stack (DLStreamer + gvagenai VLM)
@@ -12,14 +12,14 @@ Data flow:
 
 Architecture
 ────────────
-``LiveCaptioningCoreAppShim`` is composed of two single-responsibility helpers:
+``LiveCaptioningAnalyticsAppShim`` is composed of two single-responsibility helpers:
 
 * :class:`~.api_client.LvcApiClient`  — all HTTP calls to the LVC backend
 * :class:`~.schema.LvcSchemaManager`  — OpenAPI fetch, $ref resolution, UI
   annotations, and Pydantic model building
 
-This shim wires them together and implements :class:`~plugin.base.interfaces.ICoreAppShim`
-so the generic ``/v1/core-apps/{app_id}/…`` routes work without any LVC-specific code.
+This shim wires them together and implements :class:`~plugin.base.interfaces.IAnalyticsAppShim`
+so the generic ``/v1/analytics-apps/{app_id}/…`` routes work without any LVC-specific code.
 """
 
 from __future__ import annotations
@@ -31,8 +31,8 @@ import structlog
 from pydantic import BaseModel
 
 from plugin.core.models.domain import AnalysisResult, MetadataEvent
-from plugin.base.interfaces import ICoreAppShim
-from .config import LiveCaptioningCoreAppConfig
+from plugin.base.interfaces import IAnalyticsAppShim
+from .config import LiveCaptioningAnalyticsAppConfig
 from .api_client import LvcApiClient
 from .schema import LvcSchemaManager
 from .mqtt_subscriber import LvcMqttSubscriber
@@ -43,13 +43,13 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class LiveCaptioningCoreAppShim(ICoreAppShim):
-    """ICoreAppShim implementation for the Live Video Captioning app."""
+class LiveCaptioningAnalyticsAppShim(IAnalyticsAppShim):
+    """IAnalyticsAppShim implementation for the Live Video Captioning app."""
 
     app_id = "live_captioning"
     display_name = "Live Video Captioning"
 
-    def __init__(self, config: LiveCaptioningCoreAppConfig) -> None:
+    def __init__(self, config: LiveCaptioningAnalyticsAppConfig) -> None:
         self._config = config
         self._api = LvcApiClient(base_url=config.base_url)
         self._schema_mgr = LvcSchemaManager()
@@ -100,7 +100,7 @@ class LiveCaptioningCoreAppShim(ICoreAppShim):
             return None
         return self._mqtt_subscriber.broadcast_queue()
 
-    # ── ICoreAppShim — schema ─────────────────────────────────────────────────
+    # ── IAnalyticsAppShim — schema ─────────────────────────────────────────────────
 
     @property
     def param_model(self) -> type[BaseModel]:
@@ -123,7 +123,7 @@ class LiveCaptioningCoreAppShim(ICoreAppShim):
         """
         return await self._schema_mgr.fetch(self._api)
 
-    # ── ICoreAppShim — lifecycle ──────────────────────────────────────────────
+    # ── IAnalyticsAppShim — lifecycle ──────────────────────────────────────────────
 
     async def is_reachable(self) -> bool:
         return await self._api.is_reachable()
@@ -131,7 +131,7 @@ class LiveCaptioningCoreAppShim(ICoreAppShim):
     async def start(self, params: BaseModel) -> dict[str, Any]:
         """Validate params against the dynamic model and start a run.
 
-        Called by ``POST /v1/core-apps/{app_id}/runs`` after Pydantic validation.
+        Called by ``POST /v1/analytics-apps/{app_id}/runs`` after Pydantic validation.
         ``rtspUrl`` is required and must be non-empty (validated by the dynamic model).
         All other fields are passed through as-is — LVC's own defaults apply for
         any omitted optional fields.
@@ -220,7 +220,7 @@ class LiveCaptioningCoreAppShim(ICoreAppShim):
             },
         )
 
-    # ── ICoreAppShim — generic run management ─────────────────────────────────
+    # ── IAnalyticsAppShim — generic run management ─────────────────────────────────
 
     def _enrich_run(self, run: dict[str, Any]) -> dict[str, Any]:
         """Add webrtcUrl to a run dict using the peerId from LVC."""

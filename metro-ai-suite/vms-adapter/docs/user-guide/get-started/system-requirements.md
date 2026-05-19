@@ -22,7 +22,7 @@ This page summarizes the hardware, software, and network requirements for runnin
 | **Memory**      | 8 GB                             | 16 GB                                    |
 | **Disk Space**  | 20 GB                            | 64 GB                                    |
 
-> **Note:** The VMS Adapter Plugin itself is a lightweight orchestration service. Hardware requirements scale with the number of cameras and the AI Core Apps running alongside it (LVC, PDD) — refer to those applications' system requirements for GPU/NPU needs.
+> **Note:** The VMS Adapter Plugin itself is a lightweight orchestration service. Hardware requirements scale with the number of cameras and the AI Analytics Apps running alongside it (LVC, PDD) — refer to those applications' system requirements for GPU/NPU needs.
 
 ## Software Requirements
 
@@ -51,7 +51,7 @@ The following external services must be reachable from the VAP backend container
 
 | **Service**                     | **Required For**             | **Default Port** |
 |---------------------------------|------------------------------|------------------|
-| Live Video Captioning (LVC)     | LVC Core App integration     | `4173`           |
+| Live Video Captioning (LVC)     | LVC Analytics App integration     | `4173`           |
 | MediaMTX (WebRTC signaling)     | Live stream relay to UI       | `8889`           |
 | Nx Witness                      | Nx VMS camera discovery       | `7001` (HTTPS)   |
 | DLStreamer Pipeline Server (PDD)| Pallet Defect Detection       | `8080`           |
@@ -59,4 +59,4 @@ The following external services must be reachable from the VAP backend container
 
 ## Validation
 
-Proceed to [Get Started](../get-started.md) once Docker is installed and your VMS and Core App services are reachable.
+Proceed to [Get Started](../get-started.md) once Docker is installed and your VMS and Analytics App services are reachable.

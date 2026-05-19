@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Abstract shim interfaces : single ``IVmsShim`` per VMS + optional ``ICoreAppShim``.
+"""Abstract shim interfaces : single ``IVmsShim`` per VMS + optional ``IAnalyticsAppShim``.
 
 This module is the implementation of the chat-decision-overridden ADD
 (see ``VMS_Plugin_ADD (2).docx`` — chat thread comments 1-3, 9, 26, 27,
@@ -21,8 +21,8 @@ chat thread is authoritative. Concretely:
 * **Per-shim register API.** :meth:`register_analytics` is the explicit
   hook the plugin calls on startup, and the ``POST /v1/vms/{name}/register``
   endpoint exposes it externally (comments 38-40, 52).
-* **``ICoreAppShim`` is now optional.** It is retained only as a thin
-  glue path for Core Apps (e.g. Live Video Captioning) that need a
+* **``IAnalyticsAppShim`` is now optional.** It is retained only as a thin
+  glue path for Analytics Apps (e.g. Live Video Captioning) that need a
   bespoke pipeline ``start()`` flow.
 """
 
@@ -174,8 +174,8 @@ class IVmsShim(ABC):
     ) -> CommandResult: ...
 
 
-class ICoreAppShim(ABC):
-    """Optional thin App-Shim for Core Apps that need bespoke glue."""
+class IAnalyticsAppShim(ABC):
+    """Optional thin App-Shim for Analytics Apps that need bespoke glue."""
 
     app_id: str = ""
     display_name: str = ""
@@ -186,7 +186,7 @@ class ICoreAppShim(ABC):
         """Fetch the JSON Schema for this app's start parameters from its own API.
 
         Implementations should:
-        1. Call the core app's API (e.g. GET /openapi.json) to get the live schema.
+        1. Call the analytics app's API (e.g. GET /openapi.json) to get the live schema.
         2. Build a dynamic Pydantic model via ``build_pydantic_from_schema()``.
         3. Cache the model so ``param_model`` returns it on subsequent calls.
         4. Return the raw JSON Schema dict (used as ``params_schema`` in discovery).
@@ -210,7 +210,7 @@ class ICoreAppShim(ABC):
     @abstractmethod
     async def start(self, params: BaseModel) -> dict[str, Any]: ...
 
-    # ── Generic run lifecycle (used by /v1/core-apps/{app_id}/runs routes) ────
+    # ── Generic run lifecycle (used by /v1/analytics-apps/{app_id}/runs routes) ────
 
     async def list_runs(self) -> list[dict[str, Any]]:
         """Return all active runs for this app. Override in concrete shims."""
@@ -268,7 +268,7 @@ class ICoreAppShim(ABC):
         return None
 
     def mqtt_topic_prefix(self) -> str | None:
-        """Return the MQTT topic prefix used by this Core App, or None if not using MQTT.
+        """Return the MQTT topic prefix used by this Analytics App, or None if not using MQTT.
 
         The shim's own aiomqtt subscriber subscribes to ``{prefix}/#`` at startup
         and routes messages to per-run queues consumed by the SSE result stream.

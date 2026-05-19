@@ -39,7 +39,7 @@ All routing is handled by `nginx.conf` inside the container:
 - **Static Assets**: Served from `/usr/share/nginx/html`
 - **API Proxy**: `/v1/*` → `http://backend:8080` (Docker Compose service DNS)
 - **WHEP Proxy**: `/whep/*` → `http://host.docker.internal:8889` (MediaMTX on the host)
-- **SSE Proxy**: `/v1/core-apps/*/results/stream` → `http://backend:8080` (buffering disabled)
+- **SSE Proxy**: `/v1/analytics-apps/*/results/stream` → `http://backend:8080` (buffering disabled)
 - **SPA Routing**: All non-file routes serve `index.html`
 - **Caching**: 1 year for static assets, no-cache for HTML
 - **Security Headers**: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection

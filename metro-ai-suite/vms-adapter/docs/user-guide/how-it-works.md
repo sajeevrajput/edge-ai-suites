@@ -1,6 +1,6 @@
 # How It Works
 
-The VMS Adapter Plugin (VAP) is a modular orchestration service that routes video streams from VMS systems to AI analytics Core Apps, and relays results back to the operator dashboard or VMS.
+The VMS Adapter Plugin (VAP) is a modular orchestration service that routes video streams from VMS systems to AI analytics Analytics Apps, and relays results back to the operator dashboard or VMS.
 
 ## Architecture
 
@@ -48,12 +48,12 @@ VMS / VMS Systems
 
 ```
 Operator dashboard
-    │  POST /v1/core-apps/live_captioning/runs  { camera_id, prompt, model, … }
+    │  POST /v1/analytics-apps/live_captioning/runs  { camera_id, prompt, model, … }
     ▼
-FastAPI route (core_apps.py)
-    │  ICoreAppShim.start(params)
+FastAPI route (analytics_apps.py)
+    │  IAnalyticsAppShim.start(params)
     ▼
-LiveCaptioningCoreAppShim
+LiveCaptioningAnalyticsAppShim
     │  resolves camera_id → RTSP URL via NxWitnessVmsShim / FrigateVmsShim
     │  POST /api/runs  →  LVC backend (FastAPI)
     ▼
@@ -62,7 +62,7 @@ LVC DLStreamer Pipeline Server
     ├─► VLM inference → captions → MQTT broker → LVC SSE stream
     └─► preview frames → MediaMTX (WebRTC)
     ▼
-VAP  GET /v1/core-apps/live_captioning/results/stream  (SSE proxy)
+VAP  GET /v1/analytics-apps/live_captioning/results/stream  (SSE proxy)
     ▼
 Operator dashboard
     │  caption overlay on WebRTC video player
@@ -72,12 +72,12 @@ Operator dashboard
 
 ```
 Operator dashboard
-    │  POST /v1/core-apps/pdd/runs  { camera_id, pipeline_name, pipeline_version }
+    │  POST /v1/analytics-apps/pdd/runs  { camera_id, pipeline_name, pipeline_version }
     ▼
-FastAPI route (core_apps.py)
-    │  ICoreAppShim.start(params)
+FastAPI route (analytics_apps.py)
+    │  IAnalyticsAppShim.start(params)
     ▼
-ObjectDetectionCoreAppShim
+ObjectDetectionAnalyticsAppShim
     │  resolves camera_id → RTSP URL via NxWitnessVmsShim
     │  POST /pipelines/{name}/{version}  →  DLStreamer Pipeline Server
     ▼
@@ -108,27 +108,27 @@ Each VMS vendor is represented by a class implementing the `IVmsShim` interface:
 
 Camera IDs are vendor-prefixed strings (`frigate:front-door`, `nx:abc123`). The orchestrator uses the prefix to dispatch RTSP URL lookups and write-backs to the correct shim.
 
-### Core App Shims (`core_app_shim/`)
+### Analytics App Shims (`analytics_app_shim/`)
 
-Each AI analytics application is represented by a class implementing the `ICoreAppShim` interface:
+Each AI analytics application is represented by a class implementing the `IAnalyticsAppShim` interface:
 
 | **Shim**                          | **App ID**          | **Result Delivery**                    |
 |-----------------------------------|---------------------|----------------------------------------|
-| `LiveCaptioningCoreAppShim`       | `live_captioning`   | SSE proxy to dashboard caption overlay |
-| `ObjectDetectionCoreAppShim`      | `pdd`               | MQTT → Nx Witness analytics objects    |
+| `LiveCaptioningAnalyticsAppShim`       | `live_captioning`   | SSE proxy to dashboard caption overlay |
+| `ObjectDetectionAnalyticsAppShim`      | `pdd`               | MQTT → Nx Witness analytics objects    |
 
-Adding a new Core App requires only a new shim class registered in `plugin/core/factory.py`. No route changes are needed.
+Adding a new Analytics App requires only a new shim class registered in `plugin/core/factory.py`. No route changes are needed.
 
 ### FastAPI Backend (`plugin/`)
 
-The backend exposes a generic Core App API at `/v1/core-apps/{app_id}/…` for all integrations, plus camera management, event timeline, and health endpoints. Dependency injection via `plugin/core/api/deps.py` provides shim instances to all routes.
+The backend exposes a generic Analytics App API at `/v1/analytics-apps/{app_id}/…` for all integrations, plus camera management, event timeline, and health endpoints. Dependency injection via `plugin/core/api/deps.py` provides shim instances to all routes.
 
 ### Orchestrator (`plugin/core/pipeline/orchestrator.py`)
 
 The orchestrator runs at startup to:
 - Construct and connect all VMS shims.
 - Register analytics manifests with Nx Witness.
-- Fetch Core App schemas (LVC OpenAPI, PDD pipeline list).
+- Fetch Analytics App schemas (LVC OpenAPI, PDD pipeline list).
 - Start background tasks: camera sync loop, MQTT subscriber (for PDD).
 
 ### Dynamic Schema (LVC)
@@ -147,7 +147,7 @@ The dashboard (React 19 + Vite + Tailwind CSS) is served by nginx, which reverse
 
 Key panels:
 - **Camera Discovery**: discover, enable, and disable cameras.
-- **Analytics Engine**: select a Core App, fill the dynamically rendered schema form, start/stop runs.
+- **Analytics Engine**: select a Analytics App, fill the dynamically rendered schema form, start/stop runs.
 - **Live Stream**: WebRTC video player with caption overlay (LVC).
 - **Analysis Results**: timeline of metadata events.
 
@@ -156,7 +156,7 @@ Key panels:
 VAP is designed for extension:
 
 - **Add a new VMS**: implement `IVmsShim` in `vms_shim/<vendor>/shim.py`, register in `factory.py`.
-- **Add a new Core App**: implement `ICoreAppShim` in `core_app_shim/<name>/shim.py`, register in `factory.py`. No route changes needed.
+- **Add a new Analytics App**: implement `IAnalyticsAppShim` in `analytics_app_shim/<name>/shim.py`, register in `factory.py`. No route changes needed.
 
 ## Learn More
 

@@ -38,7 +38,7 @@ docker compose logs vms-backend
 ```
 
 Common causes:
-- LVC or PDD is not reachable at startup — start the Core App before VAP.
+- LVC or PDD is not reachable at startup — start the Analytics App before VAP.
 - `VMS_PLUGIN_DATABASE_URL` is incorrect — verify the PostgreSQL connection string.
 - A required environment variable is missing — check for `sys.exit(1)` in the logs.
 
@@ -87,7 +87,7 @@ docker compose restart vms-backend
 **Checks**:
 - Confirm the RTSP stream is reachable from the LVC `dlstreamer-pipeline-server` container.
 - Check LVC logs: `docker compose logs dlstreamer-pipeline-server` (in the LVC stack).
-- Verify the SSE stream is connected: open `http://localhost:8085/v1/core-apps/live_captioning/results/stream` in a browser.
+- Verify the SSE stream is connected: open `http://localhost:8085/v1/analytics-apps/live_captioning/results/stream` in a browser.
 - If running in a proxy network, add the RTSP stream IP to `no_proxy`.
 
 ### WebRTC Video Not Playing

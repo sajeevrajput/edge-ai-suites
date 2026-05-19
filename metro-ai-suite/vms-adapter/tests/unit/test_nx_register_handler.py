@@ -58,7 +58,7 @@ def _make_db_record(username="cached_user", password="cached_pass") -> NxAnalyti
     return NxAnalyticsIntegration(
         id="some-uuid",
         vms_name="nx-main",
-        core_app_id="test.integration",
+        analytics_app_id="test.integration",
         integration_manifest=_SAMPLE_MANIFESTS["integrationManifest"],
         engine_manifest=_SAMPLE_MANIFESTS["engineManifest"],
         nx_username=username,
@@ -69,11 +69,11 @@ def _make_db_record(username="cached_user", password="cached_pass") -> NxAnalyti
     )
 
 
-def _make_upsert_result(core_app_id: str = "dlstreamer") -> MagicMock:
+def _make_upsert_result(analytics_app_id: str = "dlstreamer") -> MagicMock:
     mock = MagicMock()
     mock.model_dump = lambda **kw: {
         "vms_name": "nx-main",
-        "core_app_id": core_app_id,
+        "analytics_app_id": analytics_app_id,
         "status": "approved",
         "nx_username": "integration_user",
         "nx_password": "secret",
@@ -164,7 +164,7 @@ async def test_registers_with_inline_manifests():
     result = await _call_handle_register(
         shim,
         body={
-            "core_app_id": "dlstreamer",
+            "analytics_app_id": "dlstreamer",
             "integration_manifest": _SAMPLE_MANIFESTS["integrationManifest"],
             "engine_manifest": _SAMPLE_MANIFESTS["engineManifest"],
             "device_agent_manifest": _SAMPLE_MANIFESTS["deviceAgentManifest"],
@@ -173,7 +173,7 @@ async def test_registers_with_inline_manifests():
         upsert_result=upsert_result,
     )
 
-    assert result["core_app_id"] == "dlstreamer"
+    assert result["analytics_app_id"] == "dlstreamer"
     shim.register_analytics.assert_awaited_once()
     called_manifest = shim.register_analytics.call_args[0][0]
     assert called_manifest["integrationManifest"]["id"] == "test.integration"
@@ -218,7 +218,7 @@ async def test_sets_integration_credentials_on_fresh_registration():
     await _call_handle_register(
         shim,
         body={
-            "core_app_id": "dlstreamer",
+            "analytics_app_id": "dlstreamer",
             "integration_manifest": _SAMPLE_MANIFESTS["integrationManifest"],
             "engine_manifest": _SAMPLE_MANIFESTS["engineManifest"],
         },

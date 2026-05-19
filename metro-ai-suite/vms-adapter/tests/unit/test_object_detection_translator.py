@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import time
-from core_app_shim.object_detection.translator import (
+from analytics_app_shim.object_detection.translator import (
     translate_dls_metadata,
     _TYPE_DEFAULT,
     _label_to_type_id,

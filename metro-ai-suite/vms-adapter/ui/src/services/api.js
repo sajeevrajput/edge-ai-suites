@@ -60,44 +60,44 @@ export async function setCameraEnabled(cameraIds, enabled) {
   });
 }
 
-// ── Core Apps — generic run lifecycle ────────────────────────────────────────
+// ── Analytics Apps — generic run lifecycle ────────────────────────────────────────
 
 /**
- * GET /v1/core-apps/discover — list all registered Core Apps with their
+ * GET /v1/analytics-apps/discover — list all registered Analytics Apps with their
  * Pydantic JSON Schemas and live availability.
  */
-export async function discoverCoreApps() {
-  const data = await request('/core-apps/discover');
+export async function discoverAnalyticsApps() {
+  const data = await request('/analytics-apps/discover');
   return Array.isArray(data) ? data : [];
 }
 
 /**
- * GET /v1/core-apps/:appId/options/:optionType
+ * GET /v1/analytics-apps/:appId/options/:optionType
  * Returns a list of strings (models, pipelines, …) for dropdown population.
  */
-export async function getCoreAppOptions(appId, optionType) {
-  return request(`/core-apps/${encodeURIComponent(appId)}/options/${encodeURIComponent(optionType)}`);
+export async function getAnalyticsAppOptions(appId, optionType) {
+  return request(`/analytics-apps/${encodeURIComponent(appId)}/options/${encodeURIComponent(optionType)}`);
 }
 
-/** GET /v1/core-apps/:appId/runs — list active runs for any core app. */
-export async function listCoreAppRuns(appId) {
-  const data = await request(`/core-apps/${encodeURIComponent(appId)}/runs`);
+/** GET /v1/analytics-apps/:appId/runs — list active runs for any analytics app. */
+export async function listAnalyticsAppRuns(appId) {
+  const data = await request(`/analytics-apps/${encodeURIComponent(appId)}/runs`);
   return (Array.isArray(data) ? data : []).map((r) => ({
     ...r,
     webrtcUrl: r.webrtcUrl || (r.peerId ? `/whep/${r.peerId}/whep` : ''),
   }));
 }
 
-/** DELETE /v1/core-apps/:appId/runs/:runId — stop a run for any core app. */
-export async function stopCoreAppRun(appId, runId) {
+/** DELETE /v1/analytics-apps/:appId/runs/:runId — stop a run for any analytics app. */
+export async function stopAnalyticsAppRun(appId, runId) {
   return request(
-    `/core-apps/${encodeURIComponent(appId)}/runs/${encodeURIComponent(runId)}`,
+    `/analytics-apps/${encodeURIComponent(appId)}/runs/${encodeURIComponent(runId)}`,
     { method: 'DELETE' },
   );
 }
 
 /**
- * POST /v1/core-apps/:appId/runs — validate the payload via the backend's
+ * POST /v1/analytics-apps/:appId/runs — validate the payload via the backend's
  * dynamic Pydantic model and trigger the analytics run.
  *
  * Throws an error with:
@@ -105,8 +105,8 @@ export async function stopCoreAppRun(appId, runId) {
  *   .fieldErrors — array of {loc, msg, type} on 422 responses
  *   .message     — human-readable error string
  */
-export async function startCoreApp(appId, payload) {
-  const res = await fetch(`${BASE}/core-apps/${encodeURIComponent(appId)}/runs`, {
+export async function startAnalyticsApp(appId, payload) {
+  const res = await fetch(`${BASE}/analytics-apps/${encodeURIComponent(appId)}/runs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload ?? {}),
@@ -117,7 +117,7 @@ export async function startCoreApp(appId, payload) {
     const msg = res.status === 503
       ? `Schema not loaded: ${typeof detail === 'string' ? detail : 'call Discover Apps first'}`
       : res.status === 502
-        ? `Core app error: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`
+        ? `Analytics app error: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`
         : typeof detail === 'string' ? detail : 'Validation failed';
     const err = new Error(`API ${res.status}: ${msg}`);
     err.status = res.status;

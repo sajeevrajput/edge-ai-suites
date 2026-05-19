@@ -12,7 +12,7 @@ export const enTranslations = {
   navCameraDiscovery:   'Camera Discovery',
   navAnalyticsEngine:   'Analytics Engine Config',
   navCameraDesc:        'Discover & manage cameras',
-  navAnalyticsDesc:     'Core app & event pipeline',
+  navAnalyticsDesc:     'Analytics app & event pipeline',
   navNavigation:        'Navigation',
   navPipelineActive:    'Pipeline Active',
 
@@ -37,7 +37,7 @@ export const enTranslations = {
   statConnectedNvrs:    'Connected NVRs',
   statDiscoveredCams:   'Discovered Cameras',
   statEnabledCams:      'Enabled Cameras',
-  statActiveCoreApp:    'Active Core App',
+  statActiveAnalyticsApp:    'Active Analytics App',
 
   // ── Camera Discovery panel ────────────────────────────────────────────────
   cameraPanelTitle:         'Camera Discovery',
@@ -56,7 +56,7 @@ export const enTranslations = {
 
   // ── Analytics Engine panel ────────────────────────────────────────────────
   enginePanelTitle:        'Analytics Engine Configuration',
-  engineCoreAppLabel:      'Core App',
+  engineAnalyticsAppLabel:      'Analytics App',
   engineGlobalCapsLabel:   'Global Capabilities',
   engineOpenConfig:        'Configure',
   engineEnableLabels:      'Enable Labels',
@@ -64,15 +64,15 @@ export const enTranslations = {
   engineEnableAcknowledge: 'Enable Acknowledge',
   engineEnableTriggerRec:  'Enable Trigger Recording',
 
-  // ── Core App descriptions ─────────────────────────────────────────────────
-  coreAppVideoSearch:          'Video Search',
-  coreAppVideoSearchDesc:      'Semantic query-based search and clip retrieval from recorded footage',
-  coreAppVideoSummarization:   'Video Summarization',
-  coreAppVideoSummDesc:        'Real-time AI video summarization using Intel OpenVINO',
-  coreAppObjectDetection:      'Object Detection',
-  coreAppObjectDetectionDesc:  'Real-time AI object classification with bounding boxes via Intel OpenVINO',
-  coreAppLiveCaptioning:       'Live Video Captioning',
-  coreAppLiveCaptioningDesc:   'Real-time VLM inference on live RTSP streams via DL Streamer + WebRTC',
+  // ── Analytics App descriptions ─────────────────────────────────────────────────
+  analyticsAppVideoSearch:          'Video Search',
+  analyticsAppVideoSearchDesc:      'Semantic query-based search and clip retrieval from recorded footage',
+  analyticsAppVideoSummarization:   'Video Summarization',
+  analyticsAppVideoSummDesc:        'Real-time AI video summarization using Intel OpenVINO',
+  analyticsAppObjectDetection:      'Object Detection',
+  analyticsAppObjectDetectionDesc:  'Real-time AI object classification with bounding boxes via Intel OpenVINO',
+  analyticsAppLiveCaptioning:       'Live Video Captioning',
+  analyticsAppLiveCaptioningDesc:   'Real-time VLM inference on live RTSP streams via DL Streamer + WebRTC',
 
   // ── Metadata / Events panel ───────────────────────────────────────────────
   eventsPanelTitle:        'Metadata Events',
@@ -111,7 +111,7 @@ export const enTranslations = {
 
   // ── Analytics Config Modal ────────────────────────────────────────────────
   modalTitle:              'Analytics Configuration',
-  modalCoreAppSection:     'Core Application',
+  modalAnalyticsAppSection:     'Analytics Application',
   modalGlobalSection:      'Global Capabilities',
   modalAppConfigSection:   'App-Specific Config',
   modalSave:               'Save Configuration',
@@ -134,7 +134,7 @@ export const enTranslations = {
 
   // Video Search config fields
   cfgSearchQuery:          'Search Query',
-  cfgSearchQueryHint:      'Natural language or keyword query sent to the Core App',
+  cfgSearchQueryHint:      'Natural language or keyword query sent to the Analytics App',
   cfgMaxClips:             'Max Clips Returned',
   cfgMaxClipsHint:         'Max matching clips returned per event',
 
@@ -164,7 +164,7 @@ export const enTranslations = {
   toastCameraEnabled:      'Camera "{{name}}" enabled',
   toastCameraDisabled:     'Camera "{{name}}" disabled',
   toastCameraToggleFailed: 'Failed to {{action}} camera: {{message}}',
-  toastCoreAppSwitched:    'Core App switched to "{{name}}"',
+  toastAnalyticsAppSwitched:    'Analytics App switched to "{{name}}"',
   toastConfigSaved:        '"{{name}}" configuration saved',
   toastEventSent:          'Event {{id}} sent to "{{app}}"',
   toastAnalysisComplete:   '{{app}} analysis complete: {{id}} ({{conf}}%)',

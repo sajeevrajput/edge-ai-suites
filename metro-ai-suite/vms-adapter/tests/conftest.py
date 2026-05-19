@@ -37,7 +37,7 @@ def mock_vms_shim():
 
 
 @pytest.fixture
-def mock_core_app_shim():
+def mock_analytics_app_shim():
     shim = AsyncMock()
     shim.deliver = AsyncMock(return_value=None)
     shim.is_reachable = AsyncMock(return_value=True)

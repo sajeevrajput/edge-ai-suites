@@ -14,7 +14,7 @@ import asyncio
 
 import structlog
 
-from plugin.base.interfaces import ICoreAppShim
+from plugin.base.interfaces import IAnalyticsAppShim
 from plugin.core.config import AppConfig, load_config
 from plugin.core.db.session import close_db, init_db
 from plugin.core.factory import VmsShimSet, ShimFactory
@@ -27,7 +27,7 @@ class Orchestrator:
     def __init__(self, config: AppConfig):
         self.config = config
         self.vms_shim_sets: list[VmsShimSet] = []
-        self.core_app_shims: dict[str, ICoreAppShim] = {}
+        self.analytics_app_shims: dict[str, IAnalyticsAppShim] = {}
         self._shutdown_event = asyncio.Event()
         self._mqtt_tasks: list[asyncio.Task] = []
 
@@ -38,7 +38,7 @@ class Orchestrator:
         logger.info("database_initialized")
 
         self.vms_shim_sets = ShimFactory.create_vms_shims(self.config)
-        self.core_app_shims = ShimFactory.create_core_app_shims(self.config)
+        self.analytics_app_shims = ShimFactory.create_analytics_app_shims(self.config)
 
         for ss in self.vms_shim_sets:
             try:
@@ -51,26 +51,26 @@ class Orchestrator:
             except Exception:
                 logger.exception("vms_startup_hook_failed", vms=ss.name)
 
-        self._wire_core_app_resolvers()
+        self._wire_analytics_app_resolvers()
 
         # Pre-fetch schemas so param_model is ready before the first /start call.
-        for shim in self.core_app_shims.values():
+        for shim in self.analytics_app_shims.values():
             try:
                 await shim.fetch_schema()
-                logger.info("core_app_schema_fetched", app_id=shim.app_id)
+                logger.info("analytics_app_schema_fetched", app_id=shim.app_id)
             except Exception:
-                logger.warning("core_app_schema_fetch_skipped", app_id=shim.app_id)
+                logger.warning("analytics_app_schema_fetch_skipped", app_id=shim.app_id)
 
         from plugin.core.api.deps import set_shims
-        set_shims(self.vms_shim_sets, self.core_app_shims, self.config)
+        set_shims(self.vms_shim_sets, self.analytics_app_shims, self.config)
 
         await self._reconcile_sessions()
 
-        for shim in self.core_app_shims.values():
+        for shim in self.analytics_app_shims.values():
             try:
                 await shim.on_startup(self)
             except Exception:
-                logger.exception("core_app_startup_hook_failed", app_id=shim.app_id)
+                logger.exception("analytics_app_startup_hook_failed", app_id=shim.app_id)
 
         logger.info("orchestrator_started", vms_count=len(self.vms_shim_sets))
 
@@ -78,7 +78,7 @@ class Orchestrator:
         """Register a background task for orderly cancellation on shutdown."""
         self._mqtt_tasks.append(task)
 
-    def _wire_core_app_resolvers(self) -> None:
+    def _wire_analytics_app_resolvers(self) -> None:
         """Inject an RTSP resolver that defers to IVmsShim.get_live_stream_url."""
 
         async def resolve_rtsp(camera_id: str) -> str | None:
@@ -92,7 +92,7 @@ class Orchestrator:
                         logger.exception("rtsp_resolve_failed", camera_id=camera_id)
             return None
 
-        for shim in self.core_app_shims.values():
+        for shim in self.analytics_app_shims.values():
             if hasattr(shim, "set_rtsp_resolver"):
                 shim.set_rtsp_resolver(resolve_rtsp)
 
@@ -119,7 +119,7 @@ class Orchestrator:
         logger.info("reconciling_sessions", count=len(active))
 
         for s in active:
-            shim = self.core_app_shims.get(s.core_app_id)
+            shim = self.analytics_app_shims.get(s.analytics_app_id)
             alive = False
             if shim and s.app_instance_id:
                 try:
@@ -139,7 +139,7 @@ class Orchestrator:
                     "session_reconciled_stopped",
                     session_id=s.session_id,
                     camera_id=s.camera_id,
-                    core_app_id=s.core_app_id,
+                    analytics_app_id=s.analytics_app_id,
                 )
             else:
                 logger.info(

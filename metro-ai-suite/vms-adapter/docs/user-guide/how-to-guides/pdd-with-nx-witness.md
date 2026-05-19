@@ -1,6 +1,6 @@
 # Tutorial: Pallet Defect Detection with Nx Witness
 
-This tutorial walks through the complete end-to-end setup of Pallet Defect Detection (PDD) as a Core App in VMS Adapter Plugin, with Nx Witness as the VMS. At the end of this tutorial you will have:
+This tutorial walks through the complete end-to-end setup of Pallet Defect Detection (PDD) as a Analytics App in VMS Adapter Plugin, with Nx Witness as the VMS. At the end of this tutorial you will have:
 
 - PDD running with its MQTT broker exposed to the host
 - Nx Witness connected to VAP and auto-registered as an analytics integration
@@ -31,7 +31,7 @@ Nx Witness VMS
                                                                         │
 VMS Adapter Plugin (VAP)                                                │
   ┌──────────────────────────────────────┐                              │
-  │  ObjectDetectionCoreAppShim          │                              │
+  │  ObjectDetectionAnalyticsAppShim          │                              │
   │  ┌─────────────────────────────┐     │                              │
   │  │  POST /pipelines/{name}    ├─────────────────────────────────►  │
   │  └─────────────────────────────┘     │   DLStreamer Pipeline Server │
@@ -351,10 +351,10 @@ vms_instances:
 
 The `analytics_manifest_path` is **optional**. VAP automatically uses the bundled manifest at `vms_shim/nxwitness/nx_integration.json` when this field is absent. Set it only if you need to supply a custom manifest.
 
-**PDD Core App:**
+**PDD Analytics App:**
 
 ```yaml
-core_apps:
+analytics_apps:
   - type: object_detection
     app_id: "pdd"
     display_name: "Pallet Defect Detection"
@@ -439,12 +439,12 @@ You should see entries like:
 
 ```
 nx_integration_approved username=DLStreamerAnalyticsIntegrationVMS request_id=...
-nx_integration_autoregistered vms=nx-main core_app_id=DLStreamerAnalyticsIntegrationVMS status=approved
+nx_integration_autoregistered vms=nx-main analytics_app_id=DLStreamerAnalyticsIntegrationVMS status=approved
 ```
 
 > **If VAP has already registered before** (database record exists and integration exists in Nx), VAP restores the integration credentials from its database and skips re-registration. You will see:
 > ```
-> nx_integration_already_registered vms=nx-main core_app_id=DLStreamerAnalyticsIntegrationVMS
+> nx_integration_already_registered vms=nx-main analytics_app_id=DLStreamerAnalyticsIntegrationVMS
 > nx_integration_credentials_restored vms=nx-main username=DLStreamerAnalyticsIntegrationVMS
 > ```
 
@@ -551,7 +551,7 @@ curl -X POST http://localhost:8085/v1/cameras/enable \
 
 ### 6.4 Configure and Start a PDD Pipeline Run
 
-1. In the **Analytics Engine** panel, click **Discover Apps**. Depending upon your configuration you should see **Pallet Defect Detection** in the Core App section. Click the radio button.
+1. In the **Analytics Engine** panel, click **Discover Apps**. Depending upon your configuration you should see **Pallet Defect Detection** in the Analytics App section. Click the radio button.
 
 2. The configuration form appears with the following fields:
 
@@ -621,7 +621,7 @@ Check active runs in the dashboard **Analytics Engine** panel — the run should
 Or via the API:
 
 ```bash
-curl http://localhost:8085/v1/core-apps/pdd/runs | python3 -m json.tool
+curl http://localhost:8085/v1/analytics-apps/pdd/runs | python3 -m json.tool
 ```
 
 Check the Pipeline Server directly:
@@ -659,7 +659,7 @@ When you want to stop the detection, go back to the VAP dashboard **Analytics En
 Or via the API:
 
 ```bash
-curl -X DELETE http://localhost:8085/v1/core-apps/pdd/runs/<run_id>
+curl -X DELETE http://localhost:8085/v1/analytics-apps/pdd/runs/<run_id>
 ```
 
 This sends `DELETE /pipelines/<instance_id>` to the DLStreamer Pipeline Server, stopping the GStreamer pipeline. The MQTT subscriber remains running (it reconnects on the next run start).

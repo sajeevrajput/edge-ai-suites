@@ -1,6 +1,6 @@
 # Tutorial: Live Video Captioning with Frigate and Nx Witness
 
-This tutorial walks through the complete end-to-end setup of Live Video Captioning (LVC) as a Core App in the VMS Adapter Plugin. Camera streams can come from **Frigate** (local RTSP config) or **Nx Witness** (VMS REST API) — or both at the same time.
+This tutorial walks through the complete end-to-end setup of Live Video Captioning (LVC) as a Analytics App in the VMS Adapter Plugin. Camera streams can come from **Frigate** (local RTSP config) or **Nx Witness** (VMS REST API) — or both at the same time.
 
 At the end of this tutorial you will have:
 
@@ -40,7 +40,7 @@ Camera (RTSP)
 
 VMS Adapter Plugin (VAP)
   ┌─────────────────────────────────────────────────────┐
-  │  LiveCaptioningCoreAppShim                          │
+  │  LiveCaptioningAnalyticsAppShim                          │
   │  POST /api/runs  ──────────────────────────────────►│ LVC Backend (:4173)
   │                                                     │ DLStreamer + VLM
   │  GET .../results/stream  ◄──────────────────────────│ SSE captions
@@ -59,7 +59,7 @@ VMS Adapter Plugin (VAP)
 1. VAP discovers cameras from Frigate (reads `config.yml`) or Nx Witness (queries REST API).
 2. On run start, VAP resolves the selected `camera_id` to an RTSP URL and sends `POST /api/runs` to the LVC backend.
 3. LVC processes the stream with DLStreamer + VLM and emits captions as an SSE stream.
-4. VAP proxies the SSE stream to the dashboard at `/v1/core-apps/live_captioning/results/stream`.
+4. VAP proxies the SSE stream to the dashboard at `/v1/analytics-apps/live_captioning/results/stream`.
 5. The WebRTC video feed is served by MediaMTX (in the LVC stack), proxied by nginx at `/whep/`.
 
 ---
@@ -305,10 +305,10 @@ UI_PORT=3100
 
 Open `config/config.yaml` and confirm the sections match your setup.
 
-**LVC Core App (always required):**
+**LVC Analytics App (always required):**
 
 ```yaml
-core_apps:
+analytics_apps:
   - type: live_captioning
     base_url: "http://${LVC_HOST:-host.docker.internal}:${LVC_PORT:-4173}"
     mediamtx_url: "http://${MEDIAMTX_HOST:-host.docker.internal}:${MEDIAMTX_PORT:-8889}"
@@ -373,7 +373,7 @@ postgres          Up (healthy)
 ### 4.2 Verify the LVC Schema Was Fetched
 
 ```bash
-curl http://localhost:8085/v1/core-apps/live_captioning/schema \
+curl http://localhost:8085/v1/analytics-apps/live_captioning/schema \
   | python3 -m json.tool | head -20
 ```
 
@@ -382,7 +382,7 @@ If you see a JSON schema with fields like `prompt`, `model_name`, and `pipeline_
 Check VAP logs for startup issues:
 
 ```bash
-docker compose logs vms-backend | grep -i "lvc\|schema\|core_app\|error"
+docker compose logs vms-backend | grep -i "lvc\|schema\|analytics_app\|error"
 ```
 
 ---
@@ -461,7 +461,7 @@ curl -X POST http://localhost:8085/v1/cameras/enable \
 3. VAP sends `POST /api/runs` to the LVC backend with all parameters.
 4. LVC's DLStreamer pipeline starts consuming the RTSP stream at the configured frame rate.
 5. The VLM generates captions and publishes them to an MQTT broker → LVC SSE stream.
-6. VAP proxies the SSE stream at `/v1/core-apps/live_captioning/results/stream`.
+6. VAP proxies the SSE stream at `/v1/analytics-apps/live_captioning/results/stream`.
 
 ### 5.6 Verify the Run Is Active
 
@@ -470,7 +470,7 @@ In the **Analytics Engine** panel, the active run appears in the runs list.
 Via the API:
 
 ```bash
-curl http://localhost:8085/v1/core-apps/live_captioning/runs | python3 -m json.tool
+curl http://localhost:8085/v1/analytics-apps/live_captioning/runs | python3 -m json.tool
 ```
 
 ---
@@ -493,7 +493,7 @@ Click **Stop** next to the active run in the **Analytics Engine** panel.
 Or via the API:
 
 ```bash
-curl -X DELETE http://localhost:8085/v1/core-apps/live_captioning/runs/<run_id>
+curl -X DELETE http://localhost:8085/v1/analytics-apps/live_captioning/runs/<run_id>
 ```
 
 ---
@@ -533,7 +533,7 @@ curl -X DELETE http://localhost:8085/v1/core-apps/live_captioning/runs/<run_id>
 **Checks:**
 1. Verify the SSE stream is emitting data:
    ```bash
-   curl -N http://localhost:8085/v1/core-apps/live_captioning/results/stream
+   curl -N http://localhost:8085/v1/analytics-apps/live_captioning/results/stream
    ```
    You should see `data: {...}` lines every few seconds.
 

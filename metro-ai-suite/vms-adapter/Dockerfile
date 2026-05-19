@@ -12,7 +12,7 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY plugin ./plugin
 COPY vms_shim ./vms_shim
-COPY core_app_shim ./core_app_shim
+COPY analytics_app_shim ./analytics_app_shim
 
 RUN uv pip install --system --no-cache -e . && \
     chown -R appuser:appuser /app

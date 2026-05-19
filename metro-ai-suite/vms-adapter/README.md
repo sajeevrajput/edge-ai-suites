@@ -1,8 +1,8 @@
 # VMS Adapter Plugin
 
-An I/O bridge between VMS systems (**Frigate**, **Nx Witness**) and AI Core Apps
+An I/O bridge between VMS systems (**Frigate**, **Nx Witness**) and AI Analytics Apps
 (**Live Video Captioning**). Combines a FastAPI backend, pluggable VMS shims, a
-generic Core App API, and a React operator dashboard into a single Docker Compose
+generic Analytics App API, and a React operator dashboard into a single Docker Compose
 deployment.
 
 ```
@@ -12,7 +12,7 @@ deployment.
 │  ┌──────────┐    ┌─────────────────┐    ┌──────────────────────┐   │
 │  │ Frigate  │    │  FastAPI Backend │    │  Live Video          │   │
 │  │ (VMS)   ├───►│  (plugin/)       ├───►│  Captioning (LVC)    │   │
-│  └──────────┘    │                 │    │  Core App            │   │
+│  └──────────┘    │                 │    │  Analytics App            │   │
 │  ┌──────────┐    │  - Camera sync  │    └──────────┬───────────┘   │
 │  │Nx Witness│    │  - Generic runs │               │               │
 │  │ (VMS)   ├───►│  - Result proxy │    ┌──────────▼───────────┐   │
@@ -48,14 +48,14 @@ Before starting the VMS Adapter Plugin, the following services must already be r
 vms-adapter/
 ├── plugin/                         # Backend Python package
 │   ├── base/
-│   │   └── interfaces.py           #  IVmsShim + ICoreAppShim abstract interfaces
+│   │   └── interfaces.py           #  IVmsShim + IAnalyticsAppShim abstract interfaces
 │   ├── common/
 │   │   └── schema_builder.py       #  Dynamic Pydantic model builder from JSON Schema
-│   └── core/
+│   └── Analytics/
 │       ├── api/
 │       │   ├── routes/
 │       │   │   ├── cameras.py      #   Camera discovery + enable/disable
-│       │   │   ├── core_apps.py    #   Generic Core App API (discover, runs, stream, options)
+│       │   │   ├── analytics_apps.py    #   Generic Analytics App API (discover, runs, stream, options)
 │       │   │   ├── events.py       #   Event timeline
 │       │   │   ├── analysis.py     #   Analysis result callback
 │       │   │   ├── sessions.py     #   Session tracking
@@ -81,12 +81,12 @@ vms-adapter/
 │   └── nxwitness/
 │       └── shim.py                 #  NxWitnessVmsShim — Nx Witness REST API v4
 │
-├── core_app_shim/                  # Concrete Core App shims
+├── analytics_app_shim/                  # Concrete Analytics App shims
 │   └── lvc/
 │       ├── api_client.py           #  LvcApiClient — all HTTP calls to LVC backend
 │       ├── schema.py               #  LvcSchemaManager — OpenAPI fetch, $ref resolution,
 │       │                           #    UI annotations, Pydantic model building
-│       └── shim.py                 #  LiveCaptioningCoreAppShim — composes api_client + schema
+│       └── shim.py                 #  LiveCaptioningAnalyticsAppShim — composes api_client + schema
 │
 ├── ui/                             # React 19 / Vite frontend served by nginx
 │   ├── src/
@@ -233,14 +233,14 @@ Each VMS vendor is represented by a class implementing `IVmsShim`:
 The orchestrator runs a background loop that periodically syncs cameras from all
 registered shims into the Postgres camera table.
 
-### Generic Core App API
+### Generic Analytics App API
 
 All AI pipeline integrations share a single generic route group. Adding a new
-Core App requires only a new shim class — **zero route changes**.
+Analytics App requires only a new shim class — **zero route changes**.
 
 ```
-ICoreAppShim  (plugin/base/interfaces.py)
-└── LiveCaptioningCoreAppShim  (core_app_shim/lvc/shim.py)
+IAnalyticsAppShim  (plugin/base/interfaces.py)
+└── LiveCaptioningAnalyticsAppShim  (analytics_app_shim/lvc/shim.py)
     ├── LvcApiClient   — HTTP calls to LVC backend
     └── LvcSchemaManager — fetches OpenAPI, resolves $refs, annotates UI hints
 ```
@@ -279,7 +279,7 @@ to LVC — `1280x720 → {frameWidth:1280, frameHeight:720}`.
 
 | Channel | Flow |
 |---|---|
-| **Captions** | LVC → MQTT → LVC SSE → Plugin proxy `/v1/core-apps/live_captioning/results/stream` → UI |
+| **Captions** | LVC → MQTT → LVC SSE → Plugin proxy `/v1/analytics-apps/live_captioning/results/stream` → UI |
 | **Video** | LVC → MediaMTX WebRTC → nginx `/whep/` proxy → WebRTC player |
 
 ---
@@ -291,7 +291,7 @@ to LVC — `1280x720 → {frameWidth:1280, frameHeight:720}`.
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/v1/health` | Liveness probe |
-| `GET` | `/v1/ready` | Readiness (DB + VMS + Core App checks) |
+| `GET` | `/v1/ready` | Readiness (DB + VMS + Analytics App checks) |
 | `GET` | `/v1/config/status` | Loaded config + uptime |
 
 ### Cameras
@@ -305,18 +305,18 @@ to LVC — `1280x720 → {frameWidth:1280, frameHeight:720}`.
 | `GET` | `/v1/cameras/{camera_id}/live-stream` | Get live RTSP stream URL |
 | `GET` | `/v1/cameras/{camera_id}/clip` | Get clip URL for a time range |
 
-### Generic Core App API
+### Generic Analytics App API
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/v1/core-apps/discover` | List all registered Core Apps with schema |
-| `GET` | `/v1/core-apps/{app_id}/schema` | Get live JSON Schema for start params |
-| `POST` | `/v1/core-apps/{app_id}/runs` | Start a pipeline run |
-| `GET` | `/v1/core-apps/{app_id}/runs` | List active runs |
-| `GET` | `/v1/core-apps/{app_id}/runs/{run_id}` | Get run status |
-| `DELETE` | `/v1/core-apps/{app_id}/runs/{run_id}` | Stop a run |
-| `GET` | `/v1/core-apps/{app_id}/results/stream` | SSE proxy of live results |
-| `GET` | `/v1/core-apps/{app_id}/options/{option_type}` | Dropdown options (models, pipelines) |
+| `GET` | `/v1/analytics-apps/discover` | List all registered Analytics Apps with schema |
+| `GET` | `/v1/analytics-apps/{app_id}/schema` | Get live JSON Schema for start params |
+| `POST` | `/v1/analytics-apps/{app_id}/runs` | Start a pipeline run |
+| `GET` | `/v1/analytics-apps/{app_id}/runs` | List active runs |
+| `GET` | `/v1/analytics-apps/{app_id}/runs/{run_id}` | Get run status |
+| `DELETE` | `/v1/analytics-apps/{app_id}/runs/{run_id}` | Stop a run |
+| `GET` | `/v1/analytics-apps/{app_id}/results/stream` | SSE proxy of live results |
+| `GET` | `/v1/analytics-apps/{app_id}/options/{option_type}` | Dropdown options (models, pipelines) |
 
 Currently registered app: `live_captioning`
 
@@ -325,7 +325,7 @@ Currently registered app: `live_captioning`
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/v1/events/timeline` | Paginated metadata-event timeline |
-| `POST` | `/v1/analysis/results` | Async result callback from Core App |
+| `POST` | `/v1/analysis/results` | Async result callback from Analytics App |
 | `GET` | `/v1/sessions` | List analytics sessions |
 | `GET` | `/v1/sessions/{session_id}` | Get session details |
 | `POST` | `/v1/vms/{name}/register` | Register a VMS with the plugin |
@@ -339,7 +339,7 @@ Currently registered app: `live_captioning`
 ```bash
 pip install -e ".[dev]"
 export VMS_PLUGIN_CONFIG_PATH=$PWD/config/config.yaml
-uvicorn plugin.core.main:app --reload --port 8082
+uvicorn plugin.analytics.main:app --reload --port 8082
 pytest tests/ -v
 ```
 
@@ -354,17 +354,17 @@ npm run build
 
 ---
 
-## Adding a New Core App
+## Adding a New Analytics App
 
-1. Create `core_app_shim/<your_app>/shim.py` implementing `ICoreAppShim`:
+1. Create `analytics_app_shim/<your_app>/shim.py` implementing `IAnalyticsAppShim`:
    - `app_id` / `display_name` class attributes
    - `fetch_schema()` — return JSON Schema for start params
    - `start(params)` — start a run, return run metadata dict
    - Override `list_runs`, `stop_run`, `get_run`, `results_stream_url`, `get_options` as needed
 
-2. Register the shim in `plugin/core/factory.py`.
+2. Register the shim in `plugin/analytics/factory.py`.
 
-3. No route changes needed — the generic `/v1/core-apps/{app_id}/…` routes handle everything.
+3. No route changes needed — the generic `/v1/analytics-apps/{app_id}/…` routes handle everything.
 
 ---
 

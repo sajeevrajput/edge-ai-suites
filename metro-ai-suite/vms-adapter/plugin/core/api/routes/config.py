@@ -34,12 +34,13 @@ async def config_status(
         }
         for s in shim_sets
     ]
-    core_apps_info = [
+    analytics_apps_info = [
         {"type": ca.type, "base_url": ca.base_url}
-        for ca in (config.core_apps if config else [])
+        for ca in (config.analytics_apps if config else [])
     ]
     return ConfigStatus(
         uptime_seconds=round(time.time() - _start_time, 1),
         vms_instances=nvr_info,
-        core_apps=core_apps_info,
+        analytics_apps=analytics_apps_info,
     )
+  

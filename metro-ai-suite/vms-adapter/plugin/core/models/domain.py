@@ -103,10 +103,10 @@ class ReadyResponse(BaseModel):
 class ConfigStatus(BaseModel):
     uptime_seconds: float = 0.0
     vms_instances: list[dict] = Field(default_factory=list)
-    core_apps: list[dict] = Field(default_factory=list)
+    analytics_apps: list[dict] = Field(default_factory=list)
 
 
-class CoreAppView(BaseModel):
+class AnalyticsAppView(BaseModel):
     app_id: str
     display_name: str
     available: bool
@@ -134,7 +134,7 @@ class RegisterRequest(BaseModel):
     corresponding shim's request model (e.g. NxRegisterRequest).
     """
     manifest: dict = Field(default_factory=dict)
-    core_app_id: str = "default"
+    analytics_app_id: str = "default"
 
 
 # ── Session models ───────────────────────────────────────────────────────────
@@ -142,7 +142,7 @@ class RegisterRequest(BaseModel):
 class AnalyticsSessionCreate(BaseModel):
     """Input model for creating a new session (caller supplies these fields)."""
     camera_id: str
-    core_app_id: str
+    analytics_app_id: str
     app_instance_id: str | None = None
     launch_payload: dict = Field(default_factory=dict)
     app_state: dict = Field(default_factory=dict)
@@ -152,7 +152,7 @@ class AnalyticsSession(BaseModel):
     """Full session record as stored in the database."""
     session_id: str
     camera_id: str
-    core_app_id: str
+    analytics_app_id: str
     app_instance_id: str | None = None
     status: Literal["active", "stopped"]
     launch_payload: dict = Field(default_factory=dict)

@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Configuration model for the Object Detection (DLStreamer Pipeline Server) core app shim."""
+"""Configuration model for the Object Detection (DLStreamer Pipeline Server) analytics app shim."""
 
 from __future__ import annotations
 
@@ -10,11 +10,11 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-class ObjectDetectionCoreAppConfig(BaseModel):
+class ObjectDetectionAnalyticsAppConfig(BaseModel):
     """Config for DLStreamer Pipeline Server–based object detection apps (e.g. PDD)."""
 
     type: Literal["object_detection"] = "object_detection"
-    # Identifies this app instance in API URLs (e.g. "pdd" → /v1/core-apps/pdd/runs)
+    # Identifies this app instance in API URLs (e.g. "pdd" → /v1/analytics-apps/pdd/runs)
     app_id: str = "pdd"
     display_name: str = "Object Detection"
     base_url: str  # Pipeline Server REST URL

@@ -149,7 +149,7 @@ async def create_session(
     row = AnalyticsSessionRow(
         session_id=str(uuid.uuid4()),
         camera_id=data.camera_id,
-        core_app_id=data.core_app_id,
+        analytics_app_id=data.analytics_app_id,
         app_instance_id=data.app_instance_id,
         status="active",
         launch_payload=data.launch_payload,
@@ -187,14 +187,14 @@ async def get_session_by_instance_id(
 async def list_sessions(
     session: AsyncSession,
     camera_id: str | None = None,
-    core_app_id: str | None = None,
+    analytics_app_id: str | None = None,
     status: str | None = None,
 ) -> list[AnalyticsSession]:
     stmt = select(AnalyticsSessionRow).order_by(AnalyticsSessionRow.started_at.desc())
     if camera_id:
         stmt = stmt.where(AnalyticsSessionRow.camera_id == camera_id)
-    if core_app_id:
-        stmt = stmt.where(AnalyticsSessionRow.core_app_id == core_app_id)
+    if analytics_app_id:
+        stmt = stmt.where(AnalyticsSessionRow.analytics_app_id == analytics_app_id)
     if status:
         stmt = stmt.where(AnalyticsSessionRow.status == status)
     result = await session.execute(stmt)
@@ -219,7 +219,7 @@ def _row_to_session(row: AnalyticsSessionRow) -> AnalyticsSession:
     return AnalyticsSession(
         session_id=row.session_id,
         camera_id=row.camera_id,
-        core_app_id=row.core_app_id,
+        analytics_app_id=row.analytics_app_id,
         app_instance_id=row.app_instance_id,
         status=row.status,
         launch_payload=row.launch_payload or {},

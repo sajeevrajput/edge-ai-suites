@@ -186,7 +186,7 @@ function FieldRow({ name, field, value, onChange, options, error }) {
         );
       } else if (src === 'camera-id') {
         // Camera dropdown: shows camera name, stores camera_id as value.
-        // Backend resolves camera_id → RTSP stream_url before calling the core app.
+        // Backend resolves camera_id → RTSP stream_url before calling the analytics app.
         const cams = (options.cameras ?? []).filter((c) => c.enabled !== false);
         control = (
           <Select value={value ?? ''} onValueChange={onChange}>

@@ -6,11 +6,11 @@
 Subscribes to the MQTT broker and routes incoming DLStreamer inference
 metadata to the appropriate VMS shim for analytics push.
 
-Topic convention: ``/{vms_name}/{core_app_id}/{camera_id}``
+Topic convention: ``/{vms_name}/{analytics_app_id}/{camera_id}``
 Example:         ``/nx-main/pdd/abc123-device-uuid``
 
 On each message:
-1. Parse vms_name, core_app_id, camera_id from topic.
+1. Parse vms_name, analytics_app_id, camera_id from topic.
 2. Look up the VMS shim by vms_name.
 3. Translate DLS metadata to Nx object-push format.
 4. Call ``vms_shim.push_analytics_objects(device_id, objects, timestamp_ms)``.
@@ -49,13 +49,13 @@ class MqttSubscriber:
         mqtt_host: str,
         mqtt_port: int,
         vms_shim_sets: list[VmsShimSet],
-        core_app_id: str = "pdd",
+        analytics_app_id: str = "pdd",
         label_type_map: dict[str, str] | None = None,
         timestamp_offset_ms: int = 0,
     ) -> None:
         """Subscribe to MQTT and dispatch messages until cancelled.
 
-        Topic wildcard: ``+/{core_app_id}/+`` (matches ``/{vms_name}/{core_app_id}/{camera_id}``)
+        Topic wildcard: ``+/{analytics_app_id}/+`` (matches ``/{vms_name}/{analytics_app_id}/{camera_id}``)
         Leading slash is optional — both ``/nx-main/pdd/device`` and ``nx-main/pdd/device`` are
         handled by stripping the leading slash before splitting.
         """
@@ -73,7 +73,7 @@ class MqttSubscriber:
         _label_map: dict[str, str] = {k.lower(): v for k, v in (label_type_map or {}).items()}
 
         # Wildcard: single-level + matches any vms_name; trailing + matches any camera_id
-        topic_filter = f"+/{core_app_id}/+"
+        topic_filter = f"+/{analytics_app_id}/+"
 
         logger.info(
             "mqtt_subscriber_starting",
@@ -92,7 +92,7 @@ class MqttSubscriber:
                             str(message.topic),
                             message.payload,
                             shim_map,
-                            core_app_id,
+                            analytics_app_id,
                             _label_map,
                             timestamp_offset_ms,
                         )
@@ -112,7 +112,7 @@ class MqttSubscriber:
         topic: str,
         payload: bytes,
         shim_map: dict[str, Any],
-        core_app_id: str,
+        analytics_app_id: str,
         label_type_map: dict[str, str] | None = None,
         timestamp_offset_ms: int = 0,
     ) -> None:

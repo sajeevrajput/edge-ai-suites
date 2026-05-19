@@ -12,7 +12,7 @@ from plugin.core.api.routes import (
     analysis,
     cameras,
     config as config_routes,
-    core_apps as core_apps_routes,
+    analytics_apps as analytics_apps_routes,
     events,
     health,
     sessions as sessions_routes,
@@ -33,7 +33,7 @@ async def lifespan(application: FastAPI):
 def create_app() -> FastAPI:
     application = FastAPI(
         title="VMS Plugin Microservice",
-        description="I/O Plugin for VMS/VMS Integration with Core Apps",
+        description="I/O Plugin for VMS/VMS Integration with Analytics Apps",
         version="0.1.0",
         lifespan=lifespan,
     )
@@ -51,7 +51,7 @@ def create_app() -> FastAPI:
     application.include_router(analysis.router, prefix="/v1", tags=["Analysis"])
     application.include_router(config_routes.router, prefix="/v1", tags=["Config"]) # status of VMS-analytics app
     application.include_router(vms_routes.router, prefix="/v1", tags=["VMS"])
-    application.include_router(core_apps_routes.router, prefix="/v1")
+    application.include_router(analytics_apps_routes.router, prefix="/v1")
     application.include_router(sessions_routes.router, prefix="/v1")
     return application
 

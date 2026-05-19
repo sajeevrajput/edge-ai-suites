@@ -9,7 +9,7 @@ const CARDS = [
   { id:'nvrs',       labelKey:'statConnectedNvrs',  color:'blue',   icon:Monitor,      valueKey:'nvrs'       },
   { id:'discovered', labelKey:'statDiscoveredCams',  color:'purple', icon:Camera,       valueKey:'discovered' },
   { id:'enabled',    labelKey:'statEnabledCams',     color:'green',  icon:CheckCircle,  valueKey:'enabled'    },
-  { id:'coreApp',    labelKey:'statActiveCoreApp',   color:'orange', icon:Cpu,          valueKey:'coreApp', small:true },
+  { id:'analyticsApp',    labelKey:'statActiveAnalyticsApp',   color:'orange', icon:Cpu,          valueKey:'analyticsApp', small:true },
 ];
 
 /* Gradient classes for the top accent bar — dynamic bg so kept as data */
@@ -20,7 +20,7 @@ const BAR_GRADIENT = {
   orange: 'from-[#F59E0B] to-[#FBBF24]',
 };
 
-export default function StatCards({ stats = { nvrs:2, discovered:0, enabled:0, coreApp:'—' } }) {
+export default function StatCards({ stats = { nvrs:2, discovered:0, enabled:0, analyticsApp:'—' } }) {
   return (
     <section className="grid grid-cols-4 max-[1100px]:grid-cols-2 max-[480px]:grid-cols-1 gap-4">
       {CARDS.map(({ id, labelKey, color, icon:Icon, valueKey, small }) => {

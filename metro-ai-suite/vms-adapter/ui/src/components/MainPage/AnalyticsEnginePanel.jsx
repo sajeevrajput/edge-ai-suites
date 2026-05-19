@@ -4,18 +4,18 @@
 /**
  * AnalyticsEnginePanel
  * --------------------
- * Schema-driven Core App selector + parameter form.
+ * Schema-driven Analytics App selector + parameter form.
  *
- *   1. On mount → GET /v1/core-apps/discover
- *      → list every Core App registered in the I/O plugin along with
+ *   1. On mount → GET /v1/analytics-apps/discover
+ *      → list every Analytics App registered in the I/O plugin along with
  *        its live `available` flag and Pydantic JSON Schema.
- *   2. The user picks a Core App → render its schema as form inputs
+ *   2. The user picks a Analytics App → render its schema as form inputs
  *      (via <SchemaForm/>).
  *   3. The user clicks **Start Analysis** → POST the validated payload
- *      to /v1/core-apps/{appId}/start; backend Pydantic-validates the
+ *      to /v1/analytics-apps/{appId}/start; backend Pydantic-validates the
  *      payload and triggers the AI application's start endpoint.
  *
- * No Core App-specific code lives here — adding a new Core App in the
+ * No Analytics App-specific code lives here — adding a new Analytics App in the
  * backend (with a new `param_model`) is automatically picked up by this
  * panel without any UI change.
  */
@@ -31,15 +31,15 @@ import {
 import { t } from '@/utils/i18n';
 
 import {
-  discoverCoreApps,
-  startCoreApp,
-  getCoreAppOptions,
+  discoverAnalyticsApps,
+  startAnalyticsApp,
+  getAnalyticsAppOptions,
 } from '@/services/api';
 import SchemaForm, { initialFormState } from './SchemaForm';
 
 export default function AnalyticsEnginePanel({
   cameras = [],
-  onCoreAppChange,
+  onAnalyticsAppChange,
   activeRuns = {},     // { [appId]: run[] } — map of active runs per app
   onStartAnalysis,   // (appId, runResult) => void  — invoked after a successful start
   onStopAnalysis,    // (appId, runId) => void  — invoked when Stop is clicked
@@ -64,9 +64,9 @@ export default function AnalyticsEnginePanel({
     setDiscovering(true);
     setDiscoverError(null);
     try {
-      const apps = await discoverCoreApps();
+      const apps = await discoverAnalyticsApps();
       setDiscovered(apps);
-      // Don't auto-select — wait for user to click a Core App so the
+      // Don't auto-select — wait for user to click a Analytics App so the
       // parameter form only appears after an explicit selection.
       setSelectedAppId('');
       setFormValue({});
@@ -87,7 +87,7 @@ export default function AnalyticsEnginePanel({
     if (!selectedApp) return;
     setFormValue(initialFormState(selectedApp.params_schema));
     setErrors([]);
-    onCoreAppChange?.(selectedApp.display_name);
+    onAnalyticsAppChange?.(selectedApp.display_name);
   }, [selectedAppId]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fetch dynamic option lists (models / pipelines / …) for selected app ──
@@ -100,7 +100,7 @@ export default function AnalyticsEnginePanel({
 
     const next = { ...dynamicOptions };
     if (sources.includes('lvc-models')) {
-      getCoreAppOptions(selectedApp.app_id, 'models')
+      getAnalyticsAppOptions(selectedApp.app_id, 'models')
         .then((d) => {
           const list = Array.isArray(d) ? d : (d?.models ?? []);
           next['lvc-models'] = list.map((m) => {
@@ -112,7 +112,7 @@ export default function AnalyticsEnginePanel({
         .catch(() => {});
     }
     if (sources.includes('lvc-pipelines')) {
-      getCoreAppOptions(selectedApp.app_id, 'pipelines')
+      getAnalyticsAppOptions(selectedApp.app_id, 'pipelines')
         .then((p) => {
           const list = Array.isArray(p) ? p : [];
           next['lvc-pipelines'] = list.map((x) => {
@@ -148,7 +148,7 @@ export default function AnalyticsEnginePanel({
     setStarting(true);
     setErrors([]);
     try {
-      const res = await startCoreApp(selectedApp.app_id, payload);
+      const res = await startAnalyticsApp(selectedApp.app_id, payload);
       onStartAnalysis?.(selectedApp.app_id, res);
     } catch (err) {
       if (err.status === 422 && Array.isArray(err.fieldErrors)) {
@@ -172,7 +172,7 @@ export default function AnalyticsEnginePanel({
           </h2>
           <p className="text-[0.72rem] text-[#A3B0CC] pl-[39px]">
             {hasDiscovered && discovered.length > 0
-              ? `${discovered.length} core app${discovered.length === 1 ? '' : 's'} registered (${discovered.filter((a) => a.available).length} available)`
+              ? `${discovered.length} analytics app${discovered.length === 1 ? '' : 's'} registered (${discovered.filter((a) => a.available).length} available)`
               : 'Click Discover Apps to query the I/O plugin for available AI applications'}
           </p>
         </div>
@@ -181,7 +181,7 @@ export default function AnalyticsEnginePanel({
           className="btn-primary text-white shrink-0 text-[0.78rem] font-semibold px-4"
           onClick={runDiscovery}
           disabled={discovering}
-          title="Run Core App discovery"
+          title="Run Analytics App discovery"
         >
           <ScanLine size={13} className="mr-[6px]" />
           {discovering
@@ -203,7 +203,7 @@ export default function AnalyticsEnginePanel({
           {discoverError && (
             <div className="vms-field-row bg-red-50 text-red-700 text-[0.78rem]">
               <AlertCircle size={13} className="mr-1.5" />
-              Failed to discover Core Apps: {discoverError}
+              Failed to discover Analytics Apps: {discoverError}
             </div>
           )}
 
@@ -217,10 +217,10 @@ export default function AnalyticsEnginePanel({
             </div>
           )}
 
-          {/* Core App selector — built from discovery */}
+          {/* Analytics App selector — built from discovery */}
           {!discoverError && hasDiscovered && (
             <div className="vms-field-row items-start">
-              <span className="vms-field-label pt-[3px]">{t('engineCoreAppLabel')}</span>
+              <span className="vms-field-label pt-[3px]">{t('engineAnalyticsAppLabel')}</span>
               <RadioGroup
                 value={selectedAppId}
                 onValueChange={setSelectedAppId}
@@ -228,7 +228,7 @@ export default function AnalyticsEnginePanel({
               >
                 {discovered.length === 0 && !discovering && (
                   <p className="text-[0.78rem] text-[#8695B8]">
-                    No Core Apps registered in the I/O plugin.
+                    No Analytics Apps registered in the I/O plugin.
                   </p>
                 )}
                 {discovered.map((app) => {
@@ -304,7 +304,7 @@ export default function AnalyticsEnginePanel({
                       className="bg-[#0071C5] hover:bg-[#005BA0] text-white text-[0.78rem] font-semibold px-4"
                       onClick={handleStart}
                       disabled={starting || !selectedApp.available}
-                      title={!selectedApp.available ? 'Core App backend is not reachable' : 'Validate parameters and trigger the Core App'}
+                      title={!selectedApp.available ? 'Analytics App backend is not reachable' : 'Validate parameters and trigger the Analytics App'}
                     >
                       {starting
                         ? <><Loader2 size={13} className="mr-1.5 animate-spin" />Starting…</>

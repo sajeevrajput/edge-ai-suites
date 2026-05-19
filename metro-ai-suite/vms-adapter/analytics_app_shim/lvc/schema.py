@@ -9,7 +9,7 @@ annotation hints (``x-vms-source``, ``x-format``), and builds a dynamic
 Pydantic model via ``build_pydantic_from_schema``.
 
 Keeping this logic separate means the shim stays readable and the same
-pattern can be replicated for any future core-app integration.
+pattern can be replicated for any future analytics-app integration.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ class LvcSchemaManager:
         """
         if self._dynamic_model is None:
             raise RuntimeError(
-                "LVC schema not loaded. Call GET /v1/core-apps/discover first."
+                "LVC schema not loaded. Call GET /v1/analytics-apps/discover first."
             )
         return self._dynamic_model
 

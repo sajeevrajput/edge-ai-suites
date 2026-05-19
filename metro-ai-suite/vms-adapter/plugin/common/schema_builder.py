@@ -3,10 +3,10 @@
 
 """Dynamically build a Pydantic model from a JSON Schema dict at runtime.
 
-Used by Core App shims to convert a JSON Schema fetched from a Core App's
+Used by Analytics App shims to convert a JSON Schema fetched from a Analytics App's
 OpenAPI spec into a live Pydantic model that the plugin uses for:
-  * Returning params_schema to the UI via GET /v1/core-apps/discover
-  * Validating payloads at POST /v1/core-apps/{app_id}/start
+  * Returning params_schema to the UI via GET /v1/analytics-apps/discover
+  * Validating payloads at POST /v1/analytics-apps/{app_id}/start
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ def _build_field(prop: dict[str, Any], required: bool) -> tuple[type, Any]:
 
 def build_pydantic_from_schema(
     json_schema: dict[str, Any],
-    model_name: str = "DynamicCoreAppParams",
+    model_name: str = "DynamicAnalyticsAppParams",
 ) -> type[BaseModel]:
     """Create and return a Pydantic BaseModel class from a JSON Schema dict.
 

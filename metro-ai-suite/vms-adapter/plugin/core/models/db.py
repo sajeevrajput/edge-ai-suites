@@ -56,7 +56,7 @@ class AnalyticsSessionRow(Base):
         default=lambda: str(uuid.uuid4()),
     )
     camera_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    core_app_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    analytics_app_id: Mapped[str] = mapped_column(String(100), nullable=False)
     app_instance_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     launch_payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
@@ -70,7 +70,7 @@ class AnalyticsSessionRow(Base):
         # At most one active session per camera+app combination
         Index(
             "uq_sessions_camera_app_active",
-            "camera_id", "core_app_id",
+            "camera_id", "analytics_app_id",
             unique=True,
             postgresql_where=text("status = 'active'"),
         ),

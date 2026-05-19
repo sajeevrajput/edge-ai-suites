@@ -60,7 +60,7 @@ def test_register_vms_not_found(client_factory):
 def test_register_delegates_to_shim_handle_register(client_factory):
     """Route passes raw body dict to shim.handle_register and returns result."""
     ss = _make_shim_set("nx-main", "nx_witness")
-    body = {"manifest": {}, "core_app_id": "test"}
+    body = {"manifest": {}, "analytics_app_id": "test"}
     with client_factory([ss]) as client:
         resp = client.post("/v1/vms/nx-main/register", json=body)
     assert resp.status_code == 200
