@@ -4,9 +4,13 @@
 
 Details about the changes and known issues in each release of the VMS Adapter Plugin.
 
-## Version 1.0.0
+## Current Release
 
-**New**
+### Version 1.0.0
+
+**Release Date**: TBD
+
+**New Features**:
 
 - **Multi-VMS Support**: Connect Frigate (0.15) and Nx Witness (REST v4) cameras simultaneously from a single plugin instance. Camera IDs are vendor-prefixed (`frigate:*`, `nx:*`) to ensure uniqueness across systems.
 
@@ -24,7 +28,7 @@ Details about the changes and known issues in each release of the VMS Adapter Pl
 
 - **Docker Compose Deployment**: Full stack in four services — `vms-backend`, `vms-ui` (nginx), `postgres`, and `frigate`.
 
-**Known Issues**
+**Known Issues**:
 
 - If the Nx Witness analytics integration is reused from a previous database record (not freshly registered), the integration user password is not available from the Nx API. In this case, Pallet Defect Detection detections cannot be pushed to Nx until the integration is deleted from Nx Witness and VAP is restarted to recreate it.
 

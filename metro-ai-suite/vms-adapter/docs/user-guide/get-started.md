@@ -1,6 +1,11 @@
 # Get Started
 
-The **VMS Adapter Plugin (VAP)** bridges VMS systems (Frigate, Nx Witness) with AI analytics Analytics Apps (Live Video Captioning, Pallet Defect Detection). This guide shows how to deploy the full stack with Docker Compose and run your first analytics session.
+## Overview
+
+The **VMS Adapter Plugin (VAP)** bridges VMS systems (Frigate, Nx Witness) with AI Analytics
+Apps (Live Video Captioning, Pallet Defect Detection) and provides a unified React operator
+dashboard for managing cameras and analytics runs. This guide shows how to deploy the full
+stack with Docker Compose and run your first analytics session.
 
 This guide shows how to:
 
@@ -8,7 +13,9 @@ This guide shows how to:
 - **Configure the environment**: Point VAP at your VMS and Analytics App services.
 - **Run the operator dashboard**: Discover cameras, enable streams, and start analytics runs.
 
-## Prerequisites
+## Quick Start
+
+### Prerequisites
 
 - Verify that your system meets the [minimum requirements](./get-started/system-requirements.md).
 - Install Docker: [Installation Guide](https://docs.docker.com/get-docker/).
@@ -255,17 +262,20 @@ docker compose down          # stop without removing data
 docker compose down -v       # stop and remove PostgreSQL volume
 ```
 
-## Supporting Resources
+## Next Steps
 
-- [How It Works](./how-it-works.md)
-- [Troubleshooting](./troubleshooting.md)
-- [System Requirements](./get-started/system-requirements.md)
+1. **Explore the Architecture**: Learn how VAP components interact in the [How It Works](./how-it-works.md) guide.
+2. **Follow Integration Tutorials**: Use the [How-To Guides](./how-to-guides.md) for end-to-end walkthroughs of LVC and PDD integrations.
+3. **Browse the API**: Explore all available endpoints in the [API Reference](./api-reference.md).
+4. **Troubleshooting**: If you encounter issues, check the [Troubleshooting Guide](./troubleshooting.md).
 
 <!--hide_directive
 :::{toctree}
 :hidden:
 
 get-started/system-requirements.md
+get-started/build-from-source.md
+get-started/deploy-with-helm.md
 
 :::
 hide_directive-->
