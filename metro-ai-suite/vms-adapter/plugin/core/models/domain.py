@@ -42,9 +42,9 @@ class CameraView(BaseModel):
 class MetadataEvent(BaseModel):
     """A video event reported by an Analytics App.
 
-    Per the ADD chat decisions, events originate in the App (which consumes
-    RTSP from the plugin); the VMS is treated as dumb. The plugin records
-    them so they can be routed back to the VMS via write-back commands.
+    Events originate in the App (which consumes RTSP from the plugin);
+    the VMS is treated as a passive sink. The plugin records events so they
+    can be routed back to the VMS via write-back commands.
     """
     event_id: str
     camera_id: str
