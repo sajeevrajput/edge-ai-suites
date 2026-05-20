@@ -2,7 +2,7 @@
 
 **Version: 1.0.0**
 
-The VMS Adapter Plugin exposes a REST API at `http://localhost:8085/v1`. Interactive API
+The VMS Adapter Plugin exposes REST API at `http://localhost:8085/v1`. Interactive API
 documentation (Swagger UI) is available at `http://localhost:8085/docs` when the backend
 is running.
 

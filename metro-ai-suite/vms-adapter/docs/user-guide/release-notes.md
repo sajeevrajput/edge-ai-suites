@@ -8,7 +8,7 @@ Details about the changes and known issues in each release of the VMS Adapter Pl
 
 ### Version 1.0.0
 
-**Release Date**: TBD
+**Release Date**: *TBD*
 
 **New Features**:
 

@@ -25,21 +25,21 @@ This tutorial walks through the complete end-to-end setup of Pallet Defect Detec
 
 ```
 Nx Witness VMS
-  Camera device ─── RTSP stream ──────────────────────────────────────►┐
-  (receives analytics       ◄─── REST push (bounding boxes) ───────────┤
+  Camera device ─── RTSP stream ───────────────────────────────────────►┐
+  (receives analytics       ◄─── REST push (bounding boxes) ────────────┤
    object overlays)                                                     │
                                                                         │
 VMS Adapter Plugin (VAP)                                                │
   ┌──────────────────────────────────────┐                              │
-  │  ObjectDetectionAnalyticsAppShim          │                              │
+  │  ObjectDetectionAnalyticsAppShim     │                              │
   │  ┌─────────────────────────────┐     │                              │
-  │  │  POST /pipelines/{name}    ├─────────────────────────────────►  │
+  │  │  POST /pipelines/{name}     ├───────────────────────────────────►│
   │  └─────────────────────────────┘     │   DLStreamer Pipeline Server │
-  │                                      │   (PDD application)         │
+  │                                      │   (PDD application)          │
   │  ┌─────────────────────────────┐     │       │                      │
   │  │  MqttSubscriber             │◄────────────┘  MQTT inference      │
   │  │  translate_dls_metadata()   │     │           results            │
-  │  │  NxWitnessVmsShim.push()   ├─────────────────────────────────►  │
+  │  │  NxWitnessVmsShim.push()    ├───────────────────────────────────►│
   │  └─────────────────────────────┘     │
   └──────────────────────────────────────┘
                                          MQTT Broker (port 1883)

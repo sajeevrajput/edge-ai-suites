@@ -10,27 +10,27 @@ VMS / VMS Systems
   │ Frigate  ├─────────────────►│                                          │
   └──────────┘                  │           VMS Adapter Plugin             │
   ┌──────────┐   RTSP / REST    │                                          │
-  │Nx Witness├─────────────────►│  FastAPI Backend   ┌───────────────────┐ │
-  └──────────┘                  │  ─────────────      │  PostgreSQL DB    │ │
+  │Nx Witness├─────────────────►│  FastAPI Backend    ┌──────────────────┐ │
+  └──────────┘                  │  ─────────────      │  PostgreSQL DB   │ │
                                 │  Orchestrator   ◄──►│  (cameras,       │ │
                                 │  Camera sync        │   sessions,      │ │
-                                │  Schema fetch        │   events)        │ │
-                                │                     └───────────────────┘ │
-                                └────────┬─────────────────────┬────────────┘
+                                │  Schema fetch       │   events)        │ │
+                                │                     └──────────────────┘ │
+                                └────────┬─────────────────────┬───────────┘
                                          │                     │
                           ┌──────────────▼──────┐   ┌─────────▼──────────────┐
                           │  Live Video         │   │  Pallet Defect         │
                           │  Captioning (LVC)   │   │  Detection (PDD)       │
                           │                     │   │                        │
-                          │  DLStreamer +VLM     │   │  DLStreamer Pipeline    │
+                          │  DLStreamer +VLM    │   │  DLStreamer Pipeline   │
                           │  MediaMTX (WebRTC)  │   │  Server + MQTT Broker  │
                           └──────────┬──────────┘   └────────────┬───────────┘
                                      │                           │
                           ┌──────────▼──────────────────────────▼──────────┐
-                          │              Operator Dashboard (React)         │
-                          │   Camera list | Run controls | Live stream      │
-                          │   Caption overlay | Analysis results            │
-                          └─────────────────────────────────────────────────┘
+                          │              Operator Dashboard (React)        │
+                          │   Camera list | Run controls | Live stream     │
+                          │   Caption overlay | Analysis results           │
+                          └────────────────────────────────────────────────┘
 ```
 
 ## Data Flow

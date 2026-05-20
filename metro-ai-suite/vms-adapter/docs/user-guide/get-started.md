@@ -86,10 +86,10 @@ Open `.env` and update the variables for your environment:
 
 | **Variable**                         | **Description**                                                          |
 |--------------------------------------|--------------------------------------------------------------------------|
-| `LVC_BASE_URL`                       | URL of the running LVC backend, e.g. `http://<lvc-host>:4173`           |
-| `MEDIAMTX_URL`                       | URL of the MediaMTX WebRTC server, e.g. `http://<lvc-host>:8889`        |
+| `LVC_BASE_URL`                       | URL of the running LVC backend, e.g. `http://<lvc-host>:4173`            |
+| `MEDIAMTX_URL`                       | URL of the MediaMTX WebRTC server, e.g. `http://<lvc-host>:8889`         |
 | `FRIGATE_HOST`                       | Hostname/IP of the Frigate instance reachable from the backend container |
-| `NX_BASE_URL` / `NX_USERNAME` / `NX_PASSWORD` | Nx Witness credentials (only if using Nx)                     |
+| `NX_BASE_URL` / `NX_USERNAME` / `NX_PASSWORD` | Nx Witness credentials (only if using Nx)                       |
 | `PDD_HOST` / `PDD_PORT`              | DLStreamer Pipeline Server host and port for PDD (default: `8080`)       |
 | `MQTT_HOST` / `MQTT_PORT`            | MQTT broker host and port for PDD metadata (default: `1883`)             |
 | `PG_PASSWORD`                        | PostgreSQL password (change from default)                                |

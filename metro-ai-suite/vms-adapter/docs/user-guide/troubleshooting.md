@@ -164,7 +164,6 @@ docker compose restart vms-backend
 ---
 
 ## Supporting Resources
-
 - [Get Started](../get-started.md)
 - [GitHub Issues](https://github.com/open-edge-platform/edge-ai-suites/issues)
 - [Docker Compose Documentation](https://docs.docker.com/compose/)

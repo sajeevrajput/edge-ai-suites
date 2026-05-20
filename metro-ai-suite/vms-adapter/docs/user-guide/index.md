@@ -60,15 +60,15 @@ unified API consumed by the React operator dashboard.
 
 ```
 VMS Systems
-  ┌──────────┐   RTSP / REST    ┌──────────────────────────────────────────┐
-  │ Frigate  ├─────────────────►│                                          │
-  └──────────┘                  │           VMS Adapter Plugin             │
-  ┌──────────┐   RTSP / REST    │                                          │
-  │Nx Witness├─────────────────►│  FastAPI Backend   ┌───────────────────┐ │
+  ┌──────────┐   RTSP / REST    ┌───────────────────────────────────────────┐
+  │ Frigate  ├─────────────────►│                                           │
+  └──────────┘                  │           VMS Adapter Plugin              │
+  ┌──────────┐   RTSP / REST    │                                           │
+  │Nx Witness├─────────────────►│  FastAPI Backend    ┌───────────────────┐ │
   └──────────┘                  │  ─────────────      │  PostgreSQL DB    │ │
-                                │  Orchestrator   ◄──►│  (cameras,       │ │
-                                │  Camera sync        │   sessions,      │ │
-                                │  Schema fetch        │   events)        │ │
+                                │  Orchestrator   ◄──►│  (cameras,        │ │
+                                │  Camera sync        │   sessions,       │ │
+                                │  Schema fetch       │   events)         │ │
                                 │                     └───────────────────┘ │
                                 └────────┬─────────────────────┬────────────┘
                                          │                     │
@@ -77,10 +77,10 @@ VMS Systems
                           │  Captioning (LVC)   │   │  Detection (PDD)       │
                           └──────────┬──────────┘   └────────────┬───────────┘
                                      │                           │
-                          ┌──────────▼──────────────────────────▼──────────┐
-                          │              Operator Dashboard (React)         │
-                          │   Camera list | Run controls | Live stream      │
-                          └─────────────────────────────────────────────────┘
+                          ┌──────────▼───────────────────────────▼─────────┐
+                          │              Operator Dashboard (React)        │
+                          │   Camera list | Run controls | Live stream     │
+                          └────────────────────────────────────────────────┘
 ```
 
 See [How It Works](./how-it-works.md) for a detailed breakdown of data flows, component

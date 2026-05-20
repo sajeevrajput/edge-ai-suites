@@ -11,7 +11,7 @@ releases.
 ## Alternative Deployment
 
 Use Docker Compose to deploy the application. See the [Get Started](../get-started.md) guide
-for complete step-by-step instructions.
+for complete step-by-step instructions. Raise an issue in case of any defects.
 
 ## Related Links
 

@@ -1,6 +1,6 @@
 # System Requirements
 
-This page summarizes the hardware, software, and network requirements for running the VMS Adapter Plugin.
+The VMS Adapter Plugin itself is a lightweight orchestration service. Hardware requirements scale with the number of cameras and the AI Analytics Apps running alongside it (LVC, PDD) — refer to those applications' system requirements for GPU/NPU needs. So, the system requirements of the used analytics determine the platforms than VAP itself. The documentation here, hence, should be calibrated depending on the analytics used.
 
 ## Supported Platforms
 
@@ -22,7 +22,6 @@ This page summarizes the hardware, software, and network requirements for runnin
 | **Memory**      | 8 GB                             | 16 GB                                    |
 | **Disk Space**  | 20 GB                            | 64 GB                                    |
 
-> **Note:** The VMS Adapter Plugin itself is a lightweight orchestration service. Hardware requirements scale with the number of cameras and the AI Analytics Apps running alongside it (LVC, PDD) — refer to those applications' system requirements for GPU/NPU needs.
 
 ## Software Requirements
 
