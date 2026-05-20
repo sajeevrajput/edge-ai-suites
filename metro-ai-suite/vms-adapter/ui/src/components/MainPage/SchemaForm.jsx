@@ -13,7 +13,7 @@
  *
  * Custom extensions honoured:
  *   - "x-vms-source": "camera"          → renders the camera dropdown (stores camera_id).
- *   - "x-vms-source": "camera-rtsp"     → renders camera dropdown (stores stream_url / RTSP URL).
+ *   - "x-vms-source": "camera-rtsp"     → renders camera dropdown (stores camera_id; backend resolves RTSP).
  *   - "x-vms-source": "lvc-models" |
  *                     "lvc-pipelines"   → caller-supplied option list dropdown.
  *   - "x-format":     "textarea"        → multi-line text area.
@@ -219,7 +219,7 @@ function FieldRow({ name, field, value, onChange, options, error }) {
           </Select>
         );
       } else if (src === 'camera-rtsp') {
-        // Camera dropdown that stores the camera's stream_url (RTSP URL) as the value.
+        // Camera dropdown that stores camera_id; the backend resolves RTSP before dispatch.
         const cams = (options.cameras ?? []).filter((c) => c.stream_url);
         control = (
           <Select value={value ?? ''} onValueChange={onChange}>
@@ -228,7 +228,7 @@ function FieldRow({ name, field, value, onChange, options, error }) {
             </SelectTrigger>
             <SelectContent>
               {cams.map((c) => (
-                <SelectItem key={c.camera_id} value={c.stream_url}>
+                <SelectItem key={c.camera_id} value={c.camera_id}>
                   {c.camera_name || c.name || c.camera_id}
                 </SelectItem>
               ))}

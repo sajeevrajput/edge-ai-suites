@@ -10,7 +10,10 @@ from plugin.core.models.domain import (
     Camera,
     CameraEnableRequest,
     CommandResult,
+    CameraView,
     MetadataEvent,
+    MASKED_PASSWORD_PLACEHOLDER,
+    mask_url_credentials,
 )
 
 
@@ -53,3 +56,20 @@ def test_command_result_unsupported():
 def test_camera_enable_request():
     req = CameraEnableRequest(camera_ids=["frigate:cam1", "nx:cam2"], enabled=True)
     assert len(req.camera_ids) == 2
+
+
+def test_mask_url_credentials_masks_password():
+    url = "rtsp://admin:secret@localhost:7001/cam1"
+    masked = mask_url_credentials(url)
+    assert masked == f"rtsp://admin:{MASKED_PASSWORD_PLACEHOLDER}@localhost:7001/cam1"
+
+
+def test_camera_view_masks_stream_url():
+    cam = Camera(
+        camera_id="nx:cam1",
+        name="Cam 1",
+        vendor="nx_witness",
+        stream_url="rtsp://admin:secret@localhost:7001/cam1",
+    )
+    view = CameraView.from_camera(cam)
+    assert view.stream_url == f"rtsp://admin:{MASKED_PASSWORD_PLACEHOLDER}@localhost:7001/cam1"

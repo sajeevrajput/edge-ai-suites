@@ -7,8 +7,34 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal
+from urllib.parse import urlsplit, urlunsplit
 
 from pydantic import BaseModel, Field
+
+MASKED_PASSWORD_PLACEHOLDER = "<ENTER_PASSWORD_HERE>"
+
+
+def mask_url_credentials(url: str | None, placeholder: str = MASKED_PASSWORD_PLACEHOLDER) -> str | None:
+    if not url:
+        return url
+
+    parts = urlsplit(url)
+    if not parts.username and parts.password is None:
+        return url
+
+    host = parts.hostname or ""
+    if ":" in host and not host.startswith("["):
+        host = f"[{host}]"
+    if parts.port:
+        host = f"{host}:{parts.port}"
+
+    username = parts.username or ""
+    if parts.password is not None:
+        credentials = f"{username}:{placeholder}" if username else placeholder
+    else:
+        credentials = username
+
+    return urlunsplit((parts.scheme, f"{credentials}@{host}", parts.path, parts.query, parts.fragment))
 
 
 class Camera(BaseModel):
@@ -29,13 +55,17 @@ class CameraView(BaseModel):
     vendor: str
     status: Literal["online", "offline", "unknown"]
     enabled: bool
-    stream_url: str | None = None
+    stream_url: str | None = Field(
+        default=None,
+        description="Masked RTSP URL; embedded passwords are replaced with <ENTER_PASSWORD_HERE>",
+    )
 
     @classmethod
     def from_camera(cls, cam: Camera) -> "CameraView":
         return cls(
             camera_id=cam.camera_id, name=cam.name, vendor=cam.vendor,
-            status=cam.status, enabled=cam.enabled, stream_url=cam.stream_url,
+            status=cam.status, enabled=cam.enabled,
+            stream_url=mask_url_credentials(cam.stream_url),
         )
 
 

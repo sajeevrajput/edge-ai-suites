@@ -272,6 +272,9 @@ The operator dashboard renders LVC parameters dynamically from the live schema.
 **Camera field**: The UI shows camera **names** only. The backend resolves the
 selected `camera_id` to its RTSP `stream_url` before forwarding to LVC.
 
+If you copy an RTSP URL into a third-party application, replace
+`<ENTER_PASSWORD_HERE>` with the actual password before using it.
+
 **Frame Resolution**: Maps to `frameWidth`/`frameHeight` integers before sending
 to LVC — `1280x720 → {frameWidth:1280, frameHeight:720}`.
 
@@ -304,6 +307,8 @@ to LVC — `1280x720 → {frameWidth:1280, frameHeight:720}`.
 | `POST` | `/v1/cameras/enable` | Enable / disable a camera |
 | `GET` | `/v1/cameras/{camera_id}/live-stream` | Get live RTSP stream URL |
 | `GET` | `/v1/cameras/{camera_id}/clip` | Get clip URL for a time range |
+
+Camera responses that include RTSP credentials mask the password as `<ENTER_PASSWORD_HERE>` for browser-facing clients.
 
 ### Generic Analytics App API
 
@@ -377,4 +382,3 @@ npm run build
 | VMS | Frigate 0.15 (go2rtc RTSP), Nx Witness REST v4 |
 | AI | Intel Live Video Captioning (DLStreamer + VLM), MediaMTX (WebRTC), MQTT |
 | Infra | Docker Compose (4 services: backend, ui/nginx, postgres, frigate) |
-
