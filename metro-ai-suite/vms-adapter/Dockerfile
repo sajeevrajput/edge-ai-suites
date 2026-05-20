@@ -13,6 +13,7 @@ COPY pyproject.toml ./
 COPY plugin ./plugin
 COPY vms_shim ./vms_shim
 COPY analytics_app_shim ./analytics_app_shim
+COPY third_party_programs.txt ./
 
 RUN uv pip install --system --no-cache -e . && \
     chown -R appuser:appuser /app
