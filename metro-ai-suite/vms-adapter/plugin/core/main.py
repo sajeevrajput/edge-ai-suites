@@ -3,6 +3,7 @@
 
 """VMS Plugin Microservice :FastAPI application."""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
 
     try:
         cfg = load_config()
+        _configure_logging(cfg.logging.level)
         install_api_key_middleware(application, cfg.api.api_key)
     except SystemExit:
         # Config missing — let the lifespan handler fail loudly.
@@ -54,6 +56,13 @@ def create_app() -> FastAPI:
     application.include_router(analytics_apps_routes.router, prefix="/v1")
     application.include_router(sessions_routes.router, prefix="/v1")
     return application
+
+
+def _configure_logging(level: str) -> None:
+    """Apply the log level from config to the root logger and structlog."""
+    numeric = getattr(logging, level.upper(), logging.INFO)
+    logging.basicConfig(level=numeric)
+    logging.getLogger().setLevel(numeric)
 
 
 app = create_app()

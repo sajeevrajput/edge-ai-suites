@@ -53,3 +53,6 @@ mqtt:
 
 database:
   url: "postgresql+asyncpg://${PG_USER:-vms}:${PG_PASSWORD:-vms}@${PG_HOST:-postgres}:${PG_PORT:-5434}/vms_plugin"
+
+logging:
+  level: "info"

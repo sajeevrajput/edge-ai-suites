@@ -53,10 +53,10 @@ def _resolve_recursive(obj):
 class VmsAuthConfig(BaseModel):
     """VMS auth credentials.
 
-    Per the ADD chat (comment 26), the plugin **facilitates** auth — it
-    does not maintain long-lived sessions. Credentials here are used only
-    when we have to call the VMS during discover/register/write-back.
-    Per-request token pass-through from the App is left as a v2 hook.
+    The plugin **facilitates** auth — it does not maintain long-lived sessions.
+    Credentials here are used only when calling the VMS during
+    discover/register/write-back. Per-request token pass-through from the
+    App is left as a v2 hook.
     """
     username: str = ""
     password: str = ""
@@ -109,12 +109,17 @@ class DatabaseConfig(BaseModel):
     url: str = "postgresql+asyncpg://vms:vms@localhost:5432/vms_plugin"
 
 
+class LoggingConfig(BaseModel):
+    level: Literal["debug", "info", "warning", "error", "critical"] = "info"
+
+
 class AppConfig(BaseModel):
     vms_instances: list[VmsInstanceConfig] = Field(default_factory=list)
     analytics_apps: list[_DiscriminatedAnalyticsAppConfig] = Field(default_factory=list)  # type: ignore[valid-type]
     api: ApiConfig = Field(default_factory=ApiConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     mqtt: MqttConfig = Field(default_factory=MqttConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
     @model_validator(mode="before")
     @classmethod

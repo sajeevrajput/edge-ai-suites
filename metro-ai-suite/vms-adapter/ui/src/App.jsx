@@ -47,13 +47,15 @@ export default function App() {
     }).catch(() => {});
   }, []);
 
-  // Poll LVC every 5 seconds so runs started from LVC's own UI appear automatically.
+  // Poll LVC every 5 seconds only while there are active runs, so runs
+  // stopped or started from LVC's own UI are reflected automatically.
+  // When no runs are active the interval is not started.
   useEffect(() => {
+    if (lvcRuns.length === 0) return;
     const id = setInterval(() => {
       listAnalyticsAppRuns('live_captioning').then((runs) => {
         if (!Array.isArray(runs)) return;
         setLvcRuns((prev) => {
-          // Only update if the run list actually changed (compare runIds)
           const prevIds = prev.map((r) => r.runId ?? r.run_id).join(',');
           const nextIds = runs.map((r) => r.runId ?? r.run_id).join(',');
           return prevIds === nextIds ? prev : runs;
@@ -61,7 +63,7 @@ export default function App() {
       }).catch(() => {});
     }, 5000);
     return () => clearInterval(id);
-  }, []);
+  }, [lvcRuns.length]);
 
   const handleDiscover = async () => {
     setDiscovering(true);

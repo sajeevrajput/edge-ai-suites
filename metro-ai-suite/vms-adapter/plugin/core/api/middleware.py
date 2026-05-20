@@ -3,10 +3,10 @@
 
 """X-API-Key middleware.
 
-Per the ADD chat, auth is plugin-internal (the App→Plugin contract).
-The middleware is enabled only when ``config.api.api_key`` is non-empty;
-otherwise it is a pass-through. ``/v1/health``, ``/v1/ready``, and the
-OpenAPI/docs endpoints are always exempt.
+Auth is plugin-internal (the App→Plugin contract). The middleware is
+enabled only when ``config.api.api_key`` is non-empty; otherwise it is
+a pass-through. ``/v1/health``, ``/v1/ready``, and the OpenAPI/docs
+endpoints are always exempt.
 """
 
 from __future__ import annotations
