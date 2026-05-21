@@ -110,7 +110,7 @@ class DatabaseConfig(BaseModel):
 
 
 class LoggingConfig(BaseModel):
-    level: Literal["debug", "info", "warning", "error", "critical"] = "info"
+    level: str = "info"
 
 
 class AppConfig(BaseModel):

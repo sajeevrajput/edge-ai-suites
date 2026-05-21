@@ -4,6 +4,7 @@
 """VMS Plugin Microservice :FastAPI application."""
 
 import logging
+import structlog
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -21,6 +22,23 @@ from plugin.core.api.routes import (
 )
 from plugin.core.config import load_config
 from plugin.core.pipeline.orchestrator import init_orchestrator
+
+
+def _configure_logging(level: str) -> None:
+    """Apply the log level to stdlib logging and structlog."""
+    numeric = getattr(logging, level.upper(), logging.INFO)
+    logging.basicConfig(level=numeric)
+    logging.getLogger().setLevel(numeric)
+    structlog.configure(
+        wrapper_class=structlog.make_filtering_bound_logger(numeric),
+    )
+
+
+# Apply log level as early as possible — before any module-level loggers emit.
+try:
+    _configure_logging(load_config().logging.level)
+except SystemExit:
+    _configure_logging("info")
 
 
 @asynccontextmanager
@@ -41,28 +59,19 @@ def create_app() -> FastAPI:
 
     try:
         cfg = load_config()
-        _configure_logging(cfg.logging.level)
         install_api_key_middleware(application, cfg.api.api_key)
     except SystemExit:
-        # Config missing — let the lifespan handler fail loudly.
         pass
 
     application.include_router(health.router, prefix="/v1", tags=["Health"])
     application.include_router(cameras.router, prefix="/v1", tags=["Cameras"])
     application.include_router(events.router, prefix="/v1", tags=["Events"])
     application.include_router(analysis.router, prefix="/v1", tags=["Analysis"])
-    application.include_router(config_routes.router, prefix="/v1", tags=["Config"]) # status of VMS-analytics app
+    application.include_router(config_routes.router, prefix="/v1", tags=["Config"])
     application.include_router(vms_routes.router, prefix="/v1", tags=["VMS"])
     application.include_router(analytics_apps_routes.router, prefix="/v1")
     application.include_router(sessions_routes.router, prefix="/v1")
     return application
-
-
-def _configure_logging(level: str) -> None:
-    """Apply the log level from config to the root logger and structlog."""
-    numeric = getattr(logging, level.upper(), logging.INFO)
-    logging.basicConfig(level=numeric)
-    logging.getLogger().setLevel(numeric)
 
 
 app = create_app()
