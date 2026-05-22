@@ -12,7 +12,7 @@ Details about the changes and known issues in each release of the VMS Adapter Pl
 
 **New Features**:
 
-- **Multi-VMS Support**: Connect Frigate (0.15) and Nx Witness (REST v4) cameras simultaneously from a single plugin instance. Camera IDs are vendor-prefixed (`frigate:*`, `nx:*`) to ensure uniqueness across systems.
+- **Multi-VMS Support**: Connect  Nx Witness (REST v4) and Frigate (0.15) cameras simultaneously from a single plugin instance. Camera IDs are vendor-prefixed (`frigate:*`, `nx:*`) to ensure uniqueness across systems.
 
 - **Live Video Captioning Integration**: Stream RTSP feeds from any connected camera to the Intel Live Video Captioning application (DLStreamer + VLM). Captions are streamed back to the operator dashboard via SSE and overlaid on the WebRTC video player.
 

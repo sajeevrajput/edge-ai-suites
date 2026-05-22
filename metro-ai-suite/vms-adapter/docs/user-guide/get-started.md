@@ -2,10 +2,9 @@
 
 ## Overview
 
-The **VMS Adapter Plugin (VAP)** bridges VMS systems (Frigate, Nx Witness) with AI Analytics
-Apps (Live Video Captioning, Pallet Defect Detection) and provides a unified React operator
-dashboard for managing cameras and analytics runs. This guide shows how to deploy the full
-stack with Docker Compose and run your first analytics session.
+The **VMS Adapter Plugin (VAP)** bridges VMS systems (Nx Witness, Genetec, Milestone, etc.) with AI Analytics Apps (Live Video Captioning (LVC), Loitering Detection (LD), Pallet Defect Detection (PDD)) and provides a unified React operator dashboard for managing cameras and analytics runs. This guide shows how to deploy the full stack with Docker Compose and run your first analytics session.
+
+Note: Frigate is used as an open-source proxy for limited VMS capabilities as a means to demonstrate the VAP capabilities. 
 
 This guide shows how to:
 
@@ -21,10 +20,10 @@ This guide shows how to:
 - Install Docker: [Installation Guide](https://docs.docker.com/get-docker/).
 - Install Docker Compose: [Installation Guide](https://docs.docker.com/compose/install/).
 - One or more of the following running and reachable:
-  - **Frigate** VMS with cameras configured (RTSP streams)
   - **Nx Witness** VMS with accessible REST API (`NX_HOST`, `NX_USERNAME`, `NX_PASSWORD`)
+  - **Frigate** VMS with cameras configured (RTSP streams)
 - At least one Analytics App running before VAP starts:
-  - **Live Video Captioning (LVC)** — for AI captioning
+  - **Live Video Captioning (LVC)** — for VLM based AI captioning
   - **Pallet Defect Detection (PDD)** — for warehouse defect detection with Nx write-back
 
 ---

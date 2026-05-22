@@ -1,29 +1,35 @@
-# VMS Adapter Plugin: AI Analytics Bridge for VMS Systems
+# VMS Adapter Plugin (VAP): AI Analytics Bridge for VMS Systems
 
-The VMS Adapter Plugin (VAP) serves as an I/O bridge between Video Management Systems (VMS)
-such as Frigate and Nx Witness, and AI Analytics Apps such as Live Video Captioning and Pallet
-Defect Detection. It combines a FastAPI backend, pluggable VMS and Analytics App shims, and a
-React operator dashboard into a single Docker Compose deployment.
+The VMS Adapter Plugin (VAP) serves as an I/O bridge between Video Management Systems (VMS) like Nx Witness, Genetec, Milestone, etc. on the one side and AI Analytics Apps such as Object Detection pipelines like loitering detection, GenAI pipelines like Live Video Captioning (LVC), Live Video Search (LVS) on the other side. It combines a FastAPI backend, pluggable VMS and Analytics App shims, and a React operator dashboard into a single Docker Compose deployment.
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        VMS Adapter Plugin                           │
-│                                                                     │
-│  ┌──────────┐    ┌─────────────────┐    ┌──────────────────────┐    │
-│  │ Frigate  │    │ FastAPI Backend │    │  Live Video          │    │
-│  │ (VMS)    ├───►│ (plugin/)       ├───►│  Captioning (LVC)    │    │
-│  └──────────┘    │                 │    │  Analytics App       |    │   
-│  ┌──────────┐    │  - Camera sync  │    └──────────┬───────────┘    │
-│  │Nx Witness│    │  - Generic runs │               │                │
-│  │ (VMS)    ├───►│  - Result proxy │    ┌──────────▼───────────┐    │
-│  └──────────┘    └────────┬────────┘    │  MediaMTX (WebRTC)   │    │
-│                           │             │  MQTT Broker         │    │
-│                  ┌────────▼────────┐    └──────────────────────┘    │
-│                  │   React UI      │                                │
-│                  │   (nginx)       │                                │
-│                  └─────────────────┘                                │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        VMS Adapter Plugin                            │
+│                                                                      │
+│  ┌──────────┐     ┌─────────────────┐    ┌──────────────────────┐    │
+│  │ Genetec  │     | FastAPI Backend │    │  GenAI pipelines     │    │
+│  │ (VMS)    ├───► │ (plugin/)       ├───►│  (LVC, LVS, ...      │    │
+│  └──────────┘     │                 │    │  Analytics App)      |    │   
+│  ┌──────────┐     │  - Camera sync  │    └──────────────────────┘    │
+│  │Nx Witness│     │  - Generic runs │    ┌──────────────────────┐    │
+│  │ (VMS)    ├──┬─►│  - Result proxy │───►│  Objected Detection  │    │
+│  └──────────┘  |  └────────┬────────┘    │  (Loitering, Traffic │    │
+│  ┌───────────┐ |           |             │   Intersection, ...) │    │
+│  | Milestone |_|  ┌────────▼────────┐    └──────────────────────┘    │
+│  | (VMS)     | |  │   React UI      │                                │
+│  └───────────┘ |  │   (nginx)       │                                │
+│  ┌───────────┐ |  └─────────────────┘                                │
+│  | Frigate   |_|                                                     │
+│  | (NVR|VMS) |                                                       │
+│  └───────────┘                                                       │
+│                                                                      │
+│                                                                      │
+│                                                                      │
+│                                                                      │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
+Note: Currently, Nx Witness and Frigate are supported. Genetec and Milestone support will be added soon. Frigate is used as an open-source proxy for limited VMS capabilities as a means to demonstrate the VAP capabilities. 
 
 ## Documentation
 

@@ -11,57 +11,36 @@ hide_directive-->
 
 # VMS Adapter Plugin Overview
 
-The VMS Adapter Plugin (VAP) is an I/O bridge between Video Management Systems (VMS) and AI
-Analytics Apps. It is designed to help developers understand how to connect existing VMS
-infrastructure to AI analytics pipelines, manage camera streams through a unified operator
-dashboard, and extend the system with new VMS vendors or analytics applications.
+The VMS Adapter Plugin (VAP) is an I/O bridge between Video Management Systems (VMS) and AI Analytics Apps. It is designed to help developers understand how to connect existing VMS infrastructure to AI analytics pipelines, manage camera streams through a unified operator dashboard, and extend the system with new VMS vendors or analytics applications.
 
 ## Overview
 
-The **VMS Adapter Plugin** connects Frigate and Nx Witness cameras to AI analytics
-applications such as Live Video Captioning and Pallet Defect Detection, and presents a unified
-React operator dashboard for discovering cameras, managing analytics runs, and viewing live
-results. Adding support for a new VMS or a new Analytics App requires only a new shim class —
-no route changes are needed.
+The **VMS Adapter Plugin** connects VMS solutions like Nx Witness, Genetec, Milestone, and Frigate cameras to AI analytics
+applications such as Live Video Captioning and Pallet Defect Detection, and presents a unified React operator dashboard for discovering cameras, managing analytics runs, and viewing live results. Adding support for a new VMS or a new Analytics App requires only a new shim class — no route changes are needed.
 
 ### Example Use Cases
 
-- **Intelligent Surveillance**: Connect IP cameras from Nx Witness to Live Video Captioning
-  for scene description and prompt-driven monitoring (for example, "Is there an unauthorized
-  person in the area?").
-- **Warehouse Quality Control**: Route camera feeds from Frigate or Nx Witness to Pallet
-  Defect Detection and automatically push detected defect bounding boxes back into Nx Witness
-  for operator review.
-- **Multi-Camera Analytics Management**: Discover all cameras from all connected VMS systems
-  in one dashboard and selectively enable AI analytics on specific cameras without
-  reconfiguring each system individually.
+- **Intelligent Surveillance**: Connect IP cameras from Nx Witness to Live Video Captioning for scene description and prompt-driven monitoring (for example, "Is there an unauthorized person in the area?").
+- **Warehouse Quality Control**: Route camera feeds from Frigate or Nx Witness to Pallet Defect Detection and automatically push detected defect bounding boxes back into Nx Witness   for operator review.
+- **Multi-Camera Analytics Management**: Discover all cameras from all connected VMS systems in one dashboard and selectively enable AI analytics on specific cameras without reconfiguring each system individually.
 
 ### Key Benefits
 
-- **Multi-VMS Support**: Connect cameras from Frigate and Nx Witness simultaneously from a
+- **Multi-VMS Support**: Connect cameras from Nx Witness and Frigate simultaneously from a
   single plugin instance.
-- **Pluggable Analytics Apps**: AI analytics applications plug in as shims. New apps require
-  no route changes — just a new shim class registered in `factory.py`.
-- **Dynamic Schema Forms**: The dashboard renders analytics configuration forms directly from
-  each Analytics App's live OpenAPI schema — no frontend changes are needed when parameters
-  change.
-- **Generic Analytics App API**: A single set of REST routes
-  (`/v1/analytics-apps/{app_id}/…`) handles all integrations with a consistent lifecycle
-  (start, list, stop, stream results).
-- **Operator Dashboard**: React-based UI for discovering cameras, enabling/disabling streams,
-  configuring analytics parameters, and viewing live results.
+- **Pluggable Analytics Apps**: AI analytics applications plug in as shims. New apps require no route changes — just a new shim class registered in `factory.py`.
+- **Dynamic Schema Forms**: The dashboard renders analytics configuration forms directly from each Analytics App's live OpenAPI schema — no frontend changes are needed when parameters change.
+- **Generic Analytics App API**: A single set of REST routes (`/v1/analytics-apps/{app_id}/…`) handles all integrations with a consistent lifecycle (start, list, stop, stream results).
+- **Operator Dashboard**: React-based UI for discovering cameras, enabling/disabling streams, configuring analytics parameters, and viewing live results.
 
 ## How it Works
 
-The VAP is a modular orchestration service. VMS shims discover cameras from their respective
-systems and provide RTSP URLs. Analytics App shims manage run lifecycle and result delivery.
-The FastAPI backend coordinates between shims, persists state to PostgreSQL, and exposes a
-unified API consumed by the React operator dashboard.
+The VAP is a modular orchestration service. VMS shims discover cameras from their respective systems and provide RTSP URLs. Analytics App shims manage run lifecycle and result delivery. The FastAPI backend coordinates between shims, persists state to PostgreSQL, and exposes a unified API consumed by the React operator dashboard.
 
 ```
 VMS Systems
   ┌──────────┐   RTSP / REST    ┌───────────────────────────────────────────┐
-  │ Frigate  ├─────────────────►│                                           │
+  │ Any VMS  ├─────────────────►│                                           │
   └──────────┘                  │           VMS Adapter Plugin              │
   ┌──────────┐   RTSP / REST    │                                           │
   │Nx Witness├─────────────────►│  FastAPI Backend    ┌───────────────────┐ │
