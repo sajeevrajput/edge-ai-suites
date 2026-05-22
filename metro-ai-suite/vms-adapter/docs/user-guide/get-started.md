@@ -1,6 +1,10 @@
 # Get Started
 
-The **VMS Adapter Plugin (VAP)** bridges VMS systems (Frigate, Nx Witness) with AI analytics Analytics Apps (Live Video Captioning, Pallet Defect Detection). This guide shows how to deploy the full stack with Docker Compose and run your first analytics session.
+## Overview
+
+The **VMS Adapter Plugin (VAP)** bridges VMS systems (Nx Witness, Genetec, Milestone, etc.) with AI Analytics Apps (Live Video Captioning (LVC), Loitering Detection (LD), Pallet Defect Detection (PDD)) and provides a unified React operator dashboard for managing cameras and analytics runs. This guide shows how to deploy the full stack with Docker Compose and run your first analytics session.
+
+Note: Frigate is used as an open-source proxy for limited VMS capabilities as a means to demonstrate the VAP capabilities. 
 
 This guide shows how to:
 
@@ -8,16 +12,18 @@ This guide shows how to:
 - **Configure the environment**: Point VAP at your VMS and Analytics App services.
 - **Run the operator dashboard**: Discover cameras, enable streams, and start analytics runs.
 
-## Prerequisites
+## Quick Start
+
+### Prerequisites
 
 - Verify that your system meets the [minimum requirements](./get-started/system-requirements.md).
 - Install Docker: [Installation Guide](https://docs.docker.com/get-docker/).
 - Install Docker Compose: [Installation Guide](https://docs.docker.com/compose/install/).
 - One or more of the following running and reachable:
-  - **Frigate** VMS with cameras configured (RTSP streams)
   - **Nx Witness** VMS with accessible REST API (`NX_HOST`, `NX_USERNAME`, `NX_PASSWORD`)
+  - **Frigate** VMS with cameras configured (RTSP streams)
 - At least one Analytics App running before VAP starts:
-  - **Live Video Captioning (LVC)** — for AI captioning
+  - **Live Video Captioning (LVC)** — for VLM based AI captioning
   - **Pallet Defect Detection (PDD)** — for warehouse defect detection with Nx write-back
 
 ---
@@ -79,10 +85,10 @@ Open `.env` and update the variables for your environment:
 
 | **Variable**                         | **Description**                                                          |
 |--------------------------------------|--------------------------------------------------------------------------|
-| `LVC_BASE_URL`                       | URL of the running LVC backend, e.g. `http://<lvc-host>:4173`           |
-| `MEDIAMTX_URL`                       | URL of the MediaMTX WebRTC server, e.g. `http://<lvc-host>:8889`        |
+| `LVC_BASE_URL`                       | URL of the running LVC backend, e.g. `http://<lvc-host>:4173`            |
+| `MEDIAMTX_URL`                       | URL of the MediaMTX WebRTC server, e.g. `http://<lvc-host>:8889`         |
 | `FRIGATE_HOST`                       | Hostname/IP of the Frigate instance reachable from the backend container |
-| `NX_BASE_URL` / `NX_USERNAME` / `NX_PASSWORD` | Nx Witness credentials (only if using Nx)                     |
+| `NX_BASE_URL` / `NX_USERNAME` / `NX_PASSWORD` | Nx Witness credentials (only if using Nx)                       |
 | `PDD_HOST` / `PDD_PORT`              | DLStreamer Pipeline Server host and port for PDD (default: `8080`)       |
 | `MQTT_HOST` / `MQTT_PORT`            | MQTT broker host and port for PDD metadata (default: `1883`)             |
 | `PG_PASSWORD`                        | PostgreSQL password (change from default)                                |
@@ -255,17 +261,20 @@ docker compose down          # stop without removing data
 docker compose down -v       # stop and remove PostgreSQL volume
 ```
 
-## Supporting Resources
+## Next Steps
 
-- [How It Works](./how-it-works.md)
-- [Troubleshooting](./troubleshooting.md)
-- [System Requirements](./get-started/system-requirements.md)
+1. **Explore the Architecture**: Learn how VAP components interact in the [How It Works](./how-it-works.md) guide.
+2. **Follow Integration Tutorials**: Use the [How-To Guides](./how-to-guides.md) for end-to-end walkthroughs of LVC and PDD integrations.
+3. **Browse the API**: Explore all available endpoints in the [API Reference](./api-reference.md).
+4. **Troubleshooting**: If you encounter issues, check the [Troubleshooting Guide](./troubleshooting.md).
 
 <!--hide_directive
 :::{toctree}
 :hidden:
 
 get-started/system-requirements.md
+get-started/build-from-source.md
+get-started/deploy-with-helm.md
 
 :::
 hide_directive-->

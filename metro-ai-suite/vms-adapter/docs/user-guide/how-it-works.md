@@ -1,36 +1,36 @@
 # How It Works
 
-The VMS Adapter Plugin (VAP) is a modular orchestration service that routes video streams from VMS systems to AI analytics Analytics Apps, and relays results back to the operator dashboard or VMS.
+The VMS Adapter Plugin (VAP) is a modular orchestration service that routes video streams from supported VMS systems to AI analytics Analytics Apps, and relays results back to the operator dashboard or VMS.
 
 ## Architecture
 
 ```
 VMS / VMS Systems
   ┌──────────┐   RTSP / REST    ┌──────────────────────────────────────────┐
-  │ Frigate  ├─────────────────►│                                          │
+  │Nx Witness├─────────────────►│                                          │
   └──────────┘                  │           VMS Adapter Plugin             │
   ┌──────────┐   RTSP / REST    │                                          │
-  │Nx Witness├─────────────────►│  FastAPI Backend   ┌───────────────────┐ │
-  └──────────┘                  │  ─────────────      │  PostgreSQL DB    │ │
-                                │  Orchestrator   ◄──►│  (cameras,       │ │
-                                │  Camera sync        │   sessions,      │ │
-                                │  Schema fetch        │   events)        │ │
-                                │                     └───────────────────┘ │
-                                └────────┬─────────────────────┬────────────┘
-                                         │                     │
+  │ Genetec  ├─────────────────►│  FastAPI Backend    ┌──────────────────┐ │
+  └──────────┘                  │  ─────────────      │  PostgreSQL DB   │ │
+  ┌──────────┐   RTSP / REST    │  Orchestrator   ◄──►│  (cameras,       │ │
+  │ Milestone├─────────────────►│  Camera sync        │   sessions,      │ │
+  └──────────┘                  │  Schema fetch       │   events)        │ │
+  ┌──────────┐   RTSP / REST    │                     └──────────────────┘ │
+  │ Frigate  ├─────────────────►└────────┬─────────────────────┬───────────┘
+  └──────────┘                           │                     │
                           ┌──────────────▼──────┐   ┌─────────▼──────────────┐
                           │  Live Video         │   │  Pallet Defect         │
                           │  Captioning (LVC)   │   │  Detection (PDD)       │
                           │                     │   │                        │
-                          │  DLStreamer +VLM     │   │  DLStreamer Pipeline    │
+                          │  DLStreamer +VLM    │   │  DLStreamer Pipeline   │
                           │  MediaMTX (WebRTC)  │   │  Server + MQTT Broker  │
                           └──────────┬──────────┘   └────────────┬───────────┘
                                      │                           │
                           ┌──────────▼──────────────────────────▼──────────┐
-                          │              Operator Dashboard (React)         │
-                          │   Camera list | Run controls | Live stream      │
-                          │   Caption overlay | Analysis results            │
-                          └─────────────────────────────────────────────────┘
+                          │              Operator Dashboard (React)        │
+                          │   Camera list | Run controls | Live stream     │
+                          │   Caption overlay | Analysis results           │
+                          └────────────────────────────────────────────────┘
 ```
 
 ## Data Flow
@@ -39,9 +39,9 @@ VMS / VMS Systems
 
 1. Operator triggers **Discover Cameras** from the dashboard or `POST /v1/cameras/discover`.
 2. The **Orchestrator** calls each registered VMS shim:
-   - **FrigateVmsShim** reads camera definitions directly from `vms_shim/frigate/config/config.yml`.
    - **NxWitnessVmsShim** queries Nx Witness `GET /rest/v4/devices` for all camera devices.
-3. Discovered cameras are persisted to PostgreSQL with vendor-prefixed IDs (`frigate:front-door`, `nx:abc123-uuid`).
+   - **FrigateVmsShim** reads camera definitions directly from `vms_shim/frigate/config/config.yml`.
+3. Discovered cameras are persisted to PostgreSQL with vendor-prefixed IDs (`nx:abc123-uuid`, `frigate:front-door`).
 4. The dashboard displays the full camera list. Operators enable specific cameras for analytics.
 
 ### Live Video Captioning (LVC) Flow
@@ -103,8 +103,8 @@ Each VMS vendor is represented by a class implementing the `IVmsShim` interface:
 
 | **Shim**            | **Source**           | **Camera Discovery**                        |
 |---------------------|----------------------|---------------------------------------------|
-| `FrigateVmsShim`    | Frigate 0.15         | Reads local `config/config.yml` directly    |
 | `NxWitnessVmsShim`  | Nx Witness REST v4   | Queries `/rest/v4/devices`                  |
+| `FrigateVmsShim`    | Frigate 0.15         | Reads local `config/config.yml` directly    |
 
 Camera IDs are vendor-prefixed strings (`frigate:front-door`, `nx:abc123`). The orchestrator uses the prefix to dispatch RTSP URL lookups and write-backs to the correct shim.
 

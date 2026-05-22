@@ -4,11 +4,15 @@
 
 Details about the changes and known issues in each release of the VMS Adapter Plugin.
 
-## Version 1.0.0
+## Current Release
 
-**New**
+### Version 1.0.0
 
-- **Multi-VMS Support**: Connect Frigate (0.15) and Nx Witness (REST v4) cameras simultaneously from a single plugin instance. Camera IDs are vendor-prefixed (`frigate:*`, `nx:*`) to ensure uniqueness across systems.
+**Release Date**: *TBD*
+
+**New Features**:
+
+- **Multi-VMS Support**: Connect  Nx Witness (REST v4) and Frigate (0.15) cameras simultaneously from a single plugin instance. Camera IDs are vendor-prefixed (`frigate:*`, `nx:*`) to ensure uniqueness across systems.
 
 - **Live Video Captioning Integration**: Stream RTSP feeds from any connected camera to the Intel Live Video Captioning application (DLStreamer + VLM). Captions are streamed back to the operator dashboard via SSE and overlaid on the WebRTC video player.
 
@@ -24,7 +28,7 @@ Details about the changes and known issues in each release of the VMS Adapter Pl
 
 - **Docker Compose Deployment**: Full stack in four services — `vms-backend`, `vms-ui` (nginx), `postgres`, and `frigate`.
 
-**Known Issues**
+**Known Issues**:
 
 - If the Nx Witness analytics integration is reused from a previous database record (not freshly registered), the integration user password is not available from the Nx API. In this case, Pallet Defect Detection detections cannot be pushed to Nx until the integration is deleted from Nx Witness and VAP is restarted to recreate it.
 

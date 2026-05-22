@@ -40,12 +40,12 @@ Camera (RTSP)
 
 VMS Adapter Plugin (VAP)
   ┌─────────────────────────────────────────────────────┐
-  │  LiveCaptioningAnalyticsAppShim                          │
+  │  LiveCaptioningAnalyticsAppShim                     │
   │  POST /api/runs  ──────────────────────────────────►│ LVC Backend (:4173)
   │                                                     │ DLStreamer + VLM
   │  GET .../results/stream  ◄──────────────────────────│ SSE captions
   │  (SSE proxy to dashboard)                           │
-  │                                          MediaMTX (:8889)
+  │            MediaMTX (:8889)                         |
   └─────────────────────────────────────────────────────┘
            │
   ┌────────▼─────────────────────┐
