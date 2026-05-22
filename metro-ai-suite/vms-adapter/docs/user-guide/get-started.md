@@ -14,6 +14,8 @@ This guide shows how to:
 
 ## Quick Start
 
+Check the [folder layout](#folder-layout) to familiarize with the code structure.
+
 ### Prerequisites
 
 - Verify that your system meets the [minimum requirements](./get-started/system-requirements.md).
@@ -260,6 +262,77 @@ Detection results are pushed directly back to Nx Witness as analytics objects (b
 docker compose down          # stop without removing data
 docker compose down -v       # stop and remove PostgreSQL volume
 ```
+
+## Folder Layout
+
+```
+vms-adapter/
+├── plugin/                         # Backend Python package
+│   ├── base/
+│   │   └── interfaces.py           #  IVmsShim + IAnalyticsAppShim abstract interfaces
+│   ├── common/
+│   │   └── schema_builder.py       #  Dynamic Pydantic model builder from JSON Schema
+│   └── Analytics/
+│       ├── api/
+│       │   ├── routes/
+│       │   │   ├── cameras.py      #   Camera discovery + enable/disable
+│       │   │   ├── analytics_apps.py    #   Generic Analytics App API (discover, runs, stream, options)
+│       │   │   ├── events.py       #   Event timeline
+│       │   │   ├── analysis.py     #   Analysis result callback
+│       │   │   ├── sessions.py     #   Session tracking
+│       │   │   ├── vms.py          #   VMS register
+│       │   │   ├── health.py       #   Health + readiness
+│       │   │   └── config.py       #   Config status
+│       │   └── deps.py             #   FastAPI dependency injection
+│       ├── db/
+│       │   └── repository.py       #   Async SQLAlchemy CRUD
+│       ├── models/
+│       │   ├── db.py               #   ORM models (Camera, Event, Session, …)
+│       │   └── domain.py           #   Domain dataclasses
+│       ├── pipeline/
+│       │   └── orchestrator.py     #   Background camera sync + event processing
+│       ├── config.py               #   Pydantic settings (YAML + env)
+│       ├── factory.py              #   Shim factory
+│       └── main.py                 #   FastAPI application entry point
+│
+├── vms_shim/                       # Concrete VMS shims
+│   ├── frigate/
+│   │   ├── shim.py                 #  FrigateVmsShim — discovers cameras via local config
+│   │   └── config/                 #  Frigate config.yml (cameras, go2rtc, etc.)
+│   └── nxwitness/
+│       └── shim.py                 #  NxWitnessVmsShim — Nx Witness REST API v4
+│
+├── analytics_app_shim/                  # Concrete Analytics App shims
+│   └── lvc/
+│       ├── api_client.py           #  LvcApiClient — all HTTP calls to LVC backend
+│       ├── schema.py               #  LvcSchemaManager — OpenAPI fetch, $ref resolution,
+│       │                           #    UI annotations, Pydantic model building
+│       └── shim.py                 #  LiveCaptioningAnalyticsAppShim — composes api_client + schema
+│
+├── ui/                             # React 19 / Vite frontend served by nginx
+│   ├── src/
+│   │   ├── App.jsx                 #  Root component + state
+│   │   ├── components/MainPage/
+│   │   │   ├── CameraDiscoveryPanel.jsx
+│   │   │   ├── AnalyticsEnginePanel.jsx   # Dynamic schema form + run lifecycle
+│   │   │   ├── SchemaForm.jsx             # Generic JSON Schema → form renderer
+│   │   │   ├── LiveStreamTab.jsx          # WebRTC player + caption overlay
+│   │   │   └── AnalysisResultsPanel.jsx
+│   │   ├── hooks/
+│   │   │   └── useLvcStream.js     #  SSE caption stream hook
+│   │   └── services/
+│   │       └── api.js              #  Generic API client functions
+│   └── nginx.conf                  #  Reverse proxy: /v1 → backend, /whep → MediaMTX
+│
+├── config/
+│   └── config.yaml                 # Runtime config (cameras, VMS endpoints, LVC URL)
+├── tests/                          # pytest unit + integration tests
+├── Dockerfile                      # Backend image
+├── docker-compose.yml              # backend + ui + postgres + frigate
+├── pyproject.toml                  # Python deps + package config
+└── .env.example                    # Environment variable reference
+```
+
 
 ## Next Steps
 
