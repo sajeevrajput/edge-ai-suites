@@ -17,7 +17,7 @@ from vms_shim.nxwitness.shim import NxWitnessVmsShim
 
 
 _SAMPLE_MANIFESTS = {
-    "integrationManifest": {"id": "pdd", "name": "PDD", "version": "1.0.0"},
+    "integrationManifest": {"id": "dls_vision", "name": "DLStreamer Vision", "version": "1.0.0"},
     "engineManifest": {"typeLibrary": {"objectTypes": []}},
     "pinCode": "1234",
 }
@@ -52,7 +52,7 @@ def _make_shim(manifest_path: str = "", nx_record=None) -> NxWitnessVmsShim:
     shim.find_integration_in_vms = AsyncMock(return_value=nx_record)
     shim.register_analytics = AsyncMock(return_value={
         "status": "approved",
-        "username": "pdd_user",
+        "username": "dls_vision_user",
         "password": "secret123",
         "request_id": "req-1",
     })
@@ -60,7 +60,7 @@ def _make_shim(manifest_path: str = "", nx_record=None) -> NxWitnessVmsShim:
     return shim
 
 
-def _make_db_record(username="pdd_user", password="secret123"):
+def _make_db_record(username="dls_vision_user", password="secret123"):
     record = MagicMock()
     record.nx_username = username
     record.nx_password = password
@@ -103,19 +103,19 @@ async def _run_on_startup(shim: NxWitnessVmsShim, db_record, nx_record):
 
 async def test_credentials_restored_from_db_on_restart():
     """On restart: DB ✅ + Nx ✅ → set_integration_credentials() called with DB values."""
-    nx_record = {"username": "pdd_user", "password": "", "request_id": "req-1"}
-    db_record = _make_db_record(username="pdd_user", password="secret123")
+    nx_record = {"username": "dls_vision_user", "password": "", "request_id": "req-1"}
+    db_record = _make_db_record(username="dls_vision_user", password="secret123")
     shim = _make_shim(nx_record=nx_record)
 
     set_creds = await _run_on_startup(shim, db_record, nx_record)
 
-    set_creds.assert_called_once_with("pdd_user", "secret123")
+    set_creds.assert_called_once_with("dls_vision_user", "secret123")
 
 
 async def test_credentials_not_called_when_password_missing_in_db():
     """DB ✅ + Nx ✅ but no password stored → set_integration_credentials NOT called."""
-    nx_record = {"username": "pdd_user", "password": "", "request_id": "req-1"}
-    db_record = _make_db_record(username="pdd_user", password=None)
+    nx_record = {"username": "dls_vision_user", "password": "", "request_id": "req-1"}
+    db_record = _make_db_record(username="dls_vision_user", password=None)
     shim = _make_shim(nx_record=nx_record)
 
     set_creds = await _run_on_startup(shim, db_record, nx_record)
@@ -129,12 +129,12 @@ async def test_credentials_set_on_fresh_registration():
 
     set_creds = await _run_on_startup(shim, db_record=None, nx_record=None)
 
-    set_creds.assert_called_once_with("pdd_user", "secret123")
+    set_creds.assert_called_once_with("dls_vision_user", "secret123")
 
 
 async def test_credentials_not_set_on_mismatch_db_missing():
     """DB ❌ + Nx ✅ → error path → set_integration_credentials NOT called."""
-    nx_record = {"username": "pdd_user", "password": "", "request_id": "req-1"}
+    nx_record = {"username": "dls_vision_user", "password": "", "request_id": "req-1"}
     shim = _make_shim(nx_record=nx_record)
 
     set_creds = await _run_on_startup(shim, db_record=None, nx_record=nx_record)

@@ -1,6 +1,6 @@
 # System Requirements
 
-The VMS Adapter Plugin itself is a lightweight orchestration service. Hardware requirements scale with the number of cameras and the AI Analytics Apps running alongside it (LVC, PDD) — refer to those applications' system requirements for GPU/NPU needs. So, the system requirements of the used analytics determine the platforms than VAP itself. The documentation here, hence, should be calibrated depending on the analytics used.
+The VMS Adapter Plugin itself is a lightweight orchestration service. Hardware requirements scale with the number of cameras and the AI Analytics Apps running alongside it (LVC, DLS Vision app like Loitering Detection) — refer to those applications' system requirements for GPU/NPU needs. So, the system requirements of the used analytics determine the platforms than VAP itself. The documentation here, hence, should be calibrated depending on the analytics used.
 
 ## Supported Platforms
 
@@ -53,8 +53,8 @@ The following external services must be reachable from the VAP backend container
 | Live Video Captioning (LVC)     | LVC Analytics App integration     | `4173`           |
 | MediaMTX (WebRTC signaling)     | Live stream relay to UI       | `8889`           |
 | Nx Witness                      | Nx VMS camera discovery       | `7001` (HTTPS)   |
-| DLStreamer Pipeline Server (PDD)| Pallet Defect Detection       | `8080`           |
-| MQTT Broker                     | PDD metadata streaming        | `1883`           |
+| DLStreamer Pipeline Server (dls_vision)| DLStreamer Vision       | `8080`           |
+| MQTT Broker                     | dls_vision metadata streaming        | `1883`           |
 
 ## Validation
 

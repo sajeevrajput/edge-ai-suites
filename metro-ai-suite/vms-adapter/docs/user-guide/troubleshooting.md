@@ -38,7 +38,7 @@ docker compose logs vms-backend
 ```
 
 Common causes:
-- LVC or PDD is not reachable at startup — start the Analytics App before VAP.
+- LVC or dls_vision app is not reachable at startup — start the Analytics App before VAP.
 - `VMS_PLUGIN_DATABASE_URL` is incorrect — verify the PostgreSQL connection string.
 - A required environment variable is missing — check for `sys.exit(1)` in the logs.
 
@@ -109,24 +109,24 @@ docker compose restart vms-backend
 
 ---
 
-## Pallet Defect Detection (PDD)
+## DLStreamer Vision (dls_vision) based app like Loitering Detection
 
 ### VAP Cannot Reach the DLStreamer Pipeline Server
 
-**Symptoms**: Starting a PDD run fails; backend logs show a connection error to `PDD_HOST`.
+**Symptoms**: Starting a dls_vision run fails; backend logs show a connection error to `DLS_VISION_HOST`.
 
 **Checks**:
-- Verify `PDD_HOST` and `PDD_PORT` in `.env` are correct.
-- Confirm the DLStreamer Pipeline Server is running: `curl http://<PDD_HOST>:8080/pipelines`.
-- If PDD runs on the same host as VAP, use `host.docker.internal` for `PDD_HOST`.
+- Verify `DLS_VISION_HOST` and `DLS_VISION_PORT` in `.env` are correct.
+- Confirm the DLStreamer Pipeline Server is running: `curl http://<DLS_VISION_HOST>:8080/pipelines`.
+- If dls_vision runs on the same host as VAP, use `host.docker.internal` for `DLS_VISION_HOST`.
 
 ### No Bounding Boxes Appear in Nx Witness
 
-**Symptoms**: PDD runs start successfully but detections are not shown in the Nx Witness client.
+**Symptoms**: dls_vision runs start successfully but detections are not shown in the Nx Witness client.
 
 **Checks**:
 - Confirm the MQTT broker is running and reachable at `MQTT_HOST:MQTT_PORT`.
-- Verify that the DLStreamer Pipeline Server is publishing inference results to MQTT on the expected topic (`/{vms_name}/pdd/{camera_id}`).
+- Verify that the DLStreamer Pipeline Server is publishing inference results to MQTT on the expected topic (`/{vms_name}/dls_vision/{camera_id}`).
 - Check that the Nx Witness analytics integration was registered successfully: look for `register_analytics` in the `vms-backend` logs.
 - Verify integration credentials: if the integration was reused from a previous run, the password may not be available. In that case, remove the integration from Nx Witness and restart VAP to recreate it.
 
@@ -135,7 +135,7 @@ docker compose restart vms-backend
 **Symptoms**: `MqttSubscriber` does not forward detections; no analytics objects appear in Nx.
 
 **Checks**:
-- Check the MQTT topic convention: `/{vms_name}/pdd/{camera_id}` where `camera_id` is the bare Nx device UUID (no `nx:` prefix).
+- Check the MQTT topic convention: `/{vms_name}/dls_vision/{camera_id}` where `camera_id` is the bare Nx device UUID (no `nx:` prefix).
 - Verify the `vms_name` in the topic matches the `name` field of the VMS config in `config.yaml`.
 - Inspect MQTT traffic using a tool like `mosquitto_sub`:
 

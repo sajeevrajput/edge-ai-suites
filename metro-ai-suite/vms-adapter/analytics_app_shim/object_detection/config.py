@@ -11,18 +11,18 @@ from pydantic import BaseModel, Field
 
 
 class ObjectDetectionAnalyticsAppConfig(BaseModel):
-    """Config for DLStreamer Pipeline Server–based object detection apps (e.g. PDD)."""
+    """Config for DLStreamer Pipeline Server–based object detection apps (e.g. Loitering Detection)."""
 
     type: Literal["object_detection"] = "object_detection"
-    # Identifies this app instance in API URLs (e.g. "pdd" → /v1/analytics-apps/pdd/runs)
-    app_id: str = "pdd"
+    # Identifies this app instance in API URLs (e.g. "dls_vision" → /v1/analytics-apps/dls_vision/runs)
+    app_id: str = "dls_vision"
     display_name: str = "Object Detection"
     base_url: str  # Pipeline Server REST URL
     mqtt_host: str = "localhost"
     mqtt_port: int = 1883
     # Broker address as seen by the Pipeline Server (used in the destination payload
     # so gvametapublish can connect). Defaults to the Pipeline Server's MQTT_HOST env var
-    # value (container name on the PDD network). Set to "host.docker.internal" if the
+    # value (container name on the DLStreamer Vision network). Set to "host.docker.internal" if the
     # broker is only reachable via the host's published port.
     pipeline_server_mqtt_host: str = "mqtt-broker"
     pipeline_server_mqtt_port: int = 1883

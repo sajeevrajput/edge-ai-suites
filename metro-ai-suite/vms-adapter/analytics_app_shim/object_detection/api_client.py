@@ -36,7 +36,7 @@ class ObjectDetectionApiClient:
             self._client = httpx.AsyncClient(
                 base_url=self._base_url,
                 timeout=self._timeout,
-                verify=False,  # PDD nginx uses a self-signed certificate
+                verify=False,  # DLStreamer Vision nginx uses a self-signed certificate
             )
         return self._client
 
@@ -47,7 +47,7 @@ class ObjectDetectionApiClient:
 
         Each entry has:
           - "name":    pipeline root directory (e.g. "user_defined_pipelines")
-          - "version": pipeline identifier shown to users (e.g. "pallet_defect_detection")
+          - "version": pipeline identifier shown to users (e.g. "dls_vision_pipeline")
         """
         client = self._ensure_client()
         try:

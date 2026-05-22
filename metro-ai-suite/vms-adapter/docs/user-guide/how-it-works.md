@@ -19,8 +19,8 @@ VMS / VMS Systems
   │ Frigate  ├─────────────────►└────────┬─────────────────────┬───────────┘
   └──────────┘                           │                     │
                           ┌──────────────▼──────┐   ┌─────────▼──────────────┐
-                          │  Live Video         │   │  Pallet Defect         │
-                          │  Captioning (LVC)   │   │  Detection (PDD)       │
+                          │  Live Video         │   │  DLStreamer Vision     │
+                          │  Captioning (LVC)   │   │  (e.g. Loitering Det)  │
                           │                     │   │                        │
                           │  DLStreamer +VLM    │   │  DLStreamer Pipeline   │
                           │  MediaMTX (WebRTC)  │   │  Server + MQTT Broker  │
@@ -68,11 +68,11 @@ Operator dashboard
     │  caption overlay on WebRTC video player
 ```
 
-### Pallet Defect Detection (PDD) Flow
+### DLStreamer Vision (dls_vision e.g. Loitering Detection) Flow
 
 ```
 Operator dashboard
-    │  POST /v1/analytics-apps/pdd/runs  { camera_id, pipeline_name, pipeline_version }
+    │  POST /v1/analytics-apps/dls_vision/runs  { camera_id, pipeline_name, pipeline_version }
     ▼
 FastAPI route (analytics_apps.py)
     │  IAnalyticsAppShim.start(params)
@@ -81,9 +81,9 @@ ObjectDetectionAnalyticsAppShim
     │  resolves camera_id → RTSP URL via NxWitnessVmsShim
     │  POST /pipelines/{name}/{version}  →  DLStreamer Pipeline Server
     ▼
-DLStreamer Pipeline Server (PDD)
+DLStreamer Pipeline Server (dls_vision)
     │  processes RTSP stream
-    └─► inference results → MQTT broker  topic: /{vms_name}/pdd/{camera_id}
+    └─► inference results → MQTT broker  topic: /{vms_name}/dls_vision/{camera_id}
     ▼
 MqttSubscriber (VAP background task)
     │  translate_dls_metadata() — DLS JSON → Nx analytics object format
@@ -115,7 +115,7 @@ Each AI analytics application is represented by a class implementing the `IAnaly
 | **Shim**                          | **App ID**          | **Result Delivery**                    |
 |-----------------------------------|---------------------|----------------------------------------|
 | `LiveCaptioningAnalyticsAppShim`       | `live_captioning`   | SSE proxy to dashboard caption overlay |
-| `ObjectDetectionAnalyticsAppShim`      | `pdd`               | MQTT → Nx Witness analytics objects    |
+| `ObjectDetectionAnalyticsAppShim`      | `dls_vision`               | MQTT → Nx Witness analytics objects    |
 
 Adding a new Analytics App requires only a new shim class registered in `plugin/core/factory.py`. No route changes are needed.
 
@@ -128,16 +128,16 @@ The backend exposes a generic Analytics App API at `/v1/analytics-apps/{app_id}/
 The orchestrator runs at startup to:
 - Construct and connect all VMS shims.
 - Register analytics manifests with Nx Witness.
-- Fetch Analytics App schemas (LVC OpenAPI, PDD pipeline list).
-- Start background tasks: camera sync loop, MQTT subscriber (for PDD).
+- Fetch Analytics App schemas (LVC OpenAPI, dls_vision pipeline list).
+- Start background tasks: camera sync loop, MQTT subscriber (for dls_vision).
 
 ### Dynamic Schema (LVC)
 
 The `LvcSchemaManager` fetches the `StartRunRequest` JSON Schema from LVC's `/openapi.json` at startup, resolves all `$ref` references, adds UI annotations, and builds a live Pydantic model. The dashboard renders analytics forms directly from this schema — no frontend changes are needed when LVC parameters change.
 
-### MQTT Subscriber (PDD)
+### MQTT Subscriber (dls_vision)
 
-`MqttSubscriber` runs as an asyncio background task. It subscribes to `+/pdd/+` on the MQTT broker and receives DLStreamer GVA JSON metadata per frame. The `translate_dls_metadata()` function converts normalized bounding boxes and labels to Nx analytics object format, then `NxWitnessVmsShim.push_analytics_objects()` posts them to Nx.
+`MqttSubscriber` runs as an asyncio background task. It subscribes to `+/dls_vision/+` on the MQTT broker and receives DLStreamer GVA JSON metadata per frame. The `translate_dls_metadata()` function converts normalized bounding boxes and labels to Nx analytics object format, then `NxWitnessVmsShim.push_analytics_objects()` posts them to Nx.
 
 ### React Operator Dashboard (`ui/`)
 

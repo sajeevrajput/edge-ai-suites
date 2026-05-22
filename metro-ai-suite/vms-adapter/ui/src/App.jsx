@@ -254,7 +254,7 @@ export default function App() {
                   analyticsApp={analyticsApp}
                   cameras={cameras}
                   onAnalyticsAppChange={setAnalyticsApp}
-                  activeRuns={{ live_captioning: lvcRuns, pdd: odRuns }}
+                  activeRuns={{ live_captioning: lvcRuns, dls_vision: odRuns }}
                   onStartAnalysis={handleStartAnalysis}
                   onStopAnalysis={handleStopAnalysis}
                 />

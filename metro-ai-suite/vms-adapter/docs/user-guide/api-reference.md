@@ -41,7 +41,7 @@ lifecycle: discover, start, list, stop, and stream results.
 | `GET`      | `/v1/analytics-apps/{app_id}/results/stream`          | SSE proxy of live results                       |
 | `GET`      | `/v1/analytics-apps/{app_id}/options/{option_type}`   | Dropdown options (models, pipelines)            |
 
-Currently registered `app_id` values: `live_captioning`, `pdd`.
+Currently registered `app_id` values: `live_captioning`, `dls_vision`.
 
 ## Events and Sessions
 

@@ -1,10 +1,11 @@
-# Tutorial: Pallet Defect Detection with Nx Witness
+# Tutorial: Loitering Detection with Nx Witness
 
-This tutorial walks through the complete end-to-end setup of Pallet Defect Detection (PDD) as a Analytics App in VMS Adapter Plugin, with Nx Witness as the VMS. At the end of this tutorial you will have:
+This tutorial walks through the complete end-to-end setup of Loitering Detection (a DLStreamer based vision app in general) as a Analytics App in VMS Adapter Plugin, with Nx Witness as the VMS. At the end of this tutorial you will have:
+> Although the guide demonstrates Loitering Detection as an analytics application, the same instructions are applicable to any other DLStreamer based vision applications.
 
-- PDD running with its MQTT broker exposed to the host
+- Loitering detection app running with its MQTT broker exposed to the host
 - Nx Witness connected to VAP and auto-registered as an analytics integration
-- Detection bounding boxes pushed from PDD to Nx Witness in real time
+- Detection bounding boxes pushed from the app to Nx Witness in real time
 - Pipeline runs managed from the VAP operator dashboard
 
 ## Prerequisites
@@ -35,7 +36,7 @@ VMS Adapter Plugin (VAP)                                                │
   │  ┌─────────────────────────────┐     │                              │
   │  │  POST /pipelines/{name}     ├───────────────────────────────────►│
   │  └─────────────────────────────┘     │   DLStreamer Pipeline Server │
-  │                                      │   (PDD application)          │
+  │                                      │   (Loitering Det application)│
   │  ┌─────────────────────────────┐     │       │                      │
   │  │  MqttSubscriber             │◄────────────┘  MQTT inference      │
   │  │  translate_dls_metadata()   │     │           results            │
@@ -43,88 +44,32 @@ VMS Adapter Plugin (VAP)                                                │
   │  └─────────────────────────────┘     │
   └──────────────────────────────────────┘
                                          MQTT Broker (port 1883)
-                                         (part of PDD stack)
+                                         (part of dls_vision stack)
 ```
 
 **Key data flows:**
 
-1. VAP sends `POST /pipelines/user_defined_pipelines/pallet_defect_detection_vms_mqtt` to the DLStreamer Pipeline Server, specifying the camera RTSP URL as source and an MQTT topic as destination.
-2. PDD's DLStreamer Pipeline Server processes the RTSP stream, runs detection, and publishes inference metadata to the MQTT broker on topic `nx/pdd/{device_uuid}`.
+1. VAP sends `POST /pipelines/user_defined_pipelines/loitering_detection_vms_mqtt` to the DLStreamer Pipeline Server, specifying the camera RTSP URL as source and an MQTT topic as destination.
+2. dls_vision's DLStreamer Pipeline Server processes the RTSP stream, runs detection, and publishes inference metadata to the MQTT broker on topic `nx/dls_vision/{device_uuid}`.
 3. VAP's `MqttSubscriber` receives the MQTT messages, translates DLStreamer GVA JSON to Nx analytics object format, and calls `NxWitnessVmsShim.push_analytics_objects()`.
 4. Nx Witness receives the push and overlays bounding boxes on the camera feed.
 
 ---
 
-## Part 1 — Set Up Pallet Defect Detection
+## Part 1 — Set Up Loitering Detection application
 
-### 1.1 Configure the PDD Environment
+### 1.1 Configure the Lotiering Detection Environment
+Clone the edge-ai-suites repo as instructed in the setup document
 
-Navigate to the PDD application directory:
+Navigate to the Loitering Detection application directory and add this convenient pipeline for streaming metadata to an MQTT broker.
 
-```bash
-cd manufacturing-ai-suite/industrial-edge-insights-vision
-cp .env_pallet-defect-detection .env
+```sh
+cd [WORK_DIR]/edge-ai-suites/metro-ai-suite/metro-vision-ai-app-recipe/loitering-detection/src/dlstreamer-pipeline-server/config.json
 ```
-
-Edit `.env` and set the following required variables:
-
-```bash
-# IP address of the host machine where the DLStreamer Pipeline Server will run.
-# This must be reachable from VAP and from the Nx Witness server.
-HOST_IP=<YOUR_HOST_IP>
-
-# The SAMPLE_APP must be set to pallet-defect-detection
-SAMPLE_APP=pallet-defect-detection
-
-# MinIO credentials (used for frame storage; required by the stack)
-MINIO_ACCESS_KEY=intel1234
-MINIO_SECRET_KEY=intel1234
-
-# WebRTC credentials for MediaMTX (can be any string)
-MTX_WEBRTCICESERVERS2_0_USERNAME=intel1234
-MTX_WEBRTCICESERVERS2_0_PASSWORD=intel1234
-```
-
-### 1.2 Verify MQTT Port Exposure
-
-The PDD Docker Compose stack includes an Eclipse Mosquitto MQTT broker. Confirm that port `1883` is published to the host in the `docker-compose.yml`:
-
-```yaml
-mqtt-broker:
-  image: eclipse-mosquitto
-  ports:
-    - "1883:1883"
-```
-
-This is the default configuration. The Mosquitto broker uses an anonymous-access configuration (`allow_anonymous true`), which is required for VAP and the DLStreamer Pipeline Server to publish and subscribe without credentials.
-
-> **Important:** VAP connects to this MQTT broker from outside the PDD Docker network. The broker must be reachable at `<HOST_IP>:1883` from the VAP container. If VAP runs on the same host, `host.docker.internal` resolves to the host from inside the VAP container.
-
-### 1.3 Verify the VMS MQTT Pipeline Template
-
-The pipeline template that VAP uses for Nx Witness integration is `pallet_defect_detection_vms_mqtt`. This pipeline uses `gvametapublish` to forward inference metadata to the MQTT broker. Confirm it is present in the PDD pipeline configuration:
-
-```bash
-cd [WORKDIR]/edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision
-
-cat apps/pallet-defect-detection/configs/pipeline-server-config.json | python3 -c "
-import json, sys
-cfg = json.load(sys.stdin)
-for p in cfg['config']['pipelines']:
-    print(p.get('name'))
-"
-```
-
-You should see `pallet_defect_detection_vms_mqtt` in the output. This pipeline:
-- Accepts an RTSP source via `{auto_source}`.
-- Runs `gvadetect` for object detection.
-- Uses `gvametapublish` (the `destination` element) to publish inference results to the configured MQTT topic.
-
-If NOT present, add the following to the pipeline config at `[WORKDIR]/edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision/apps/pallet-defect-detection/configs/pipeline-server-config.json`.
-
+Edit the config.json and add the following pipeline.
 ```json
             {
-                "name": "pallet_defect_detection_vms_mqtt",
+                "name": "loitering_detection_vms_mqtt",
                 "source": "gstreamer",
                 "pipeline": "{auto_source} name=source ! decodebin3 ! gvadetect name=detection ! gvametaconvert add-empty-results=true add-rtp-timestamp=true name=metaconvert ! queue ! gvafpscounter ! queue ! gvametapublish name=destination ! appsink name=appsink",
                 "parameters": {
@@ -141,36 +86,33 @@ If NOT present, add the following to the pipeline config at `[WORKDIR]/edge-ai-s
                 "auto_start": false
             }
 ```
+This pipeline:
+- Accepts an RTSP source via `{auto_source}`.
+- Runs `gvadetect` for object detection.
+- Uses `gvametapublish` (the `destination` element) to publish inference results to the configured MQTT topic.
 
-### 1.4 Download Models and Start PDD
+### 1.2 Verify MQTT Port Exposure
 
-Run the setup script to download models and configure prerequisites:
+The dls_vision Docker Compose stack includes an Eclipse Mosquitto MQTT broker. Confirm that port `1883` is published to the host in the `docker-compose.yml`:
 
-```bash
-./setup.sh
+```yaml
+broker:
+  image: docker.io/library/eclipse-mosquitto:2.0.21
+  ports:
+    - "1883:1883"
 ```
 
-Start the PDD stack:
+This is the default configuration. The Mosquitto broker uses an anonymous-access configuration (`allow_anonymous true`), which is required for VMS Analytics plugin and the DLStreamer Pipeline Server to publish and subscribe without credentials.
 
+> **Important:** The plugin connects to this MQTT broker from outside the dls_vision Docker network. The broker must be reachable at `<HOST_IP>:1883` from the plugin's container. If VAP runs on the same host, `host.docker.internal` resolves to the host from inside the plugin container.
+
+
+### 1.3 Start Loitering Detection Application
+
+Start the application
 ```bash
 docker compose up -d
 ```
-
-Verify all PDD services are running:
-
-```bash
-docker compose ps
-```
-
-Expected services: `dlstreamer-pipeline-server`, `mqtt-broker`, `mediamtx`, `minio`, `nginx`, and others depending on the configuration.
-
-Verify the DLStreamer Pipeline Server is reachable and the pipeline template is loaded:
-
-```bash
-curl http://<HOST_IP>:8080/pipelines | python3 -m json.tool | grep '"name"'
-```
-
-You should see `pallet_defect_detection_vms_mqtt` in the list.
 
 ---
 
@@ -265,7 +207,7 @@ Note the **Device ID** (UUID) of each camera you intend to use. You can find thi
 
 ---
 
-## Part 3 — Configure VAP for PDD + Nx Witness
+## Part 3 — Configure VAP for dls_vision + Nx Witness
 
 ### 3.1 Prepare the VAP Environment File
 
@@ -276,7 +218,7 @@ cd metro-ai-suite/vms-adapter
 cp .env.example .env
 ```
 
-Edit `.env` with the following values for the PDD + Nx Witness scenario:
+Edit `.env` with the following values for the dls_vision + Nx Witness scenario:
 
 ```bash
 # PostgreSQL
@@ -287,19 +229,19 @@ NX_HOST=<NX_HOST_IP>
 NX_USERNAME=admin
 NX_PASSWORD=<nx_admin_password>
 
-# PDD / DLStreamer Pipeline Server
+# dls_vision / DLStreamer Pipeline Server
 # Hostname as seen from inside the VAP container.
-# If PDD runs on the same host: use host.docker.internal
-PDD_HOST=host.docker.internal
-PDD_PORT=8080
+# If dls_vision runs on the same host: use host.docker.internal
+DLS_VISION_HOST=host.docker.internal
+DLS_VISION_PORT=8080
 
-# MQTT Broker — address as seen by VAP (subscribing from outside the PDD Docker network)
-# If PDD runs on the same host: use host.docker.internal
+# MQTT Broker — address as seen by VAP (subscribing from outside the dls_vision Docker network)
+# If dls_vision runs on the same host: use host.docker.internal
 MQTT_HOST=host.docker.internal
 MQTT_PORT=1883
 
 # PIPELINE_SERVER_MQTT_HOST — address as seen by the DLStreamer Pipeline Server
-# container inside the PDD Docker network.
+# container inside the dls_vision Docker network.
 # The GStreamer Paho C MQTT client cannot resolve Docker service names across networks.
 # Use the host machine's LAN IP — this is the most reliable choice because port 1883
 # is published from the mqtt-broker container to the host, making it reachable from
@@ -309,9 +251,13 @@ MQTT_PORT=1883
 #   hostname -I | awk '{print $1}'
 #
 # DO NOT use 172.18.0.1 (the default Docker bridge gateway) unless you have confirmed
-# that the PDD containers are on that exact subnet.
+# that the dls_vision containers are on that exact subnet.
 PIPELINE_SERVER_MQTT_HOST=<HOST_LAN_IP>
 PIPELINE_SERVER_MQTT_PORT=1883
+
+# DLS Vision App MQTT — broker address as seen by VAP (for subscribing)
+MQTT_HOST=
+MQTT_PORT=1883
 
 # VAP ports
 BACKEND_PORT=8085
@@ -329,7 +275,7 @@ MQTT_BROKER_PORT=1883
 > Use this value for `PIPELINE_SERVER_MQTT_HOST`. It is reachable from any Docker container
 > because port `1883` is published from the `mqtt-broker` container to the host.
 > Avoid using `172.18.0.1` (the default Docker bridge gateway) — it only works if the
-> PDD containers are on that exact subnet, and this is not guaranteed.
+> dls_vision containers are on that exact subnet, and this is not guaranteed.
 
 ### 3.2 Configure VAP `config.yaml`
 
@@ -346,27 +292,26 @@ vms_instances:
       username: "${NX_USERNAME}"
       password: "${NX_PASSWORD}"
       auth_type: digest
-    analytics_manifest_path: "vms_shim/nxwitness/nx_integration.json"  # optional: override bundled default
 ```
 
 The `analytics_manifest_path` is **optional**. VAP automatically uses the bundled manifest at `vms_shim/nxwitness/nx_integration.json` when this field is absent. Set it only if you need to supply a custom manifest.
 
-**PDD Analytics App:**
+**dls_vision Analytics App:**
 
 ```yaml
 analytics_apps:
   - type: object_detection
-    app_id: "pdd"
-    display_name: "Pallet Defect Detection"
-    base_url: "http://${PDD_HOST:-host.docker.internal}:${PDD_PORT:-8080}/pipelines"
+    app_id: "dls_vision"
+    display_name: "Loitering Detection"
+    base_url: "http://${DLS_VISION_HOST:-host.docker.internal}:${DLS_VISION_PORT:-8080}/pipelines"
     mqtt_host: "${MQTT_HOST:-host.docker.internal}"
     mqtt_port: ${MQTT_PORT:-1883}
     pipeline_server_mqtt_host: "${PIPELINE_SERVER_MQTT_HOST}"
     pipeline_server_mqtt_port: ${PIPELINE_SERVER_MQTT_PORT:-1883}
     label_type_map:
-      defect: vap.defect.defect
-      box: vap.ok.box
-      shipping_label: vap.shipping_label
+      vehicle: vap.vehicle
+      pedestrian: vap.pedestrian
+      background: vap.background
 ```
 
 ### 3.3 Configure the `label_type_map`
@@ -374,8 +319,8 @@ analytics_apps:
 The `label_type_map` translates DLStreamer detection labels (from the model) into Nx Witness object typeIds. These typeIds are automatically added to the Nx analytics manifest at startup, so Nx knows which object types to expect.
 
 **How it works:**
-- When PDD detects a `"defect"`, VAP pushes it to Nx as typeId `"vap.defect.defect"`.
-- Nx renders this as an object overlay on the camera feed with the label `"vap.defect"`.
+- When dls_vision detects a `"pedestrian"`, VAP pushes it to Nx as typeId `"vap.pedestrian"`.
+- Nx renders this as an object overlay on the camera feed with the label `"vap.pedestrian"`.
 - Labels not listed in the map fall back to `"python.detected.object"`.
 
 **Customize for your model:** If your model detects labels different from the the ones listed above (for example, `"car"`,`"person"`, etc.), add them to the map.
@@ -476,7 +421,7 @@ Before VAP can push detection overlays to a specific camera, the analytics integ
 5. Toggle the switch to **Enable**.
 6. Click **Apply** or **OK**.
 
-Repeat for each camera you plan to use with PDD.
+Repeat for each camera you plan to use with dls_vision.
 
 ### 5.2 Enable via the Nx Witness REST API (Optional)
 
@@ -549,32 +494,32 @@ curl -X POST http://localhost:8085/v1/cameras/enable \
   -d '{"camera_ids": ["nx:<device-uuid>"], "enabled": true}'
 ```
 
-### 6.4 Configure and Start a PDD Pipeline Run
+### 6.4 Configure and Start the loitering detection pipeline Run
 
-1. In the **Analytics Engine** panel, click **Discover Apps**. Depending upon your configuration you should see **Pallet Defect Detection** in the Analytics App section. Click the radio button.
+1. In the **Analytics Engine** panel, click **Discover Apps**. Depending upon your configuration you should see **Loitering Detection** in the Analytics App section. Click the radio button.
 
 2. The configuration form appears with the following fields:
 
    | **Field**          | **Description**                                               |
    |--------------------|---------------------------------------------------------------|
-   | **Pipeline**       | Dropdown listing available pipeline templates from PDD        |
+   | **Pipeline**       | Dropdown listing available pipeline templates from dls_vision        |
    | **Camera**         | Dropdown listing enabled cameras discovered from Nx Witness   |
    | **Pipeline parameters** | Optional JSON object forwarded to the Pipeline Server    |
 
-3. Select the target camera from the **Camera** dropdown (for example, `Warehouse Camera 1`).
+3. Select the target camera from the **Camera** dropdown (for example, `Bus stop camera 1`).
 
-4. Select `pallet_defect_detection_vms_mqtt` from the **Pipeline** dropdown.
+4. Select `loitering_detection_vms_mqtt` from the **Pipeline** dropdown.
 
-   > This is the pipeline template that uses `gvametapublish` to forward inference metadata to the MQTT broker. Other templates (for example, `pallet_defect_detection_mqtt`) are for internal PDD use only and do not forward metadata to VAP.
+   > This is the pipeline template that uses `gvametapublish` to forward inference metadata to the MQTT broker. Other templates (for example, `loitering_detection_vms_mqtt`) are for internal dls_vision use only and do not forward metadata to VAP.
 
 5. Optionally, set **Pipeline parameters** as a JSON object to override detection properties, for example:
 
    ```json
     {
-      "detection-properties": {
-          "model": "/home/pipeline-server/resources/models/pallet-defect-detection/deployment/Detection/model/model.xml",
-          "device": "GPU"
-      }
+        "detection-properties": {
+        "model": "/home/pipeline-server/models/intel/pedestrian-and-vehicle-detector-adas-0001/FP16/pedestrian-and-vehicle-detector-adas-0001.xml",
+            "device": "GPU"
+        }
     }
    ```
 
@@ -585,8 +530,8 @@ curl -X POST http://localhost:8085/v1/cameras/enable \
 When you click **Start Run**, VAP executes the following:
 
 1. Resolves the selected `camera_id` (`nx:<uuid>`) to an RTSP URL via `NxWitnessVmsShim.get_live_stream_url()`.
-2. Builds an MQTT publish topic: `nx/pdd/<device-uuid>` (the topic where PDD publishes and VAP subscribes).
-3. Sends `POST /pipelines/user_defined_pipelines/pallet_defect_detection_vms_mqtt` to the DLStreamer Pipeline Server with the payload:
+2. Builds an MQTT publish topic: `nx/dls_vision/<device-uuid>` (the topic where dls_vision publishes and VAP subscribes).
+3. Sends `POST /pipelines/user_defined_pipelines/loitering_detection_vms_mqtt` to the DLStreamer Pipeline Server with the payload:
 
    ```json
    {
@@ -599,12 +544,12 @@ When you click **Start Run**, VAP executes the following:
        "metadata": {
          "type": "mqtt",
          "host": "<PIPELINE_SERVER_MQTT_HOST>:1883",
-         "topic": "nx/pdd/<device-uuid>"
+         "topic": "nx/dls_vision/<device-uuid>"
        }
      },
      "parameters": {
         "detection-properties": {
-          "model": "/home/pipeline-server/resources/models/pallet-defect-detection/deployment/Detection/model/model.xml",
+          "model": "//home/pipeline-server/models/intel/pedestrian-and-vehicle-detector-adas-0001/FP16/pedestrian-and-vehicle-detector-adas-0001.xml",
           "device": "GPU"
       }
      }
@@ -612,7 +557,7 @@ When you click **Start Run**, VAP executes the following:
    ```
 
 4. The Pipeline Server starts the GStreamer pipeline, consuming the RTSP stream and publishing inference results to the MQTT broker.
-5. VAP's `MqttSubscriber` (running as a background task since startup) receives messages on the wildcard topic `+/pdd/+`.
+5. VAP's `MqttSubscriber` (running as a background task since startup) receives messages on the wildcard topic `+/dls_vision/+`.
 
 ### 6.6 Verify the Run Is Active
 
@@ -621,7 +566,7 @@ Check active runs in the dashboard **Analytics Engine** panel — the run should
 Or via the API:
 
 ```bash
-curl http://localhost:8085/v1/analytics-apps/pdd/runs | python3 -m json.tool
+curl http://localhost:8085/v1/analytics-apps/dls_vision/runs | python3 -m json.tool
 ```
 
 Check the Pipeline Server directly:
@@ -645,8 +590,8 @@ curl http://<HOST_IP>:8080/pipelines/status | python3 -m json.tool
 
 Within a few seconds of starting the run, detection bounding boxes should appear overlaid on the video feed:
 
-- Each detected object (for example, `box`, `defect`, `shipping_label`) is shown as a colored rectangle.
-- The label shows the Nx `typeId` (for example, `vap.ok.box`, `vap.defect.box`, or `python.detected.object` for unmapped labels).
+- Each detected object (for example, `pedestrian`, `vehicle`, `background`) is shown as a colored rectangle.
+- The label shows the Nx `typeId` (for example, `vap.pedestrian`, `vap.vehicle`, or `python.detected.object` for unmapped labels).
 
 <img src="../_assets/view_detection_overlay.png" alt="Enable Digest Auth" style="width: 600px; max-width: 100%;" />
 
@@ -654,12 +599,12 @@ If detections do not appear, see the [Troubleshooting](#troubleshooting) section
 
 ### 7.3 Stop the Pipeline Run
 
-When you want to stop the detection, go back to the VAP dashboard **Analytics Engine Conguration** panel for **Pallet Defect Detection** and click **Stop Analysis** on the active run.
+When you want to stop the detection, go back to the VAP dashboard **Analytics Engine Conguration** panel for **DLStreamer Vision** and click **Stop Analysis** on the active run.
 
 Or via the API:
 
 ```bash
-curl -X DELETE http://localhost:8085/v1/analytics-apps/pdd/runs/<run_id>
+curl -X DELETE http://localhost:8085/v1/analytics-apps/dls_vision/runs/<run_id>
 ```
 
 This sends `DELETE /pipelines/<instance_id>` to the DLStreamer Pipeline Server, stopping the GStreamer pipeline. The MQTT subscriber remains running (it reconnects on the next run start).
@@ -703,7 +648,7 @@ docker compose down
 
 ### Detections Not Appearing in Nx
 
-**Symptom:** Pipeline run is active, PDD logs show detections, but no overlays appear in Nx.
+**Symptom:** Pipeline run is active, dls_vision logs show detections, but no overlays appear in Nx.
 
 **Checks:**
 
@@ -713,9 +658,9 @@ docker compose down
    docker compose logs vms-backend | grep "mqtt_pushed_objects\|mqtt_no_objects\|mqtt_push_failed"
    ```
 
-2. Confirm the MQTT topic matches. VAP subscribes to `+/pdd/+`. PDD publishes to the topic VAP sends in the pipeline start payload (`nx/pdd/<device-uuid>`). Both must match.
+2. Confirm the MQTT topic matches. VAP subscribes to `+/dls_vision/+`. dls_vision publishes to the topic VAP sends in the pipeline start payload (`nx/dls_vision/<device-uuid>`). Both must match.
 
-3. Check `PIPELINE_SERVER_MQTT_HOST` in `.env`. This must be the **host machine's LAN IP**, not a Docker container name or `host.docker.internal`. The GStreamer Paho C MQTT client inside the Pipeline Server container cannot resolve Docker service names, and `172.18.0.1` (the default Docker bridge gateway) is only valid if the PDD containers happen to be on that exact subnet.
+3. Check `PIPELINE_SERVER_MQTT_HOST` in `.env`. This must be the **host machine's LAN IP**, not a Docker container name or `host.docker.internal`. The GStreamer Paho C MQTT client inside the Pipeline Server container cannot resolve Docker service names, and `172.18.0.1` (the default Docker bridge gateway) is only valid if the dls_vision containers happen to be on that exact subnet.
 
    Find the correct value:
    ```bash
@@ -751,22 +696,22 @@ docker compose down
 **Symptom:** Clicking **Start Run** shows an error; VAP logs show a non-2xx from the Pipeline Server.
 
 **Checks:**
-- Confirm `PDD_HOST` and `PDD_PORT` in `.env` are reachable from inside the `vms-backend` container:
+- Confirm `DLS_VISION_HOST` and `DLS_VISION_PORT` in `.env` are reachable from inside the `vms-backend` container:
 
   ```bash
-  docker compose exec vms-backend curl http://${PDD_HOST}:${PDD_PORT}/pipelines
+  docker compose exec vms-backend curl http://${DLS_VISION_HOST}:${DLS_VISION_PORT}/pipelines
   ```
-- If PDD uses HTTPS (for example, via nginx on port 443), update `base_url` in `config.yaml` accordingly.
-- Verify `pallet_defect_detection_vms_mqtt` appears in the pipeline list returned by `GET /pipelines`.
+- If dls_vision uses HTTPS (for example, via nginx on port 443), update `base_url` in `config.yaml` accordingly.
+- Verify `loitering_` appears in the pipeline list returned by `GET /pipelines`.
 
-### RTSP Stream Not Reachable from PDD
+### RTSP Stream Not Reachable from dls_vision
 
 **Symptom:** Pipeline starts but immediately fails; DLStreamer logs show RTSP connection errors.
 
 **Checks:**
-- The Nx RTSP URL includes credentials and is formed as `rtsp://admin:<password>@<NX_HOST>:7001/<device-uuid>?onvif_replay=true`. Confirm this URL is reachable from the PDD Docker network.
+- The Nx RTSP URL includes credentials and is formed as `rtsp://admin:<password>@<NX_HOST>:7001/<device-uuid>?onvif_replay=true`. Confirm this URL is reachable from the dls_vision Docker network.
 - If DLStreamer logs show `401 Unauthorized`, digest authentication is not enabled in Nx Witness. Enable it in **System Administration** → **Security** → **Allow digest authentication for cameras** and retry. See [Part 2.2](#22-enable-digest-authentication-for-rtsp) for details.
-- Add `<NX_HOST>` to `no_proxy` in the PDD environment if a proxy is configured.
+- Add `<NX_HOST>` to `no_proxy` in the dls_vision environment if a proxy is configured.
 
 ---
 
@@ -774,7 +719,7 @@ docker compose down
 
 | **Step**                                     | **Where**                              |
 |----------------------------------------------|----------------------------------------|
-| Start PDD with MQTT exposed on port 1883      | PDD `docker compose up -d`            |
+| Start dls_vision with MQTT exposed on port 1883      | dls_vision `docker compose up -d`            |
 | Configure Nx Witness connection in VAP `.env` | `metro-ai-suite/vms-adapter/.env`     |
 | Configure `label_type_map` in `config.yaml`   | `config/config.yaml`                  |
 | Start VAP (integration auto-registers)        | `docker compose up -d --build`        |

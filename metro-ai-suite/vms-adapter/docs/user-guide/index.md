@@ -16,12 +16,12 @@ The VMS Adapter Plugin (VAP) is an I/O bridge between Video Management Systems (
 ## Overview
 
 The **VMS Adapter Plugin** connects VMS solutions like Nx Witness, Genetec, Milestone, and Frigate cameras to AI analytics
-applications such as Live Video Captioning and Pallet Defect Detection, and presents a unified React operator dashboard for discovering cameras, managing analytics runs, and viewing live results. Adding support for a new VMS or a new Analytics App requires only a new shim class — no route changes are needed.
+applications such as Live Video Captioning and DLStreamer Vision based Loitering Detection, and presents a unified React operator dashboard for discovering cameras, managing analytics runs, and viewing live results. Adding support for a new VMS or a new Analytics App requires only a new shim class — no route changes are needed.
 
 ### Example Use Cases
 
 - **Intelligent Surveillance**: Connect IP cameras from Nx Witness to Live Video Captioning for scene description and prompt-driven monitoring (for example, "Is there an unauthorized person in the area?").
-- **Warehouse Quality Control**: Route camera feeds from Frigate or Nx Witness to Pallet Defect Detection and automatically push detected defect bounding boxes back into Nx Witness   for operator review.
+- **Warehouse Quality Control**: Route camera feeds from Frigate or Nx Witness to DLStreamer Vision application and automatically push detected defect bounding boxes back into Nx Witness   for operator review.
 - **Multi-Camera Analytics Management**: Discover all cameras from all connected VMS systems in one dashboard and selectively enable AI analytics on specific cameras without reconfiguring each system individually.
 
 ### Key Benefits
@@ -52,8 +52,8 @@ VMS Systems
                                 └────────┬─────────────────────┬────────────┘
                                          │                     │
                           ┌──────────────▼──────┐   ┌─────────▼──────────────┐
-                          │  Live Video         │   │  Pallet Defect         │
-                          │  Captioning (LVC)   │   │  Detection (PDD)       │
+                          │  Live Video         │   │  Loitering Detetcion   │
+                          │  Captioning (LVC)   │   │  (DLS vision) App      │
                           └──────────┬──────────┘   └────────────┬───────────┘
                                      │                           │
                           ┌──────────▼───────────────────────────▼─────────┐
@@ -70,11 +70,11 @@ descriptions, and extension points.
 - **Feature 1**: Multi-VMS architecture with a pluggable shim model enables adding new VMS
   vendors without modifying core routes.
 - **Feature 2**: Connects to AI analytics pipelines — Live Video Captioning (DLStreamer + VLM)
-  and Pallet Defect Detection (DLStreamer Pipeline Server) — through the generic Analytics App
+  and Loitering Detection (DLStreamer Pipeline Server) — through the generic Analytics App
   shim interface.
 - **Feature 3**: React operator dashboard dynamically renders analytics forms from each
   Analytics App's live OpenAPI schema, requiring no UI changes when app parameters evolve.
-- **Feature 4**: Pallet Defect Detection results are translated from DLStreamer GVA JSON
+- **Feature 4**: DLStreamer Vision results are translated from DLStreamer GVA JSON
   format and pushed back to Nx Witness as analytics objects (bounding boxes with labels),
   visible directly in the Nx Witness Desktop Client.
 
@@ -90,7 +90,7 @@ descriptions, and extension points.
 - [How It Works](./how-it-works.md): Detailed architecture, data flows, and component
   descriptions.
 - [How-To Guides](./how-to-guides.md): End-to-end tutorials for Live Video Captioning and
-  Pallet Defect Detection integrations.
+  DLStreamer Vision integrations.
 - [API Reference](./api-reference.md): Comprehensive reference for the available REST API
   endpoints.
 - [Troubleshooting](./troubleshooting.md): Find solutions to common issues.

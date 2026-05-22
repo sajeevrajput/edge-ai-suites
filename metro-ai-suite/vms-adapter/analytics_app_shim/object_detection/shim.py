@@ -4,7 +4,7 @@
 """Object Detection Analytics App shim.
 
 Integrates a DLStreamer Pipeline Server–based object detection application
-(e.g. Pallet Defect Detection) as a VAP analytics app.
+(e.g. DLStreamer Vision) as a VAP analytics app.
 
 Data flow:
   Camera RTSP ──► DLStreamer Pipeline Server
@@ -49,7 +49,7 @@ class ObjectDetectionAnalyticsAppShim(IAnalyticsAppShim):
         self._api = ObjectDetectionApiClient(base_url=config.base_url)
         self._param_model: type[BaseModel] = BaseModel
         # Maps pipeline version (user-facing name) → pipeline root (URL path segment)
-        # e.g. "pallet_defect_detection" → "user_defined_pipelines"
+        # e.g. "dls_vision_pipeline" → "user_defined_pipelines"
         self._pipeline_root_map: dict[str, str] = {}
         # Tracks active runs: run_id (= instance_id hex) → run metadata
         self._runs: dict[str, dict[str, Any]] = {}
@@ -96,7 +96,7 @@ class ObjectDetectionAnalyticsAppShim(IAnalyticsAppShim):
 
         Calls ``GET /pipelines``. Each entry has:
           - ``name``:    pipeline root directory (e.g. "user_defined_pipelines")
-          - ``version``: user-facing pipeline identifier (e.g. "pallet_defect_detection")
+          - ``version``: user-facing pipeline identifier (e.g. "dls_vision_pipeline")
 
         The UI ``pipeline_name`` field shows the ``version`` values.  The root
         is stored in ``_pipeline_root_map`` so ``start()`` can construct the
@@ -163,7 +163,7 @@ class ObjectDetectionAnalyticsAppShim(IAnalyticsAppShim):
         """Build the MQTT publish topic from the original camera_id.
 
         Format: ``{vendor_prefix}/{app_id}/{device_id}``
-        Example: ``nx/pdd/e3e9a385-7fe0-3ba5-5482-a86cde7faf48``
+        Example: ``nx/dls_vision/e3e9a385-7fe0-3ba5-5482-a86cde7faf48``
 
         The subscriber listens on ``+/{app_id}/+`` and uses prefix-match on
         the first segment to find the right VMS shim (e.g. ``nx`` → ``nx-main``).
@@ -206,7 +206,7 @@ class ObjectDetectionAnalyticsAppShim(IAnalyticsAppShim):
 
         # Build MQTT topic from the original camera_id (e.g. "nx:abc123")
         # Topic format: "{vendor_prefix}/{app_id}/{device_id}" → matches subscriber filter "+/{app_id}+"
-        # e.g. "nx/pdd/e3e9a385-7fe0-3ba5-5482-a86cde7faf48"
+        # e.g. "nx/dls_vision/e3e9a385-7fe0-3ba5-5482-a86cde7faf48"
         mqtt_topic = self._build_mqtt_topic(camera_id_ref)
 
         payload: dict[str, Any] = {
@@ -277,7 +277,7 @@ class ObjectDetectionAnalyticsAppShim(IAnalyticsAppShim):
     async def deliver(
         self, event: MetadataEvent, clip_path: str,
     ) -> AnalysisResult | None:
-        """Not used: PDD uses MQTT push model, not event-triggered pull."""
+        """Not used: object detection uses MQTT push model, not event-triggered pull."""
         logger.debug("od_deliver_noop", event_id=event.event_id)
         return None
 

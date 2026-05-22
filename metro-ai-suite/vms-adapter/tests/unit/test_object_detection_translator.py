@@ -29,11 +29,11 @@ def _sample_payload(*, with_rtp: bool = True, objects: list | None = None) -> di
                         "y_max": 0.60,
                     },
                     "confidence": 0.95,
-                    "label": "pallet",
+                    "label": "pedestrian",
                     "label_id": 1,
                 },
                 "region_id": 42,
-                "roi_type": "defect",
+                "roi_type": "person",
             }
         ],
     }

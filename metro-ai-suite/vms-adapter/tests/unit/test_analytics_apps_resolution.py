@@ -53,7 +53,7 @@ async def test_start_resolves_camera_id_to_raw_rtsp(monkeypatch):
     monkeypatch.setattr(analytics_apps_routes, "_require_shim", lambda _app_id: FakeShim())
 
     result = await analytics_apps_routes.start_analytics_app_run(
-        "pdd",
+        "dls_vision",
         payload={"camera_id": "nx:cam-1", "parameters": {}},
         db=_FakeDb(),
     )

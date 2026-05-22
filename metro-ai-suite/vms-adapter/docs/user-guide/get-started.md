@@ -2,13 +2,13 @@
 
 ## Overview
 
-The **VMS Adapter Plugin (VAP)** bridges VMS systems (Nx Witness, Genetec, Milestone, etc.) with AI Analytics Apps (Live Video Captioning (LVC), Loitering Detection (LD), Pallet Defect Detection (PDD)) and provides a unified React operator dashboard for managing cameras and analytics runs. This guide shows how to deploy the full stack with Docker Compose and run your first analytics session.
+The **VMS Adapter Plugin (VAP)** bridges VMS systems (Nx Witness, Genetec, Milestone, etc.) with AI Analytics Apps (Live Video Captioning (LVC), DLStreamer vision analytics app like Loitering Detection) and provides a unified React operator dashboard for managing cameras and analytics runs. This guide shows how to deploy the full stack with Docker Compose and run your first analytics session.
 
 Note: Frigate is used as an open-source proxy for limited VMS capabilities as a means to demonstrate the VAP capabilities. 
 
 This guide shows how to:
 
-- **Set up prerequisites**: Start LVC or PDD before VAP, since VAP fetches their schemas at startup.
+- **Set up prerequisites**: Start LVC or DLS vision analytics (Loitering Detection) before VAP, since VAP fetches their schemas at startup.
 - **Configure the environment**: Point VAP at your VMS and Analytics App services.
 - **Run the operator dashboard**: Discover cameras, enable streams, and start analytics runs.
 
@@ -26,13 +26,13 @@ Check the [folder layout](#folder-layout) to familiarize with the code structure
   - **Frigate** VMS with cameras configured (RTSP streams)
 - At least one Analytics App running before VAP starts:
   - **Live Video Captioning (LVC)** — for VLM based AI captioning
-  - **Pallet Defect Detection (PDD)** — for warehouse defect detection with Nx write-back
+  - **Loitering Detection (DLS vision based)** — for real-time detection of loitering behavior in transportation hubs with Nx write-back
 
 ---
 
 ## Step 1 — Start Live Video Captioning (LVC)
 
-> Skip this step if you are only using Pallet Defect Detection.
+> Skip this step if you are only using Loitering Detection.
 
 Clone and start the LVC application from its own directory. LVC must be running before VAP starts, because VAP fetches the LVC OpenAPI schema at startup to build the analytics configuration form.
 
@@ -57,11 +57,11 @@ curl http://localhost:4173/health
 
 ---
 
-## Step 2 — Start Pallet Defect Detection (PDD)
+## Step 2 — Start Loitering Detection
 
 > Skip this step if you are only using Live Video Captioning.
 
-PDD is a user-provided application based on the Intel DLStreamer Pipeline Server. Bring up the PDD application according to its own documentation. The following services must be reachable from the VAP backend container:
+Loitering Detection is a user-provided application based on the Intel DLStreamer Pipeline Server. Bring up the application according to its own documentation. The following services must be reachable from the VAP backend container:
 
 | **Service**              | **Default Port** | **Purpose**                            |
 |--------------------------|------------------|----------------------------------------|
@@ -71,7 +71,7 @@ PDD is a user-provided application based on the Intel DLStreamer Pipeline Server
 Verify the DLStreamer Pipeline Server is reachable:
 
 ```bash
-curl http://<PDD_HOST>:8080/pipelines
+curl http://<LOITERING_DETECTION_HOST>:8080/pipelines
 ```
 
 ---
@@ -91,12 +91,12 @@ Open `.env` and update the variables for your environment:
 | `MEDIAMTX_URL`                       | URL of the MediaMTX WebRTC server, e.g. `http://<lvc-host>:8889`         |
 | `FRIGATE_HOST`                       | Hostname/IP of the Frigate instance reachable from the backend container |
 | `NX_BASE_URL` / `NX_USERNAME` / `NX_PASSWORD` | Nx Witness credentials (only if using Nx)                       |
-| `PDD_HOST` / `PDD_PORT`              | DLStreamer Pipeline Server host and port for PDD (default: `8080`)       |
-| `MQTT_HOST` / `MQTT_PORT`            | MQTT broker host and port for PDD metadata (default: `1883`)             |
+| `LOITERING_DET_HOST` / `LOITERING_DET_PORT`              | DLStreamer Pipeline Server host and port for Loitering Detection app (default: `8080`)       |
+| `MQTT_HOST` / `MQTT_PORT`            | MQTT broker host and port for dls_vision metadata (default: `1883`)             |
 | `PG_PASSWORD`                        | PostgreSQL password (change from default)                                |
 | `BACKEND_PORT` / `UI_PORT`           | Host ports for the API (`8085`) and dashboard (`3100`)                   |
 
-> If LVC or PDD is running on the same host as VAP, use `host.docker.internal` (Linux/Mac). Otherwise, use the actual IP address.
+> If LVC or Loitering Detectopm is running on the same host as VAP, use `host.docker.internal` (Linux/Mac). Otherwise, use the actual IP address.
 
 ---
 
@@ -220,7 +220,7 @@ The backend queries all configured VMS shims (Frigate, Nx Witness) and persists 
 ## Step 8 — Enable Cameras and Start Analytics
 
 1. In the **Camera Discovery** panel, enable the cameras you want to use for analytics.
-2. In the **Analytics Engine** panel, select a Analytics App (for example, **Live Video Captioning** or **Pallet Defect Detection**).
+2. In the **Analytics Engine** panel, select a Analytics App (for example, **Live Video Captioning** or **Loitering Detection**).
 3. Configure the analytics parameters (model, prompt, pipeline, and so on) and click **Start Run**.
 4. View live captions or detection results in the **Live Stream** and **Analysis Results** panels.
 
@@ -242,7 +242,7 @@ Configure the following fields in the dashboard:
 
 Live captions are streamed via SSE and displayed in the dashboard caption overlay on the WebRTC video player.
 
-### Pallet Defect Detection
+### Loitering Detection (DLStreamer vision based app)
 
 Configure the following fields in the dashboard:
 
@@ -337,7 +337,7 @@ vms-adapter/
 ## Next Steps
 
 1. **Explore the Architecture**: Learn how VAP components interact in the [How It Works](./how-it-works.md) guide.
-2. **Follow Integration Tutorials**: Use the [How-To Guides](./how-to-guides.md) for end-to-end walkthroughs of LVC and PDD integrations.
+2. **Follow Integration Tutorials**: Use the [How-To Guides](./how-to-guides.md) for end-to-end walkthroughs of LVC and Loitering Detection integrations.
 3. **Browse the API**: Explore all available endpoints in the [API Reference](./api-reference.md).
 4. **Troubleshooting**: If you encounter issues, check the [Troubleshooting Guide](./troubleshooting.md).
 

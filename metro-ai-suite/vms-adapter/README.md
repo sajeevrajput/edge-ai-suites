@@ -43,7 +43,7 @@ Note: Currently, Nx Witness and Frigate are supported. Genetec and Milestone sup
     application.
   - [System Requirements](./docs/user-guide/get-started/system-requirements.md): Hardware and
     software requirements for running the application.
-  - [How-To Guides](./docs/user-guide/how-to-guides.md): End-to-end tutorials for LVC and PDD
+  - [How-To Guides](./docs/user-guide/how-to-guides.md): End-to-end tutorials for LVC and DLS Vision
     integrations.
   - [Troubleshooting](./docs/user-guide/troubleshooting.md): Support and troubleshooting
     information.

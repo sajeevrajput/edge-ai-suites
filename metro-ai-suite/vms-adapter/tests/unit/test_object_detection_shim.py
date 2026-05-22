@@ -18,8 +18,8 @@ from analytics_app_shim.object_detection.config import ObjectDetectionAnalyticsA
 def _make_config(**kwargs) -> ObjectDetectionAnalyticsAppConfig:
     defaults = {
         "type": "object_detection",
-        "app_id": "pdd",
-        "display_name": "Pallet Defect Detection",
+        "app_id": "dls_vision",
+        "display_name": "DLStreamer Vision",
         "base_url": "https://localhost:443/api",
         "mqtt_host": "localhost",
         "mqtt_port": 1883,
@@ -38,12 +38,12 @@ def _make_shim(**kwargs) -> ObjectDetectionAnalyticsAppShim:
 
 def test_shim_app_id():
     shim = _make_shim()
-    assert shim.app_id == "pdd"
+    assert shim.app_id == "dls_vision"
 
 
 def test_shim_display_name():
-    shim = _make_shim(display_name="My PDD App")
-    assert shim.display_name == "My PDD App"
+    shim = _make_shim(display_name="My DLStreamer Vision App")
+    assert shim.display_name == "My DLStreamer Vision App"
 
 
 def test_shim_implements_interface():
@@ -62,7 +62,7 @@ def test_camera_fields_returns_camera_id():
 async def test_fetch_schema_returns_object_schema():
     shim = _make_shim()
     shim._api.list_pipelines = AsyncMock(return_value=[
-        {"name": "user_defined_pipelines", "version": "pallet_defect_detection"},
+        {"name": "user_defined_pipelines", "version": "dls_vision_pipeline"},
     ])
 
     schema = await shim.fetch_schema()
@@ -77,13 +77,13 @@ async def test_fetch_schema_populates_pipeline_enum():
     """Pipeline enum uses the 'version' field, not 'name' (which is the root)."""
     shim = _make_shim()
     shim._api.list_pipelines = AsyncMock(return_value=[
-        {"name": "user_defined_pipelines", "version": "pallet_defect_detection"},
-        {"name": "user_defined_pipelines", "version": "pallet_defect_detection_gpu"},
+        {"name": "user_defined_pipelines", "version": "dls_vision_pipeline"},
+        {"name": "user_defined_pipelines", "version": "dls_vision_pipeline_gpu"},
     ])
     schema = await shim.fetch_schema()
     enum = schema["properties"]["pipeline_name"]["enum"]
-    assert "pallet_defect_detection" in enum
-    assert "pallet_defect_detection_gpu" in enum
+    assert "dls_vision_pipeline" in enum
+    assert "dls_vision_pipeline_gpu" in enum
     # Root name must NOT appear in the enum
     assert "user_defined_pipelines" not in enum
 
@@ -92,10 +92,10 @@ async def test_fetch_schema_builds_pipeline_root_map():
     """_pipeline_root_map maps version → root for correct POST URL."""
     shim = _make_shim()
     shim._api.list_pipelines = AsyncMock(return_value=[
-        {"name": "user_defined_pipelines", "version": "pallet_defect_detection"},
+        {"name": "user_defined_pipelines", "version": "dls_vision_pipeline"},
     ])
     await shim.fetch_schema()
-    assert shim._pipeline_root_map == {"pallet_defect_detection": "user_defined_pipelines"}
+    assert shim._pipeline_root_map == {"dls_vision_pipeline": "user_defined_pipelines"}
 
 
 async def test_fetch_schema_handles_empty_pipeline_list():
@@ -121,14 +121,14 @@ async def test_is_reachable_delegates_to_api_client():
 async def test_start_creates_run():
     """start() posts to /{pipeline_root}/{pipeline_version} and returns run_id=instance_id."""
     shim = _make_shim()
-    shim._pipeline_root_map = {"pallet_defect_detection": "user_defined_pipelines"}
+    shim._pipeline_root_map = {"dls_vision_pipeline": "user_defined_pipelines"}
     shim._api.start_run = AsyncMock(
         return_value={"instance_id": "4b36b3ce52ad11f0ad60863f511204e2"}
     )
 
     params = MagicMock()
     params.model_dump.return_value = {
-        "pipeline_name": "pallet_defect_detection",
+        "pipeline_name": "dls_vision_pipeline",
         "camera_id": "rtsp://cam:554/stream",
         "camera_id_ref": "nx:e3e9a385-7fe0-3ba5-5482-a86cde7faf48",
         "parameters": {},
@@ -138,15 +138,15 @@ async def test_start_creates_run():
 
     shim._api.start_run.assert_called_once_with(
         "user_defined_pipelines",
-        "pallet_defect_detection",
+        "dls_vision_pipeline",
         {
             "source": {"uri": "rtsp://cam:554/stream", "type": "uri", "properties": {"protocols": "tcp", "add-reference-timestamp-meta": True, "latency": 100}},
-            "destination": {"metadata": {"type": "mqtt", "host": "tcp://mqtt-broker:1883", "topic": "nx/pdd/e3e9a385-7fe0-3ba5-5482-a86cde7faf48"}},
+            "destination": {"metadata": {"type": "mqtt", "host": "tcp://mqtt-broker:1883", "topic": "nx/dls_vision/e3e9a385-7fe0-3ba5-5482-a86cde7faf48"}},
             "parameters": {},
         },
     )
     assert result["run_id"] == "4b36b3ce52ad11f0ad60863f511204e2"
-    assert result["pipeline_name"] == "pallet_defect_detection"
+    assert result["pipeline_name"] == "dls_vision_pipeline"
 
 
 async def test_start_uses_default_root_when_not_in_map():
@@ -167,7 +167,7 @@ async def test_start_uses_default_root_when_not_in_map():
         "some_pipeline",
         {
             "source": {"uri": "rtsp://cam/s", "type": "uri", "properties": {"protocols": "tcp", "add-reference-timestamp-meta": True, "latency": 100}},
-            "destination": {"metadata": {"type": "mqtt", "host": "tcp://mqtt-broker:1883", "topic": "vap/pdd/unknown"}},
+            "destination": {"metadata": {"type": "mqtt", "host": "tcp://mqtt-broker:1883", "topic": "vap/dls_vision/unknown"}},
             "parameters": {},
         },
     )
@@ -191,7 +191,7 @@ async def test_start_raises_on_api_failure():
 
     params = MagicMock()
     params.model_dump.return_value = {
-        "pipeline_name": "pallet_defect_detection",
+        "pipeline_name": "dls_vision_pipeline",
         "camera_id": "rtsp://x/y",
         "parameters": {},
     }

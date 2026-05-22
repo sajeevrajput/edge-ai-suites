@@ -7,7 +7,7 @@ Subscribes to the MQTT broker and routes incoming DLStreamer inference
 metadata to the appropriate VMS shim for analytics push.
 
 Topic convention: ``/{vms_name}/{analytics_app_id}/{camera_id}``
-Example:         ``/nx-main/pdd/abc123-device-uuid``
+Example:         ``/nx-main/dls_vision/abc123-device-uuid``
 
 On each message:
 1. Parse vms_name, analytics_app_id, camera_id from topic.
@@ -49,14 +49,14 @@ class MqttSubscriber:
         mqtt_host: str,
         mqtt_port: int,
         vms_shim_sets: list[VmsShimSet],
-        analytics_app_id: str = "pdd",
+        analytics_app_id: str = "dls_vision",
         label_type_map: dict[str, str] | None = None,
         timestamp_offset_ms: int = 0,
     ) -> None:
         """Subscribe to MQTT and dispatch messages until cancelled.
 
         Topic wildcard: ``+/{analytics_app_id}/+`` (matches ``/{vms_name}/{analytics_app_id}/{camera_id}``)
-        Leading slash is optional — both ``/nx-main/pdd/device`` and ``nx-main/pdd/device`` are
+        Leading slash is optional — both ``/nx-main/dls_vision/device`` and ``nx-main/dls_vision/device`` are
         handled by stripping the leading slash before splitting.
         """
         try:
