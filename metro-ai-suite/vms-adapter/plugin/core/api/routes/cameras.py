@@ -20,6 +20,7 @@ from plugin.core.models.domain import (
     CameraEnableResponse,
     CameraView,
     ClipUrlResponse,
+    mask_url_credentials,
     StreamUrlResponse,
 )
 
@@ -90,7 +91,7 @@ async def get_live_stream(
     url = await ss.vms_shim.get_live_stream_url(camera_id)
     if not url:
         raise HTTPException(status_code=404, detail="Live stream unavailable")
-    return StreamUrlResponse(camera_id=camera_id, rtsp_url=url)
+    return StreamUrlResponse(camera_id=camera_id, rtsp_url=mask_url_credentials(url) or url)
 
 
 @router.get("/cameras/{camera_id}/clip", response_model=ClipUrlResponse)
@@ -106,7 +107,12 @@ async def get_clip(
     url = await ss.vms_shim.get_clip_url(camera_id, from_dt, to_dt)
     if not url:
         raise HTTPException(status_code=404, detail="Clip URL unavailable")
-    return ClipUrlResponse(camera_id=camera_id, clip_url=url, from_dt=from_dt, to_dt=to_dt)
+    return ClipUrlResponse(
+        camera_id=camera_id,
+        clip_url=mask_url_credentials(url) or url,
+        from_dt=from_dt,
+        to_dt=to_dt,
+    )
 
 
 @router.get("/cameras/{camera_id}", response_model=CameraView)

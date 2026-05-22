@@ -180,7 +180,6 @@ async def start_analytics_app_run(
                     "analytics_app_camera_resolved",
                     field=field_name,
                     camera_id=cam_value,
-                    stream_url=camera.stream_url,
                 )
             else:
                 raise HTTPException(
@@ -374,4 +373,3 @@ async def get_analytics_app_options(app_id: str, option_type: str) -> list[Any]:
     """
     shim = _require_shim(app_id)
     return await shim.get_options(option_type)
-

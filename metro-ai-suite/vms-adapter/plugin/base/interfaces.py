@@ -3,25 +3,22 @@
 
 """Abstract shim interfaces : single ``IVmsShim`` per VMS + optional ``IAnalyticsAppShim``.
 
-This module is the implementation of the chat-decision-overridden ADD
-(see ``VMS_Plugin_ADD (2).docx`` — chat thread comments 1-3, 9, 26, 27,
-32, 35-40, 52). Where the spec body and the chat thread differ, the
-chat thread is authoritative. Concretely:
+Design decisions:
 
 * **Single shim per VMS.** ``IVmsShim`` covers read + write + register;
-  the original ``IVmsCommandShim`` is dropped (comments 1-3, 9).
-* **Mode C only (RTSP).** No folder watchdog and no API polling are
-  exposed by the interface. Apps consume RTSP directly via
-  :meth:`get_live_stream_url` (comments 26, 27, 32).
+  no separate command shim is needed.
+* **RTSP-only.** No folder watchdog and no API polling are exposed by
+  the interface. Apps consume RTSP directly via
+  :meth:`get_live_stream_url`.
 * **Plugin facilitates auth — never stores it.** No ``connect``-time
-  session keep-alive is required by the contract; auth is per-request
-  for vendors that need it (comment 26).
+  session keep-alive is required; auth is per-request for vendors that
+  need it.
 * **App pulls; plugin does not push clips.** ``get_clip_url`` returns
-  a URL — no file transfer (comments 35-37).
+  a URL — no file transfer.
 * **Per-shim register API.** :meth:`register_analytics` is the explicit
   hook the plugin calls on startup, and the ``POST /v1/vms/{name}/register``
-  endpoint exposes it externally (comments 38-40, 52).
-* **``IAnalyticsAppShim`` is now optional.** It is retained only as a thin
+  endpoint exposes it externally.
+* **``IAnalyticsAppShim`` is optional.** It is retained only as a thin
   glue path for Analytics Apps (e.g. Live Video Captioning) that need a
   bespoke pipeline ``start()`` flow.
 """
