@@ -3,7 +3,7 @@
 
 # Multi-stage Dockerfile for VMS-UI
 # Stage 1: Build the React/Vite application
-FROM node:22-alpine AS builder
+FROM node:26.2.0-trixie-slim AS builder
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Serve with nginx
-FROM nginx:alpine
+FROM nginx:1.31.1-trixie
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -41,7 +41,7 @@ EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
+  CMD curl -fsS http://localhost/ > /dev/null || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
