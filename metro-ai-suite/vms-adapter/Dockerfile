@@ -21,34 +21,44 @@ RUN uv pip install --system --no-cache -e . && \
 # Optionally download copyleft sources if requested
 ARG COPYLEFT_SOURCES=false
 RUN if [ "$COPYLEFT_SOURCES" = "true" ]; then \
+        export DEBIAN_FRONTEND=noninteractive && \
         apt-get update && \
-        # Get list of installed deb packages with copyleft licenses \
-        sed -Ei 's/# deb-src /deb-src /' /etc/apt/sources.list && \
+        apt-get install -y --no-install-recommends dpkg-dev ca-certificates gcc build-essential libffi-dev python3-dev >/dev/null && \
+        mkdir -p /copyleft_sources/deb /copyleft_sources/python && \
+        : > /copyleft_sources/deb/copyleft_package_list.txt && \
+        : > /copyleft_sources/deb/source_fetch_errors.txt && \
+        : > /copyleft_sources/python/copyleft_package_list.txt && \
+        : > /copyleft_sources/python/source_fetch_errors.txt && \
+        if [ -f /etc/apt/sources.list ]; then \
+          sed -Ei 's/^#\s*deb-src\s+/deb-src /' /etc/apt/sources.list; \
+        fi && \
+        if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+          awk '/^Types:/ {$0="Types: deb-src"} {print}' /etc/apt/sources.list.d/debian.sources > /etc/apt/sources.list.d/debian-src.sources; \
+        fi && \
         apt-get update && \
-        mkdir -p /copyleft_sources/deb && cd /copyleft_sources/deb && \
-        echo -n $null > copyleft_package_list.txt && \
-        for package in $(dpkg -l | awk '/^ii/ {print $2}' | cut -d: -f1); do \
-            grep -l 'Copyleft\|GPL\|LGPL\|EPL\|MPL\|CDDL' /usr/share/doc/${package}/copyright; \
-            exit_status=$?; \
-            if [ $exit_status -eq 0 ]; then \
-                echo $package >> copyleft_package_list.txt; \
-                apt-get source -q --download-only $package; \
+        cd /copyleft_sources/deb && \
+        for package in $(dpkg-query -W -f='${binary:Package}\n' | sort -u); do \
+            copyright_file="/usr/share/doc/${package}/copyright"; \
+            [ -f "$copyright_file" ] || continue; \
+            if grep -Eiq 'Copyleft|GPL|LGPL|EPL|MPL|CDDL' "$copyright_file"; then \
+                license=$(sed -n 's/^License: //p' "$copyright_file" | paste -sd ' | ' -); \
+                [ -n "$license" ] || license="UNKNOWN"; \
+                echo "${package}|${license}" >> /copyleft_sources/deb/copyleft_package_list.txt; \
+                apt-get source -q --download-only "$package" >> /copyleft_sources/deb/source_fetch_errors.txt 2>&1 || true; \
             fi; \
-        done; \
-        # Get source code for installed Python packages with copyleft licenses \
-        mkdir -p /copyleft_sources/python && \
+        done && \
         cd /copyleft_sources/python && \
-        apt-get update && apt-get install -y --no-install-recommends gcc build-essential libffi-dev python3-dev && \
-        # Download python package sources with relevant licenses \
-        pip3 freeze | cut -d= -f1 | while read pkg; do \
-            meta=$(pip3 show $pkg 2>/dev/null); \
-            lic=$(echo "$meta" | grep -i '^License:' | grep -E 'MPL|GPL|General Public License|EPL|Eclipse Public License|CDDL|LGPL'); \
-            if [ ! -z "$lic" ]; then \
-                echo "Downloading source for $pkg with license: $lic"; \
-                pip3 download --no-binary :all: $pkg || true; \
+        pip3 freeze | cut -d= -f1 | while read -r pkg; do \
+            [ -n "$pkg" ] || continue; \
+            meta=$(pip3 show "$pkg" 2>/dev/null || true); \
+            lic=$(echo "$meta" | grep -i '^License:' | grep -E 'MPL|GPL|General Public License|EPL|Eclipse Public License|CDDL|LGPL' || true); \
+            if [ -n "$lic" ]; then \
+                echo "${pkg}|${lic#License: }" >> /copyleft_sources/python/copyleft_package_list.txt; \
+                pip3 download --no-binary :all: "$pkg" >> /copyleft_sources/python/source_fetch_errors.txt 2>&1 || true; \
             fi; \
-        done; \
-        apt-get remove --purge -y gcc build-essential libffi-dev python3-dev; \
+        done && \
+        apt-get purge -y --auto-remove dpkg-dev gcc build-essential libffi-dev python3-dev >/dev/null && \
+        rm -rf /var/lib/apt/lists/*; \
     fi
 
 USER appuser
