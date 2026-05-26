@@ -22,7 +22,7 @@ Details about the changes and known issues in each release of the VMS Adapter Pl
 
 - **Generic Analytics App API**: A single set of REST routes (`/v1/analytics-apps/{app_id}/…`) handles all AI analytics integrations with a consistent lifecycle: start, list, stop, and stream results.
 
-- **Operator Dashboard**: React 19 + Vite + Tailwind CSS dashboard served by nginx. Includes camera discovery and enable/disable controls, analytics run management, WebRTC live stream with caption overlay, and analysis results timeline.
+- **Provider Dashboard**: React 19 + Vite + Tailwind CSS dashboard served by nginx. Includes camera discovery and enable/disable controls, analytics run management, WebRTC live stream with caption overlay, and analysis results timeline.
 
 - **PostgreSQL Persistence**: Camera registrations, analytics sessions, and metadata events are stored in a PostgreSQL 15 database via async SQLAlchemy 2.
 

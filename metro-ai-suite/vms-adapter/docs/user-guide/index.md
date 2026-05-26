@@ -11,17 +11,17 @@ hide_directive-->
 
 # VMS Adapter Plugin Overview
 
-The VMS Adapter Plugin (VAP) is an I/O bridge between Video Management Systems (VMS) and AI Analytics Apps. It is designed to help developers understand how to connect existing VMS infrastructure to AI analytics pipelines, manage camera streams through a unified operator dashboard, and extend the system with new VMS vendors or analytics applications.
+The VMS Adapter Plugin (VAP) is an I/O bridge between Video Management Systems (VMS) and AI Analytics Apps. It is designed to help developers understand how to connect existing VMS infrastructure to AI analytics pipelines, manage camera streams through a unified provider dashboard, and extend the system with new VMS vendors or analytics applications.
 
 ## Overview
 
 The **VMS Adapter Plugin** connects VMS solutions like Nx Witness, Genetec, Milestone, and Frigate cameras to AI analytics
-applications such as Live Video Captioning and DLStreamer Vision based Loitering Detection, and presents a unified React operator dashboard for discovering cameras, managing analytics runs, and viewing live results. Adding support for a new VMS or a new Analytics App requires only a new shim class — no route changes are needed.
+applications such as Live Video Captioning and DLStreamer Vision based Loitering Detection, and presents a unified React provider dashboard for discovering cameras, managing analytics runs, and viewing live results. Adding support for a new VMS or a new Analytics App requires only a new shim class — no route changes are needed.
 
 ### Example Use Cases
 
 - **Intelligent Surveillance**: Connect IP cameras from Nx Witness to Live Video Captioning for scene description and prompt-driven monitoring (for example, "Is there an unauthorized person in the area?").
-- **Warehouse Quality Control**: Route camera feeds from Frigate or Nx Witness to DLStreamer Vision application and automatically push detected defect bounding boxes back into Nx Witness   for operator review.
+- **Warehouse Quality Control**: Route camera feeds from Frigate or Nx Witness to DLStreamer Vision application and automatically push detected defect bounding boxes back into Nx Witness for operator review.
 - **Multi-Camera Analytics Management**: Discover all cameras from all connected VMS systems in one dashboard and selectively enable AI analytics on specific cameras without reconfiguring each system individually.
 
 ### Key Benefits
@@ -31,11 +31,11 @@ applications such as Live Video Captioning and DLStreamer Vision based Loitering
 - **Pluggable Analytics Apps**: AI analytics applications plug in as shims. New apps require no route changes — just a new shim class registered in `factory.py`.
 - **Dynamic Schema Forms**: The dashboard renders analytics configuration forms directly from each Analytics App's live OpenAPI schema — no frontend changes are needed when parameters change.
 - **Generic Analytics App API**: A single set of REST routes (`/v1/analytics-apps/{app_id}/…`) handles all integrations with a consistent lifecycle (start, list, stop, stream results).
-- **Operator Dashboard**: React-based UI for discovering cameras, enabling/disabling streams, configuring analytics parameters, and viewing live results.
+- **Provider Dashboard**: React-based UI for discovering cameras, enabling/disabling streams, configuring analytics parameters, and viewing live results.
 
 ## How it Works
 
-The VAP is a modular orchestration service. VMS shims discover cameras from their respective systems and provide RTSP URLs. Analytics App shims manage run lifecycle and result delivery. The FastAPI backend coordinates between shims, persists state to PostgreSQL, and exposes a unified API consumed by the React operator dashboard.
+The VAP is a modular orchestration service. VMS shims discover cameras from their respective systems and provide RTSP URLs. Analytics App shims manage run lifecycle and result delivery. The FastAPI backend coordinates between shims, persists state to PostgreSQL, and exposes a unified API consumed by the React provider dashboard.
 
 ```
 VMS Systems
@@ -57,7 +57,7 @@ VMS Systems
                           └──────────┬──────────┘   └────────────┬───────────┘
                                      │                           │
                           ┌──────────▼───────────────────────────▼─────────┐
-                          │              Operator Dashboard (React)        │
+                          │              Provider Dashboard (React)        │
                           │   Camera list | Run controls | Live stream     │
                           └────────────────────────────────────────────────┘
 ```
@@ -74,7 +74,7 @@ descriptions, and extension points.
 - **Feature 2**: Connects to AI analytics pipelines — Live Video Captioning (DLStreamer + VLM)
   and Loitering Detection (DLStreamer Pipeline Server) — through the generic Analytics App
   shim interface.
-- **Feature 3**: React operator dashboard dynamically renders analytics forms from each
+- **Feature 3**: React provider dashboard dynamically renders analytics forms from each
   Analytics App's live OpenAPI schema, requiring no UI changes when app parameters evolve.
 - **Feature 4**: DLStreamer Vision results are translated from DLStreamer GVA JSON
   format and pushed back to Nx Witness as analytics objects (bounding boxes with labels),

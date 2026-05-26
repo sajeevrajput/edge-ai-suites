@@ -38,7 +38,7 @@ Default ports (configurable via `.env`):
 | **Service**          | **Default Port** | **Purpose**                          |
 |----------------------|------------------|--------------------------------------|
 | Backend API          | `8085`           | REST API and Swagger UI              |
-| Operator Dashboard   | `3100`           | React UI (nginx)                     |
+| Provider Dashboard   | `3100`           | React UI (nginx)                     |
 | PostgreSQL           | `5433`           | Internal database (host-mapped)      |
 | Frigate UI           | `5000`           | Frigate camera management (optional) |
 
