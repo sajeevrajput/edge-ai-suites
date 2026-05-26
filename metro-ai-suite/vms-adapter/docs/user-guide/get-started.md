@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **VMS Adapter Plugin (VAP)** bridges VMS systems (Nx Witness, Genetec, Milestone, etc.) with AI Analytics Apps (Live Video Captioning (LVC), DLStreamer vision analytics app like Loitering Detection) and provides a unified React operator dashboard for managing cameras and analytics runs. This guide shows how to deploy the full stack with Docker Compose and run your first analytics session.
+The **VMS Adapter Plugin (VAP)** bridges VMS systems (Nx Witness, Genetec, Milestone, etc.) with AI Analytics Apps (Live Video Captioning (LVC), DLStreamer vision analytics app like Loitering Detection) and provides a unified React based provider dashboard for managing cameras and analytics runs. This guide shows how to deploy the full stack with Docker Compose and run your first analytics session.
 
 Note: Frigate is used as an open-source proxy for limited VMS capabilities as a means to demonstrate the VAP capabilities. 
 
@@ -10,7 +10,7 @@ This guide shows how to:
 
 - **Set up prerequisites**: Start LVC or DLS vision analytics (Loitering Detection) before VAP, since VAP fetches their schemas at startup.
 - **Configure the environment**: Point VAP at your VMS and Analytics App services.
-- **Run the operator dashboard**: Discover cameras, enable streams, and start analytics runs.
+- **Run the provider dashboard**: Discover cameras, enable streams, and start analytics runs.
 
 ## Quick Start
 
@@ -22,8 +22,8 @@ Check the [folder layout](#folder-layout) to familiarize with the code structure
 - Install Docker: [Installation Guide](https://docs.docker.com/get-docker/).
 - Install Docker Compose: [Installation Guide](https://docs.docker.com/compose/install/).
 - One or more of the following running and reachable:
-  - **Nx Witness** VMS with accessible REST API (`NX_HOST`, `NX_USERNAME`, `NX_PASSWORD`)
-  - **Frigate** VMS with cameras configured (RTSP streams)
+  - **Nx Witness** VMS with accessible REST API (`NX_HOST`, `NX_USERNAME`, `NX_PASSWORD`). This document does not intend to provide reference on setup of Nx Witness and Nx Cloud.
+  - **Frigate** VMS with cameras configured (RTSP streams). Refer to [usage](#41-install-frigate) instructions for a quick guide on how to deploy, configure camera, and use Frigate.
 - At least one Analytics App running before VAP starts:
   - **Live Video Captioning (LVC)** — for VLM based AI captioning
   - **Loitering Detection (DLS vision based)** — for real-time detection of loitering behavior in transportation hubs with Nx write-back
@@ -100,7 +100,7 @@ Open `.env` and update the variables for your environment:
 
 ---
 
-## Step 4 — Start Frigate (if using Frigate)
+## Step 4 — Start Frigate (only if using Frigate)
 
 > Skip this step if you are not using Frigate as your VMS.
 
@@ -195,11 +195,12 @@ curl http://localhost:8085/v1/health
 
 ---
 
-## Step 6 — Open the Operator Dashboard
+## Step 6 — Open the Provider Dashboard
+
 
 | **Service**             | **URL**                            |
 |-------------------------|------------------------------------|
-| Operator Dashboard      | `http://localhost:3100`            |
+| Provider Dashboard      | `http://localhost:3100`            |
 | Backend API             | `http://localhost:8085/v1`         |
 | API Docs (Swagger)      | `http://localhost:8085/docs`       |
 

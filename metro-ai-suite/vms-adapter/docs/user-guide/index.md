@@ -62,6 +62,8 @@ VMS Systems
                           └────────────────────────────────────────────────┘
 ```
 
+To interact with VAP, there are two dashboards available as option to the user. The first option is to use the respective VMS UI which will have an integration with VAP. This option is provided by default but comes with whatever limitation the respective VMS UI may have. One example is the limited support to integrate rich NLQ metadata coming from the GenAI pipeline based applications. The other option is a Analytics provider UI (say, ISV) which gives a consolidated view across all cameras and analytics. It internally synchronizes with the VMS UI as required. In the documentation, the former will be referred to as VMS UI and the latter as Provider UI.
+
 See [How It Works](./how-it-works.md) for a detailed breakdown of data flows, component
 descriptions, and extension points.
 

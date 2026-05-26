@@ -10,7 +10,7 @@ The VAP application consists of the following components built from source:
 
 - **Backend**: FastAPI Python service (`plugin/`) that manages VMS shims, analytics app shims,
   camera sync, event processing, and result routing.
-- **UI**: React 19 / Vite frontend (`ui/`) served by nginx, providing the operator dashboard.
+- **UI**: React 19 / Vite frontend (`ui/`) served by nginx, providing the provider dashboard.
 
 The `Dockerfile` in the repository root builds the backend image. The UI is built inside a
 multi-stage Docker build. Both are orchestrated by Docker Compose.
