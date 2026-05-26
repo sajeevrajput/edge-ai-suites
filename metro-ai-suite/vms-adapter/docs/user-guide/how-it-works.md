@@ -1,6 +1,6 @@
 # How It Works
 
-The VMS Adapter Plugin (VAP) is a modular orchestration service that routes video streams from supported VMS systems to AI analytics Analytics Apps, and relays results back to the operator dashboard or VMS.
+The VMS Adapter Plugin (VAP) is a modular orchestration service that routes video streams from supported VMS systems to AI analytics Analytics Apps, and relays results back to the provider dashboard or VMS.
 
 ## Architecture
 
@@ -27,7 +27,7 @@ VMS / VMS Systems
                           └──────────┬──────────┘   └────────────┬───────────┘
                                      │                           │
                           ┌──────────▼──────────────────────────▼──────────┐
-                          │              Operator Dashboard (React)        │
+                          │              Provider Dashboard (React)        │
                           │   Camera list | Run controls | Live stream     │
                           │   Caption overlay | Analysis results           │
                           └────────────────────────────────────────────────┘
@@ -47,7 +47,7 @@ VMS / VMS Systems
 ### Live Video Captioning (LVC) Flow
 
 ```
-Operator dashboard
+Provider dashboard
     │  POST /v1/analytics-apps/live_captioning/runs  { camera_id, prompt, model, … }
     ▼
 FastAPI route (analytics_apps.py)
@@ -64,14 +64,14 @@ LVC DLStreamer Pipeline Server
     ▼
 VAP  GET /v1/analytics-apps/live_captioning/results/stream  (SSE proxy)
     ▼
-Operator dashboard
+Provider dashboard
     │  caption overlay on WebRTC video player
 ```
 
 ### DLStreamer Vision (dls_vision e.g. Loitering Detection) Flow
 
 ```
-Operator dashboard
+Provider dashboard
     │  POST /v1/analytics-apps/dls_vision/runs  { camera_id, pipeline_name, pipeline_version }
     ▼
 FastAPI route (analytics_apps.py)
@@ -139,7 +139,7 @@ The `LvcSchemaManager` fetches the `StartRunRequest` JSON Schema from LVC's `/op
 
 `MqttSubscriber` runs as an asyncio background task. It subscribes to `+/dls_vision/+` on the MQTT broker and receives DLStreamer GVA JSON metadata per frame. The `translate_dls_metadata()` function converts normalized bounding boxes and labels to Nx analytics object format, then `NxWitnessVmsShim.push_analytics_objects()` posts them to Nx.
 
-### React Operator Dashboard (`ui/`)
+### React Analytics Provider Dashboard (`ui/`)
 
 The dashboard (React 19 + Vite + Tailwind CSS) is served by nginx, which reverse-proxies:
 - `/v1/*` → FastAPI backend

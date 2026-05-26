@@ -6,7 +6,7 @@ This tutorial walks through the complete end-to-end setup of Loitering Detection
 - Loitering detection app running with its MQTT broker exposed to the host
 - Nx Witness connected to VAP and auto-registered as an analytics integration
 - Detection bounding boxes pushed from the app to Nx Witness in real time
-- Pipeline runs managed from the VAP operator dashboard
+- Pipeline runs managed from the VAP provider dashboard
 
 ## Prerequisites
 
@@ -460,7 +460,7 @@ A `200 OK` response confirms the device agent is enabled.
 
 ## Part 6 — Discover Cameras and Launch a Pipeline Run from the VAP Dashboard
 
-### 6.1 Open the Operator Dashboard
+### 6.1 Open the Provider Dashboard
 
 Open a browser and navigate to:
 

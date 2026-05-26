@@ -16,20 +16,13 @@ The VMS Adapter Plugin (VAP) serves as an I/O bridge between Video Management Sy
 │  └──────────┘  |  └────────┬────────┘    │  (Loitering, Traffic │    │
 │  ┌───────────┐ |           |             │   Intersection, ...) │    │
 │  | Milestone |_|  ┌────────▼────────┐    └──────────────────────┘    │
-│  | (VMS)     | |  │   React UI      │                                │
-│  └───────────┘ |  │   (nginx)       │                                │
-│  ┌───────────┐ |  └─────────────────┘                                │
-│  | Frigate   |_|                                                     │
-│  | (NVR|VMS) |                                                       │
-│  └───────────┘                                                       │
-│                                                                      │
-│                                                                      │
-│                                                                      │
-│                                                                      │
-│                                                                      │
+│  | (VMS)     |    │   React UI      │                                │
+│  └───────────┘    │   (nginx)       │                                │
+│                   └─────────────────┘                                │
 └──────────────────────────────────────────────────────────────────────┘
+
 ```
-Note: Currently, Nx Witness and Frigate are supported. Genetec and Milestone support will be added soon. Frigate is used as an open-source proxy for limited VMS capabilities as a means to demonstrate the VAP capabilities. 
+Note: Currently, Nx Witness is supported. Genetec and Milestone support will be added soon. In the codebase, Frigate is used as an open-source proxy for limited VMS capabilities as a means to demonstrate the VAP capabilities. 
 
 ## Documentation
 
