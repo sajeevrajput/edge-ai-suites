@@ -40,6 +40,11 @@ class Orchestrator:
         self.vms_shim_sets = ShimFactory.create_vms_shims(self.config)
         self.analytics_app_shims = ShimFactory.create_analytics_app_shims(self.config)
 
+        # Wire VMS shims into analytics app shims that support Nx write-back (e.g. LVC).
+        for shim in self.analytics_app_shims.values():
+            if hasattr(shim, "set_vms_shims"):
+                shim.set_vms_shims(self.vms_shim_sets)
+
         for ss in self.vms_shim_sets:
             try:
                 await ss.vms_shim.connect()

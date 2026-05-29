@@ -203,6 +203,12 @@ async def start_analytics_app_run(
     # 3. Remove any remaining synthetic/ui-only keys unknown to the Pydantic model
     # Preserve captionHistory before stripping — it's a UI display setting returned in result
     caption_history = resolved_payload.pop("captionHistory", 3)
+    # Collect camera_id refs before stripping (used for Nx write-back after start).
+    camera_id_for_run = ""
+    for field_name in camera_field_set:
+        camera_id_for_run = resolved_payload.get(f"{field_name}_ref", "") or ""
+        if camera_id_for_run:
+            break
     model_fields = set(model.model_fields.keys())
     for key in list(resolved_payload.keys()):
         if key not in model_fields:
@@ -219,6 +225,11 @@ async def start_analytics_app_run(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    # Register run→camera mapping for Nx Witness write-back (LVC only).
+    run_id = result.get("runId", "")
+    if run_id and camera_id_for_run and hasattr(shim, "register_run"):
+        shim.register_run(run_id, camera_id_for_run)
 
     # Attach captionHistory so the UI knows how many captions to display
     result["captionHistory"] = caption_history
