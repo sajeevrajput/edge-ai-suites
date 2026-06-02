@@ -46,7 +46,9 @@ class ObjectDetectionAnalyticsAppShim(IAnalyticsAppShim):
 
     def __init__(self, config: ObjectDetectionAnalyticsAppConfig) -> None:
         self._config = config
-        self._api = ObjectDetectionApiClient(base_url=config.base_url)
+        # Use a custom CA bundle only when TLS verification is enabled.
+        verify: bool | str = config.tls_ca_bundle if (config.tls_verify and config.tls_ca_bundle) else config.tls_verify
+        self._api = ObjectDetectionApiClient(base_url=config.base_url, verify=verify)
         self._param_model: type[BaseModel] = BaseModel
         # Maps pipeline version (user-facing name) → pipeline root (URL path segment)
         # e.g. "dls_vision_pipeline" → "user_defined_pipelines"

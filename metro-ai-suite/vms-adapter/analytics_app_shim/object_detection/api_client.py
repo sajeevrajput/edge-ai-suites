@@ -26,9 +26,10 @@ logger = structlog.get_logger(__name__)
 class ObjectDetectionApiClient:
     """Async HTTP client for the DLStreamer Pipeline Server REST API."""
 
-    def __init__(self, base_url: str, timeout: float = 30.0) -> None:
+    def __init__(self, base_url: str, timeout: float = 30.0, verify: bool | str = True) -> None:
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
+        self._verify = verify
         self._client: httpx.AsyncClient | None = None
 
     def _ensure_client(self) -> httpx.AsyncClient:
@@ -36,7 +37,7 @@ class ObjectDetectionApiClient:
             self._client = httpx.AsyncClient(
                 base_url=self._base_url,
                 timeout=self._timeout,
-                verify=False,  # DLStreamer Vision nginx uses a self-signed certificate
+                verify=self._verify,
             )
         return self._client
 

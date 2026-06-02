@@ -18,6 +18,11 @@ class ObjectDetectionAnalyticsAppConfig(BaseModel):
     app_id: str = "dls_vision"
     display_name: str = "Object Detection"
     base_url: str  # Pipeline Server REST URL
+    # TLS verification for HTTPS endpoints. Set False for self-signed certs.
+    tls_verify: bool = True
+    # Optional CA bundle path to trust a self-signed or private CA certificate.
+    # Used only when tls_verify is True.
+    tls_ca_bundle: str = ""
     mqtt_host: str = "localhost"
     mqtt_port: int = 1883
     # Broker address as seen by the Pipeline Server (used in the destination payload
