@@ -462,52 +462,6 @@
         state.runs.get(run.runId).stopBtn = ui.stopBtn;
     }
 
-    // Poll backend every 3 s so runs started externally (e.g. from VMS) appear
-    // without a manual page refresh, and runs stopped externally are removed.
-    async function syncRuns() {
-        try {
-            const runs = await ApiService.fetchRuns();
-            const backendIds = new Set(runs.map(r => r.runId));
-
-            // Add any runs the backend knows about that we don't have a card for
-            for (const runData of runs) {
-                if (state.runs.has(runData.runId)) continue;
-
-                const run = {
-                    runId: runData.runId,
-                    pipelineId: runData.pipelineId,
-                    peerId: runData.peerId,
-                    metadataFile: runData.metadataFile,
-                    modelName: runData.modelName || 'Unknown',
-                    pipelineName: runData.pipelineName || '',
-                    prompt: runData.prompt || 'N/A',
-                    maxTokens: runData.maxTokens || 'N/A',
-                    rtspUrl: runData.rtspUrl || 'N/A',
-                    frameRate: runData.frameRate ?? null,
-                    chunkSize: runData.chunkSize ?? null,
-                    frameWidth: runData.frameWidth ?? null,
-                    frameHeight: runData.frameHeight ?? null,
-                    frameQuality: runData.frameQuality ?? null,
-                };
-                const ui = RunCardComponent.createRunElement(run, stopRun);
-                ui.alertRules = runData.alertRules ?? [{ substring: 'yes', color: '#ff4444' }];
-                els.runsContainer.appendChild(ui.wrap);
-                attachRunStreams(run, ui);
-                if (els.hintEl) els.hintEl.style.display = 'none';
-                if (runData.status === 'error') RunCardComponent.setRunErrorState(ui);
-            }
-
-            // Remove cards for runs no longer in the backend
-            for (const [runId] of state.runs) {
-                if (!backendIds.has(runId)) {
-                    tearDownRun(runId, state.runs.get(runId), 'Run ended');
-                }
-            }
-        } catch (_) {
-            // silently ignore network errors — page remains usable
-        }
-    }
-
     async function restoreActiveRuns() {
         // Fetch active runs from backend and restore UI cards
         try {
@@ -766,9 +720,8 @@
         loadPipelines();
         initCollectorMetrics();
 
-        // Restore active runs from backend, then keep in sync every 3 s
+        // Restore active runs from backend
         restoreActiveRuns();
-        setInterval(syncRuns, 3000);
 
         els.form.addEventListener('submit', startPipeline);
 
