@@ -47,11 +47,11 @@ export default function App() {
     }).catch(() => {});
   }, []);
 
-  // Poll LVC every 5 seconds only while there are active runs, so runs
-  // stopped or started from LVC's own UI are reflected automatically.
-  // When no runs are active the interval is not started.
+  // Poll LVC every 5 seconds to keep run state in sync.
+  // Always-on: if a run stops unexpectedly (e.g. pipeline abort) the user
+  // sees the change immediately, and once they restart the run the UI
+  // picks it up without needing a page refresh.
   useEffect(() => {
-    if (lvcRuns.length === 0) return;
     const id = setInterval(() => {
       listAnalyticsAppRuns('live_captioning').then((runs) => {
         if (!Array.isArray(runs)) return;
@@ -60,10 +60,10 @@ export default function App() {
           const nextIds = runs.map((r) => r.runId ?? r.run_id).join(',');
           return prevIds === nextIds ? prev : runs;
         });
-      }).catch(() => {});
+      }).catch(() => {/* LVC unreachable — keep previous state */});
     }, 5000);
     return () => clearInterval(id);
-  }, [lvcRuns.length]);
+  }, []);  // run once on mount, always polling
 
   const handleDiscover = async () => {
     setDiscovering(true);

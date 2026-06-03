@@ -25,6 +25,7 @@ so the generic ``/v1/analytics-apps/{app_id}/…`` routes work without any LVC-s
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
@@ -38,6 +39,7 @@ from .schema import LvcSchemaManager
 from .mqtt_subscriber import LvcMqttSubscriber
 
 if TYPE_CHECKING:
+    from plugin.core.factory import VmsShimSet
     from plugin.core.pipeline.orchestrator import Orchestrator
 
 logger = structlog.get_logger(__name__)
@@ -54,6 +56,22 @@ class LiveCaptioningAnalyticsAppShim(IAnalyticsAppShim):
         self._api = LvcApiClient(base_url=config.base_url)
         self._schema_mgr = LvcSchemaManager()
         self._mqtt_subscriber: Optional[LvcMqttSubscriber] = None
+        # run_id → camera_id mapping for Nx Witness write-back
+        self._run_camera_map: dict[str, str] = {}
+        self._vms_shim_sets: list[VmsShimSet] = []
+
+    def set_vms_shims(self, vms_shim_sets: list[VmsShimSet]) -> None:
+        """Inject VMS shim sets so LVC captions can be pushed to Nx Witness."""
+        self._vms_shim_sets = vms_shim_sets
+
+    def register_run(self, run_id: str, camera_id: str) -> None:
+        """Record which camera a run belongs to for Nx Witness write-back."""
+        self._run_camera_map[run_id] = camera_id
+        logger.info("lvc_run_registered", run_id=run_id, camera_id=camera_id)
+
+    def unregister_run(self, run_id: str) -> None:
+        """Remove the run→camera mapping when a run stops."""
+        self._run_camera_map.pop(run_id, None)
 
     # ── MQTT subscriber wiring (set by orchestrator) ──────────────────────────
 
@@ -68,6 +86,11 @@ class LiveCaptioningAnalyticsAppShim(IAnalyticsAppShim):
             return
         subscriber = LvcMqttSubscriber()
         self.set_subscriber(subscriber)
+
+        # Wire Nx Witness write-back if any VMS shims support bookmarks.
+        if self._vms_shim_sets:
+            subscriber.set_nx_write_back(self._push_caption_to_nx)
+
         task = asyncio.create_task(
             subscriber.run(
                 mqtt_host=orchestrator.config.mqtt.host,
@@ -82,6 +105,34 @@ class LiveCaptioningAnalyticsAppShim(IAnalyticsAppShim):
             mqtt_host=orchestrator.config.mqtt.host,
             mqtt_port=orchestrator.config.mqtt.port,
         )
+
+    async def _push_caption_to_nx(self, run_id: str, caption: str) -> None:
+        """Push an LVC caption as a bookmark to the Nx Witness camera timeline."""
+        camera_id = self._run_camera_map.get(run_id)
+        if not camera_id:
+            return
+
+        for ss in self._vms_shim_sets:
+            if not camera_id.startswith(ss.vms_shim.camera_id_prefix):
+                continue
+            if not hasattr(ss.vms_shim, "set_bookmark"):
+                continue
+            try:
+                await ss.vms_shim.set_bookmark(camera_id, datetime.now(tz=timezone.utc), caption[:500])
+                logger.info(
+                    "lvc_caption_bookmark_pushed",
+                    camera_id=camera_id,
+                    run_id=run_id,
+                    caption_len=len(caption),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "lvc_caption_bookmark_failed",
+                    camera_id=camera_id,
+                    run_id=run_id,
+                    error=str(exc),
+                )
+            return
 
     def subscribe_run(self, run_id: str) -> asyncio.Queue | None:
         """Return a per-run result queue, or None if MQTT is not connected."""
@@ -230,11 +281,20 @@ class LiveCaptioningAnalyticsAppShim(IAnalyticsAppShim):
         return run
 
     async def list_runs(self) -> list[dict[str, Any]]:
+        # Raises httpx.HTTPError when LVC is unreachable — callers should NOT
+        # treat that as "zero runs" and must not clean up _run_camera_map.
         runs = await self._api.list_runs()
+        # Clean up stale run→camera mappings for runs no longer active in LVC.
+        active_ids = {r.get("runId") or r.get("run_id") for r in runs}
+        for stale_id in list(self._run_camera_map):
+            if stale_id not in active_ids:
+                self.unregister_run(stale_id)
         return [self._enrich_run(r) for r in runs]
 
     async def stop_run(self, run_id: str) -> bool:
-        return await self._api.stop_run(run_id)
+        result = await self._api.stop_run(run_id)
+        self.unregister_run(run_id)
+        return result
 
     async def get_run(self, run_id: str) -> dict[str, Any] | None:
         run = await self._api.get_run(run_id)

@@ -97,7 +97,11 @@ class LvcApiClient:
             return False
 
     async def list_runs(self) -> list[dict[str, Any]]:
-        """GET /api/generate_captions_alerts — list all active runs."""
+        """GET /api/generate_captions_alerts — list all active runs.
+
+        Raises httpx.HTTPError on connection/timeout errors so callers can
+        distinguish "LVC unreachable" from "LVC has zero active runs".
+        """
         client = self._ensure_client()
         try:
             resp = await client.get("/api/generate_captions_alerts")
@@ -105,7 +109,7 @@ class LvcApiClient:
             return resp.json()
         except httpx.HTTPError as exc:
             logger.error("lvc_list_runs_failed", error=str(exc))
-            return []
+            raise
 
     async def get_run(self, run_id: str) -> dict[str, Any] | None:
         """GET /api/generate_captions_alerts/{run_id} — get a specific run."""
