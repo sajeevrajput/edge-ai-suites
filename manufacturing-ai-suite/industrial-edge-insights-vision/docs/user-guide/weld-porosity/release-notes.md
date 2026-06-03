@@ -1,8 +1,18 @@
 # Release Notes: Weld Porosity Detection
 
-## Version 1.4.0
+## Version 1.5.0
 
-**March 2026**
+**New**
+
+- Qualified on the Intel® Core™ Series 3 processor (Wildcat Lake).
+- Deprecated EMF deployment packages.
+- This app is planned for removal in the 2026.2 release.
+
+**Improved**
+
+- DL Streamer Pipeline Server version upgraded to 2026.1.0.
+
+## Version 1.4.0
 
 **New**
 
