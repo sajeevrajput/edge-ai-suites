@@ -11,7 +11,7 @@ To configure Docker:
    [Manage Docker as a non-root user](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user).
 2. **Configure Proxy (if required)**:
    - Set up proxy settings for Docker client and containers as described in
-     [Docker Proxy Configuration](https://docs.docker.com/network/proxy/).
+     [Docker Proxy Configuration](https://docs.docker.com/engine/cli/proxy/).
    - Example `~/.docker/config.json`:
 
      ```json
@@ -143,7 +143,8 @@ curl -k https://localhost:30001/dsps-api/pipelines/user_defined_pipelines/weld_d
         },
         "frame": [{
                             "type": "webrtc",
-                            "peer-id": "samplestream"
+                            "peer-id": "samplestream",
+                            "overlay": false
                         },
                         {
                             "type": "s3_write",
