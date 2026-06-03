@@ -28,7 +28,7 @@ analytics_apps:
     app_id: "dls_vision"
     display_name: "Loitering Detection"
     base_url: "https://${DLS_VISION_HOST:-host.docker.internal}:${DLS_VISION_PORT:-443}/api"
-    tls_verify: ${DLS_VISION_TLS_VERIFY:-true}
+    tls_verify: ${DLS_VISION_TLS_VERIFY:-false}
     tls_ca_bundle: "${DLS_VISION_CA_BUNDLE:-}"
     mqtt_host: "${MQTT_HOST:-host.docker.internal}"
     mqtt_port: ${MQTT_PORT:-1883}

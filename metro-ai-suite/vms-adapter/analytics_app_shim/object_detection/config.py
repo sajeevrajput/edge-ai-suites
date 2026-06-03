@@ -19,7 +19,7 @@ class ObjectDetectionAnalyticsAppConfig(BaseModel):
     display_name: str = "Object Detection"
     base_url: str  # Pipeline Server REST URL
     # TLS verification for HTTPS endpoints. Set False for self-signed certs.
-    tls_verify: bool = True
+    tls_verify: bool = False
     # Optional CA bundle path to trust a self-signed or private CA certificate.
     # Used only when tls_verify is True.
     tls_ca_bundle: str = ""
