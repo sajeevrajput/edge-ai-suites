@@ -114,12 +114,17 @@ class NxWitnessVmsShim(IVmsShim):
     def camera_id_prefix(self) -> str:
         return "nx:"
 
+    def _httpx_verify(self) -> bool | str:
+        if self._config.tls_verify and self._config.tls_ca_bundle:
+            return self._config.tls_ca_bundle
+        return self._config.tls_verify
+
     # -- Lifecycle ------------------------------------------------------
     async def connect(self) -> None:
         self._client = httpx.AsyncClient(
             base_url=self._config.base_url,
             timeout=30.0,
-            verify=False,  # Nx ships self-signed certs by default
+            verify=self._httpx_verify(),
         )
         await self._login()
 
@@ -681,7 +686,7 @@ class NxWitnessVmsShim(IVmsShim):
 
         parsed = urlparse(self._config.base_url)
         base_url = f"{parsed.scheme}://{parsed.hostname}:{parsed.port or 7001}"
-        client = httpx.AsyncClient(base_url=base_url, timeout=10.0, verify=False)
+        client = httpx.AsyncClient(base_url=base_url, timeout=10.0, verify=self._httpx_verify())
         try:
             resp = await client.post(
                 "/rest/v4/login/sessions",

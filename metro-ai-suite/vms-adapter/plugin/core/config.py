@@ -67,6 +67,8 @@ class VmsInstanceConfig(BaseModel):
     name: str
     vendor: str
     base_url: str = ""
+    tls_verify: bool = False
+    tls_ca_bundle: str = ""
     auth: VmsAuthConfig = Field(default_factory=VmsAuthConfig)
     # Path to a JSON file containing Nx analytics integration manifests.
     # Expected keys: integrationManifest, engineManifest, deviceAgentManifest, pinCode.

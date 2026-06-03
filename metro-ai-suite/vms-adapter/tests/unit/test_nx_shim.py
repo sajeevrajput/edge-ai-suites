@@ -3,9 +3,12 @@
 
 """Unit tests for the Nx Witness single-shim using standard /rest/v4 endpoints."""
 
+from unittest.mock import AsyncMock
+
 import pytest
 
 from plugin.core.config import VmsAuthConfig, VmsInstanceConfig
+from vms_shim.nxwitness import shim as nx_module
 from vms_shim.nxwitness.shim import NxWitnessVmsShim
 
 
@@ -205,3 +208,69 @@ async def test_register_analytics_approval_failure(nx_config):
     assert result["status"] == "registered"
     assert result["username"] == "user"
     assert "reason" in result
+
+
+@pytest.mark.asyncio
+async def test_connect_uses_tls_verify_from_config(monkeypatch):
+    cfg = VmsInstanceConfig(
+        name="nx-test",
+        vendor="nx_witness",
+        base_url="https://localhost:7001",
+        tls_verify=True,
+        auth=VmsAuthConfig(username="admin", password="test", auth_type="digest"),
+    )
+    shim = NxWitnessVmsShim(cfg)
+    shim._login = AsyncMock()
+
+    captured: dict = {}
+
+    def _fake_async_client(*args, **kwargs):
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(nx_module.httpx, "AsyncClient", _fake_async_client)
+    await shim.connect()
+    assert captured["verify"] is True
+
+
+@pytest.mark.asyncio
+async def test_integration_client_uses_ca_bundle_when_tls_verify_enabled(monkeypatch):
+    cfg = VmsInstanceConfig(
+        name="nx-test",
+        vendor="nx_witness",
+        base_url="https://localhost:7001",
+        tls_verify=True,
+        tls_ca_bundle="/tmp/nx-ca.pem",
+        auth=VmsAuthConfig(username="admin", password="test", auth_type="digest"),
+    )
+    shim = NxWitnessVmsShim(cfg)
+    shim.set_integration_credentials("integration", "secret")
+
+    captured: dict = {}
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"token": "tok"}
+
+    class _Client:
+        def __init__(self):
+            self.headers = {}
+
+        async def post(self, path, json=None):
+            return _Resp()
+
+        async def aclose(self):
+            return None
+
+    def _fake_async_client(*args, **kwargs):
+        captured.update(kwargs)
+        return _Client()
+
+    monkeypatch.setattr(nx_module.httpx, "AsyncClient", _fake_async_client)
+    ok = await shim._ensure_integration_session()
+
+    assert ok is True
+    assert captured["verify"] == "/tmp/nx-ca.pem"

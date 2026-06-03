@@ -46,7 +46,11 @@ class ObjectDetectionAnalyticsAppShim(IAnalyticsAppShim):
 
     def __init__(self, config: ObjectDetectionAnalyticsAppConfig) -> None:
         self._config = config
-        self._api = ObjectDetectionApiClient(base_url=config.base_url)
+        self._api = ObjectDetectionApiClient(
+            base_url=config.base_url,
+            tls_verify=config.tls_verify,
+            tls_ca_bundle=config.tls_ca_bundle,
+        )
         self._param_model: type[BaseModel] = BaseModel
         # Maps pipeline version (user-facing name) → pipeline root (URL path segment)
         # e.g. "dls_vision_pipeline" → "user_defined_pipelines"

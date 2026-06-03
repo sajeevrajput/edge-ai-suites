@@ -228,12 +228,16 @@ PG_PASSWORD=changeme
 NX_HOST=<NX_HOST_IP>
 NX_USERNAME=admin
 NX_PASSWORD=<nx_admin_password>
+NX_TLS_VERIFY=false
+NX_CA_BUNDLE=
 
 # dls_vision / DLStreamer Pipeline Server
 # Hostname as seen from inside the VAP container.
 # If dls_vision runs on the same host: use host.docker.internal
 DLS_VISION_HOST=host.docker.internal
 DLS_VISION_PORT=8080
+DLS_VISION_TLS_VERIFY=false
+DLS_VISION_CA_BUNDLE=
 
 # MQTT Broker — address as seen by VAP (subscribing from outside the dls_vision Docker network)
 # If dls_vision runs on the same host: use host.docker.internal
@@ -268,6 +272,10 @@ MQTT_BROKER_HOST=
 MQTT_BROKER_PORT=1883
 ```
 
+`NX_TLS_VERIFY` and `DLS_VISION_TLS_VERIFY` are `false` by default for compatibility with self-signed certificates.
+Set either value to `true` to enforce certificate verification. When enabled, set the matching `*_CA_BUNDLE`
+to a CA certificate path that exists inside the `vms-backend` container.
+
 > **Finding your host LAN IP:**
 > ```bash
 > hostname -I | awk '{print $1}'
@@ -288,6 +296,8 @@ vms_instances:
   - name: nx-main
     vendor: nx_witness
     base_url: "https://${NX_HOST}:7001"
+    tls_verify: ${NX_TLS_VERIFY:-false}
+    tls_ca_bundle: "${NX_CA_BUNDLE:-}"
     auth:
       username: "${NX_USERNAME}"
       password: "${NX_PASSWORD}"
@@ -304,6 +314,8 @@ analytics_apps:
     app_id: "dls_vision"
     display_name: "Loitering Detection"
     base_url: "http://${DLS_VISION_HOST:-host.docker.internal}:${DLS_VISION_PORT:-8080}/pipelines"
+    tls_verify: ${DLS_VISION_TLS_VERIFY:-false}
+    tls_ca_bundle: "${DLS_VISION_CA_BUNDLE:-}"
     mqtt_host: "${MQTT_HOST:-host.docker.internal}"
     mqtt_port: ${MQTT_PORT:-1883}
     pipeline_server_mqtt_host: "${PIPELINE_SERVER_MQTT_HOST}"

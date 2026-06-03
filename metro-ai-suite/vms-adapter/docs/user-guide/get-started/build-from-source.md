@@ -42,6 +42,8 @@ Set at minimum the following variables before building:
 | `MEDIAMTX_URL`                                | URL of the MediaMTX WebRTC server, e.g. `http://<lvc-host>:8889`        |
 | `FRIGATE_HOST`                                | Hostname/IP of the Frigate instance reachable from the backend container|
 | `NX_BASE_URL` / `NX_USERNAME` / `NX_PASSWORD` | Nx Witness credentials (only if using Nx Witness)                       |
+| `NX_TLS_VERIFY` / `NX_CA_BUNDLE`              | Nx TLS verification toggle and optional CA bundle path (default: `false`) |
+| `DLS_VISION_TLS_VERIFY` / `DLS_VISION_CA_BUNDLE` | DLStreamer TLS verification toggle and optional CA bundle path (default: `false`) |
 | `PG_PASSWORD`                                 | PostgreSQL password (change from default)                               |
 
 Refer to `.env.example` for all available variables.

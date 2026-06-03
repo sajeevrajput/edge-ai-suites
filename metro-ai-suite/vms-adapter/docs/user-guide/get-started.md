@@ -91,7 +91,9 @@ Open `.env` and update the variables for your environment:
 | `MEDIAMTX_URL`                       | URL of the MediaMTX WebRTC server, e.g. `http://<lvc-host>:8889`         |
 | `FRIGATE_HOST`                       | Hostname/IP of the Frigate instance reachable from the backend container |
 | `NX_BASE_URL` / `NX_USERNAME` / `NX_PASSWORD` | Nx Witness credentials (only if using Nx)                       |
+| `NX_TLS_VERIFY` / `NX_CA_BUNDLE` | Nx TLS verification toggle and optional CA bundle path (default: `false`) |
 | `LOITERING_DET_HOST` / `LOITERING_DET_PORT`              | DLStreamer Pipeline Server host and port for Loitering Detection app (default: `8080`)       |
+| `DLS_VISION_TLS_VERIFY` / `DLS_VISION_CA_BUNDLE` | DLStreamer TLS verification toggle and optional CA bundle path (default: `false`) |
 | `MQTT_HOST` / `MQTT_PORT`            | MQTT broker host and port for dls_vision metadata (default: `1883`)             |
 | `PG_PASSWORD`                        | PostgreSQL password (change from default)                                |
 | `BACKEND_PORT` / `UI_PORT`           | Host ports for the API (`8085`) and dashboard (`3100`)                   |

@@ -18,6 +18,8 @@ class ObjectDetectionAnalyticsAppConfig(BaseModel):
     app_id: str = "dls_vision"
     display_name: str = "Object Detection"
     base_url: str  # Pipeline Server REST URL
+    tls_verify: bool = False
+    tls_ca_bundle: str = ""
     mqtt_host: str = "localhost"
     mqtt_port: int = 1883
     # Broker address as seen by the Pipeline Server (used in the destination payload

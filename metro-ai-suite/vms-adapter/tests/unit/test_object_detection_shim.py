@@ -9,6 +9,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from analytics_app_shim.object_detection import api_client as od_api_client_module
+from analytics_app_shim.object_detection.api_client import ObjectDetectionApiClient
 from analytics_app_shim.object_detection.shim import ObjectDetectionAnalyticsAppShim
 from analytics_app_shim.object_detection.config import ObjectDetectionAnalyticsAppConfig
 
@@ -141,7 +143,7 @@ async def test_start_creates_run():
         "dls_vision_pipeline",
         {
             "source": {"uri": "rtsp://cam:554/stream", "type": "uri", "properties": {"protocols": "tcp", "add-reference-timestamp-meta": True, "latency": 100}},
-            "destination": {"metadata": {"type": "mqtt", "host": "tcp://mqtt-broker:1883", "topic": "nx/dls_vision/e3e9a385-7fe0-3ba5-5482-a86cde7faf48"}},
+            "destination": {"metadata": {"type": "mqtt", "host": "mqtt-broker:1883", "topic": "nx/dls_vision/e3e9a385-7fe0-3ba5-5482-a86cde7faf48"}},
             "parameters": {},
         },
     )
@@ -167,7 +169,7 @@ async def test_start_uses_default_root_when_not_in_map():
         "some_pipeline",
         {
             "source": {"uri": "rtsp://cam/s", "type": "uri", "properties": {"protocols": "tcp", "add-reference-timestamp-meta": True, "latency": 100}},
-            "destination": {"metadata": {"type": "mqtt", "host": "tcp://mqtt-broker:1883", "topic": "vap/dls_vision/unknown"}},
+            "destination": {"metadata": {"type": "mqtt", "host": "mqtt-broker:1883", "topic": "vap/dls_vision/unknown"}},
             "parameters": {},
         },
     )
@@ -243,3 +245,41 @@ async def test_deliver_returns_none():
     event.event_id = "test-evt"
     result = await shim.deliver(event, "/tmp/clip.mp4")
     assert result is None
+
+
+def test_shim_passes_tls_settings_to_api_client():
+    shim = _make_shim(tls_verify=True, tls_ca_bundle="/tmp/od-ca.pem")
+    assert shim._api._tls_verify is True
+    assert shim._api._tls_ca_bundle == "/tmp/od-ca.pem"
+
+
+def test_api_client_default_verify_is_false(monkeypatch):
+    captured: dict = {}
+
+    def _fake_async_client(*args, **kwargs):
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(od_api_client_module.httpx, "AsyncClient", _fake_async_client)
+    client = ObjectDetectionApiClient(base_url="https://localhost:443/api")
+    client._ensure_client()
+
+    assert captured["verify"] is False
+
+
+def test_api_client_verify_uses_ca_bundle_path(monkeypatch):
+    captured: dict = {}
+
+    def _fake_async_client(*args, **kwargs):
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(od_api_client_module.httpx, "AsyncClient", _fake_async_client)
+    client = ObjectDetectionApiClient(
+        base_url="https://localhost:443/api",
+        tls_verify=True,
+        tls_ca_bundle="/tmp/od-ca.pem",
+    )
+    client._ensure_client()
+
+    assert captured["verify"] == "/tmp/od-ca.pem"
