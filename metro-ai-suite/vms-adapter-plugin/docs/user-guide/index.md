@@ -33,9 +33,33 @@ applications such as Live Video Captioning and DLStreamer Vision based Loitering
 - **Generic Analytics App API**: A single set of REST routes (`/v1/analytics-apps/{app_id}/…`) handles all integrations with a consistent lifecycle (start, list, stop, stream results).
 - **Provider Dashboard**: React-based UI for discovering cameras, enabling/disabling streams, configuring analytics parameters, and viewing live results.
 
+## Sequence Diagram
+
+
+![VAP Sequence Diagram](./_assets/vap-sequence-diagram.svg)
+
+The VMS Adapter Plugin lifecycle consists of two phases: manual setup and a continuous processing loop.
+
+**Setup**
+
+Before the plugin can run, three components must be started manually: the Video Management System (VMS), the Analytics Application, and the plugin itself. The VMS serves as the source of camera streams and as the sink for inference results. The Analytics Application hosts the inference pipeline. The plugin acts as the integration bridge between the two.
+
+**Processing Loop**
+
+Once all components are running, the VMS Adapter Plugin initiates the processing loop:
+
+1. The plugin queries the VMS for the RTSP stream URL and associated camera parameters (e.g., stream ID, resolution, metadata).
+2. The VMS returns the RTSP URL and parameters to the plugin.
+3. The plugin uses these parameters to trigger the inference pipeline in the Analytics Application, passing the RTSP URL directly so the Analytics App can connect to the camera stream independently — frames are never relayed through the plugin.
+4. The Analytics Application connects directly to the VMS RTSP stream and receives video frames continuously.
+5. For each frame, the Analytics Application runs inference to produce detections (object bounding boxes, labels) or captions depending on the configured pipeline.
+6. The inference results are returned to the plugin.
+7. The plugin pushes the detections or captions back to the VMS server.
+8. The VMS server forwards the results to the VMS Client UI for display.
+
 ## How it Works
 
-The VAP is a modular orchestration service. VMS shims discover cameras from their respective systems and provide RTSP URLs. Analytics App shims manage run lifecycle and result delivery. The FastAPI backend coordinates between shims, persists state to PostgreSQL, and exposes a unified API consumed by the React provider dashboard.
+The VMS Adapater Plugin is a modular orchestration service. VMS shims discover cameras from their respective systems and provide RTSP URLs. Analytics App shims manage run lifecycle and result delivery. The FastAPI backend coordinates between shims, persists state to PostgreSQL, and exposes a unified API consumed by the React provider dashboard.
 
 ```
 VMS Systems
@@ -62,7 +86,7 @@ VMS Systems
                           └────────────────────────────────────────────────┘
 ```
 
-To interact with VAP, there are two dashboards available as option to the user. The first option is to use the respective VMS UI which will have an integration with VAP. This option is provided by default but comes with whatever limitation the respective VMS UI may have. One example is the limited support to integrate rich NLQ metadata coming from the GenAI pipeline based applications. The other option is a Analytics provider UI (say, ISV) which gives a consolidated view across all cameras and analytics. It internally synchronizes with the VMS UI as required. In the documentation, the former will be referred to as VMS UI and the latter as Provider UI.
+To interact with plugin, there are two dashboards available as option to the user. The first option is to use the respective VMS UI which will have an integration with VAP. This option is provided by default but comes with whatever limitation the respective VMS UI may have. One example is the limited support to integrate rich NLQ metadata coming from the GenAI pipeline based applications. The other option is a Analytics provider UI (say, ISV) which gives a consolidated view across all cameras and analytics. It internally synchronizes with the VMS UI as required. In the documentation, the former will be referred to as VMS UI and the latter as Provider UI.
 
 See [How It Works](./how-it-works.md) for a detailed breakdown of data flows, component
 descriptions, and extension points.
