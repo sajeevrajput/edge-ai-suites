@@ -214,7 +214,7 @@ Note the **Device ID** (UUID) of each camera you intend to use. You can find thi
 Navigate to the VAP directory:
 
 ```bash
-cd metro-ai-suite/vms-adapter
+cd metro-ai-suite/vms-adapter-plugin
 cp .env.example .env
 ```
 
@@ -681,7 +681,7 @@ docker compose down
 
    Update `.env` and restart VAP:
    ```bash
-   # In metro-ai-suite/vms-adapter/.env
+  # In metro-ai-suite/vms-adapter-plugin/.env
    PIPELINE_SERVER_MQTT_HOST=<output of hostname -I | awk '{print $1}'>
    docker compose restart vms-backend
    ```
@@ -732,7 +732,7 @@ docker compose down
 | **Step**                                     | **Where**                              |
 |----------------------------------------------|----------------------------------------|
 | Start dls_vision with MQTT exposed on port 1883      | dls_vision `docker compose up -d`            |
-| Configure Nx Witness connection in VAP `.env` | `metro-ai-suite/vms-adapter/.env`     |
+| Configure Nx Witness connection in VAP `.env` | `metro-ai-suite/vms-adapter-plugin/.env`     |
 | Configure `label_type_map` in `config.yaml`   | `config/config.yaml`                  |
 | Start VAP (integration auto-registers)        | `docker compose up -d --build`        |
 | Enable integration for cameras in Nx          | Nx Witness client → Camera Settings   |

@@ -8,8 +8,8 @@ The UI is designed to run as part of the `vms-adapter` Docker Compose stack defi
 ## Quick Start
 
 ```bash
-# From the vms-adapter root (parent of this directory)
-cd metro-ai-suite/vms-adapter
+# From the vms-adapter-plugin root (parent of this directory)
+cd metro-ai-suite/vms-adapter-plugin
 
 # Copy and configure environment
 cp .env.example .env

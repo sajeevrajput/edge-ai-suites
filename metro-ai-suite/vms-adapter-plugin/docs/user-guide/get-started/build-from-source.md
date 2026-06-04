@@ -23,7 +23,7 @@ Clone the repository and navigate to the VAP directory:
 git clone --filter=blob:none --sparse --branch main https://github.com/open-edge-platform/edge-ai-suites.git
 cd edge-ai-suites
 git sparse-checkout set metro-ai-suite
-cd metro-ai-suite/vms-adapter
+cd metro-ai-suite/vms-adapter-plugin
 ```
 
 ## Step 2: Configure the Environment

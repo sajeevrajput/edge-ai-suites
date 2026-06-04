@@ -251,7 +251,7 @@ You should see a JSON object listing your configured streams. Then set `FRIGATE_
 ### 3.1 Create the `.env` File
 
 ```bash
-cd metro-ai-suite/vms-adapter
+cd metro-ai-suite/vms-adapter-plugin
 cp .env.example .env
 ```
 
@@ -351,7 +351,7 @@ vms_instances:
 Navigate to the VAP directory and start all services:
 
 ```bash
-cd metro-ai-suite/vms-adapter
+cd metro-ai-suite/vms-adapter-plugin
 docker compose up -d --build
 ```
 
@@ -584,9 +584,9 @@ curl -X DELETE http://localhost:8085/v1/analytics-apps/live_captioning/runs/<run
 | Install and start LVC + MediaMTX | `metro-ai-suite/live-video-analysis/live-video-captioning/` → `docker compose up -d` |
 | **Frigate:** add cameras to `config.yml` | `vms_shim/frigate/config/config.yml` |
 | **Nx Witness:** download from [nxvms.com/download/releases/windows](https://nxvms.com/download/releases/windows), install Client & Server, add cameras, enable digest auth | Nx Witness Desktop Client on Windows |
-| Set `LVC_BASE_URL`, `MEDIAMTX_URL`, and VMS credentials in `.env` | `metro-ai-suite/vms-adapter/.env` |
+| Set `LVC_BASE_URL`, `MEDIAMTX_URL`, and VMS credentials in `.env` | `metro-ai-suite/vms-adapter-plugin/.env` |
 | Configure VMS instance(s) in `config.yaml` | `config/config.yaml` |
-| Start VAP | `cd metro-ai-suite/vms-adapter` → `docker compose up -d --build` |
+| Start VAP | `cd metro-ai-suite/vms-adapter-plugin` → `docker compose up -d --build` |
 | Discover cameras | Dashboard → Discover Cameras |
 | Enable cameras for analytics | Dashboard → Camera toggle |
 | Select Live Video Captioning | Dashboard → Analytics Engine → Discover Apps |

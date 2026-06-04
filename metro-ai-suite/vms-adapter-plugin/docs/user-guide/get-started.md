@@ -79,7 +79,7 @@ curl http://<LOITERING_DETECTION_HOST>:8080/pipelines
 ## Step 3 — Clone VAP and Create the `.env` File
 
 ```bash
-cd metro-ai-suite/vms-adapter
+cd metro-ai-suite/vms-adapter-plugin
 cp .env.example .env
 ```
 
