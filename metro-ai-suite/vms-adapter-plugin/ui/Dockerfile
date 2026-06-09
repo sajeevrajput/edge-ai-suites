@@ -33,14 +33,12 @@ FROM nginx:1.31.1-trixie
 ARG COPYLEFT_SOURCES=false
 
 # Security update for krb5 runtime libs (fixes CVE-2026-40356)
-# Install openssl for self-signed TLS certificate generation
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --only-upgrade \
       libkrb5support0 \
       libkrb5-3 \
       libgssapi-krb5-2 \
       libk5crypto3 && \
-    apt-get install -y --no-install-recommends openssl && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy built assets from builder stage
