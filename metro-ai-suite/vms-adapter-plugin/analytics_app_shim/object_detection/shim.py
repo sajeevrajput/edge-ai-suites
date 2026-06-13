@@ -25,6 +25,7 @@ generic ``/v1/analytics-apps/{app_id}/…`` routes work without app-specific cod
 from __future__ import annotations
 
 import asyncio
+import ssl
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -39,6 +40,16 @@ if TYPE_CHECKING:
     from plugin.core.pipeline.orchestrator import Orchestrator
 
 logger = structlog.get_logger(__name__)
+
+
+def _make_tls_context(cfg) -> ssl.SSLContext | None:
+    """Build an SSLContext from ObjectDetectionAnalyticsAppConfig MQTT TLS fields, or None when disabled."""
+    if not cfg.mqtt_tls_enabled:
+        return None
+    ctx = ssl.create_default_context(cafile=cfg.mqtt_ca_bundle or None)
+    if cfg.mqtt_client_cert and cfg.mqtt_client_key:
+        ctx.load_cert_chain(certfile=cfg.mqtt_client_cert, keyfile=cfg.mqtt_client_key)
+    return ctx
 
 
 class ObjectDetectionAnalyticsAppShim(IAnalyticsAppShim):
@@ -78,6 +89,7 @@ class ObjectDetectionAnalyticsAppShim(IAnalyticsAppShim):
                 analytics_app_id=self.app_id,
                 label_type_map=self._config.label_type_map,
                 timestamp_offset_ms=self._config.metadata_timestamp_offset_ms,
+                tls_context=_make_tls_context(self._config),
             ),
             name=f"mqtt-subscriber-{self.app_id}",
         )
