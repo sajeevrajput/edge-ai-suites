@@ -25,6 +25,7 @@ generic ``/v1/analytics-apps/{app_id}/…`` routes work without app-specific cod
 from __future__ import annotations
 
 import asyncio
+import copy
 import ssl
 from typing import TYPE_CHECKING, Any
 
@@ -245,7 +246,12 @@ class ObjectDetectionAnalyticsAppShim(IAnalyticsAppShim):
             "parameters": extra_params,
         }
         logger.info("-"*100)
-        logger.info(payload)
+        # log payload with rtsp url redacted
+        redacted_payload = copy.deepcopy(payload)
+        if "source" in redacted_payload:
+            if "uri" in redacted_payload["source"]:
+                redacted_payload["source"]["uri"] = "REDACTED_RSTP_URL"
+        logger.info(redacted_payload)
         logger.info("-"*100)
 
         result = await self._api.start_run(pipeline_root, pipeline_name, payload)
