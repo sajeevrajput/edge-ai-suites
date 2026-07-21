@@ -11,7 +11,7 @@ hide_directive-->
 
 # VMS Adapter Plugin Overview
 
-The VMS Adapter Plugin (VAP) is an I/O bridge between Video Management Systems (VMS) and AI Analytics Apps. It is designed to help developers understand how to connect existing VMS infrastructure to AI analytics pipelines, manage camera streams through a unified provider dashboard, and extend the system with new VMS vendors or analytics applications.
+The VMS Adapter Plugin (VAP) is an I/O bridge between Video Management Systems (VMS) and AI Analytics Apps. It is designed to help integrators connect existing VMS infrastructure to AI analytics pipelines, manage camera streams through a unified provider dashboard, and extend the system with new VMS vendors or analytics applications.
 
 ## Overview
 

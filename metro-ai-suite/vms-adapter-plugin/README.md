@@ -2,27 +2,9 @@
 
 The VMS Adapter Plugin (VAP) serves as an I/O bridge between Video Management Systems (VMS) like Nx Witness, Genetec, Milestone, etc. on the one side and AI Analytics Apps such as Object Detection pipelines like loitering detection, GenAI pipelines like Live Video Captioning (LVC), Live Video Search (LVS) on the other side. It combines a FastAPI backend, pluggable VMS and Analytics App shims, and a React operator dashboard into a single Docker Compose deployment.
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                        VMS Adapter Plugin                            │
-│                                                                      │
-│  ┌──────────┐     ┌─────────────────┐    ┌──────────────────────┐    │
-│  │ Genetec  │     | FastAPI Backend │    │  GenAI pipelines     │    │
-│  │ (VMS)    ├───► │ (plugin/)       ├───►│  (LVC, LVS, ...      │    │
-│  └──────────┘     │                 │    │  Analytics App)      |    │   
-│  ┌──────────┐     │  - Camera sync  │    └──────────────────────┘    │
-│  │Nx Witness│     │  - Generic runs │    ┌──────────────────────┐    │
-│  │ (VMS)    ├──┬─►│  - Result proxy │───►│  Objected Detection  │    │
-│  └──────────┘  |  └────────┬────────┘    │  (Loitering, Traffic │    │
-│  ┌───────────┐ |           |             │   Intersection, ...) │    │
-│  | Milestone |_|  ┌────────▼────────┐    └──────────────────────┘    │
-│  | (VMS)     |    │   React UI      │                                │
-│  └───────────┘    │   (nginx)       │                                │
-│                   └─────────────────┘                                │
-└──────────────────────────────────────────────────────────────────────┘
+![VAP Architecture Diagram](./docs/user-guide/_assets/vap-architecture.svg)
 
-```
-Note: Currently, Nx Witness is supported. Genetec and Milestone support will be added soon. In the codebase, Frigate is used as an open-source proxy for limited VMS capabilities as a means to demonstrate the VAP capabilities. 
+Note: Currently, Nx Witness is the only supported VMS. Genetec and Milestone support will be added soon. In the codebase, Frigate is used as an open-source proxy for limited VMS capabilities as a means to demonstrate the VAP capabilities. 
 
 ## Documentation
 
