@@ -64,22 +64,27 @@ Do not bring up the application yet.
 
 > The above setup generates a docker-compose.yml file
 
-### 1.2 Verify MQTT Port Exposure
+### 1.2 Verify MQTT Port Exposure and set MQTT host for DLStreamer Pipeline Server to publish
 
-The Docker Compose stack includes an Eclipse Mosquitto MQTT broker. Confirm that port `1883` is published to the host in the `docker-compose.yml`:
+The Docker Compose stack includes an Eclipse Mosquitto MQTT broker. Confirm that port `1883` is published to the host in the `docker-compose.yml`. Also set the `MQTT_HOST` for dlstreamer pipeline server to publish
 
 ```yaml
 broker:
   image: docker.io/library/eclipse-mosquitto:2.0.21
   ports:
     - "1883:1883"
+
+dlstreamer-pipeline-server:
+  environment:
+    - MQTT_HOST=${HOST_IP}  # we set to HOST_IP as broker is running in the same host
+    - MQTT_PORT=1883
 ```
 
 This is the default configuration. The Mosquitto broker uses an anonymous-access configuration (`allow_anonymous true`), which is required for VMS Analytics plugin and the DLStreamer Pipeline Server to publish and subscribe without credentials.
 
 > **Important:** The plugin connects to this MQTT broker from outside the dls_vision Docker network. The broker must be reachable at `<HOST_IP>:1883` from the plugin's container. If VAP runs on the same host, `host.docker.internal` resolves to the host from inside the plugin container.
 
-### 1.2 Start Loitering Detection Application
+### 1.3 Start Loitering Detection Application
 
 Start the application
 ```bash
