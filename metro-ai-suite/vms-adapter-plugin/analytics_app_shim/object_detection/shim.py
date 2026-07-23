@@ -239,8 +239,7 @@ class ObjectDetectionAnalyticsAppShim(IAnalyticsAppShim):
             "destination": {
                 "metadata": {
                     "type": "mqtt",
-                    "host": f"{self._config.pipeline_server_mqtt_host}:{self._config.pipeline_server_mqtt_port}",
-                    "topic": mqtt_topic,
+                    "topic": mqtt_topic
                 },
             },
             "parameters": extra_params,

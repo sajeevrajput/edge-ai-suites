@@ -26,12 +26,6 @@ class ObjectDetectionAnalyticsAppConfig(BaseModel):
     mqtt_ca_bundle: str = ""
     mqtt_client_cert: str = ""
     mqtt_client_key: str = ""
-    # Broker address as seen by the Pipeline Server (used in the destination payload
-    # so gvametapublish can connect). Defaults to the Pipeline Server's MQTT_HOST env var
-    # value (container name on the DLStreamer Vision network). Set to "host.docker.internal" if the
-    # broker is only reachable via the host's published port.
-    pipeline_server_mqtt_host: str = "mqtt-broker"
-    pipeline_server_mqtt_port: int = 1883
     # Maps detection labels (case-insensitive) to Nx Witness object typeIds.
     # Any label not present here falls back to "python.detected.object".
     # These typeIds are also merged into the Nx analytics manifest at startup

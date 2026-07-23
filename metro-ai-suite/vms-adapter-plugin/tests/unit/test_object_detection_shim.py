@@ -25,8 +25,6 @@ def _make_config(**kwargs) -> ObjectDetectionAnalyticsAppConfig:
         "base_url": "https://localhost:443/api",
         "mqtt_host": "localhost",
         "mqtt_port": 1883,
-        "pipeline_server_mqtt_host": "mqtt-broker",
-        "pipeline_server_mqtt_port": 1883,
     }
     defaults.update(kwargs)
     return ObjectDetectionAnalyticsAppConfig(**defaults)
@@ -143,7 +141,7 @@ async def test_start_creates_run():
         "dls_vision_pipeline",
         {
             "source": {"uri": "rtsp://cam:554/stream", "type": "uri", "properties": {"protocols": "tcp", "add-reference-timestamp-meta": True, "latency": 100}},
-            "destination": {"metadata": {"type": "mqtt", "host": "mqtt-broker:1883", "topic": "nx/dls_vision/e3e9a385-7fe0-3ba5-5482-a86cde7faf48"}},
+            "destination": {"metadata": {"type": "mqtt", "topic": "nx/dls_vision/e3e9a385-7fe0-3ba5-5482-a86cde7faf48"}},
             "parameters": {},
         },
     )
@@ -169,7 +167,7 @@ async def test_start_uses_default_root_when_not_in_map():
         "some_pipeline",
         {
             "source": {"uri": "rtsp://cam/s", "type": "uri", "properties": {"protocols": "tcp", "add-reference-timestamp-meta": True, "latency": 100}},
-            "destination": {"metadata": {"type": "mqtt", "host": "mqtt-broker:1883", "topic": "vap/dls_vision/unknown"}},
+            "destination": {"metadata": {"type": "mqtt", "topic": "vap/dls_vision/unknown"}},
             "parameters": {},
         },
     )
