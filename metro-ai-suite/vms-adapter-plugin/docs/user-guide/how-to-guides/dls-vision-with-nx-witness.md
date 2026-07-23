@@ -220,7 +220,9 @@ NX_CA_BUNDLE=
 DLS_VISION_HOST=host.docker.internal
 DLS_VISION_PORT=8080
 DLS_VISION_TLS_VERIFY=false
-DLS_PIPELINE_NAME=loitering_detection_vms_mqtt 
+DLS_PIPELINE_CPU=object_tracking_cpu
+DLS_PIPELINE_GPU=object_tracking_gpu
+DLS_PIPELINE_NPU=
 DLS_VISION_CA_BUNDLE=
 
 # MQTT Broker — address as seen by VAP (subscribing from outside the dls_vision Docker network)
@@ -277,12 +279,19 @@ analytics_apps:
     tls_ca_bundle: "${DLS_VISION_CA_BUNDLE:-}"
     mqtt_host: "${MQTT_HOST:-host.docker.internal}"
     mqtt_port: ${MQTT_PORT:-1883}
-    pipeline_name: "${DLS_PIPELINE_NAME:-}"
+    pipeline:
+      cpu: ${DLS_PIPELINE_CPU:-}
+      gpu: ${DLS_PIPELINE_GPU:-}
+      npu: ${DLS_PIPELINE_NPU:-}
     label_type_map:
       vehicle: vap.vehicle
       pedestrian: vap.pedestrian
       background: vap.background
 ```
+
+At least one of `DLS_PIPELINE_CPU`, `DLS_PIPELINE_GPU`, or `DLS_PIPELINE_NPU` must be set.
+In Nx UI, the **Device** dropdown only shows configured devices, and selecting one starts
+the corresponding configured pipeline with the same device in `detection-properties.device`.
 
 ### 3.3 Configure the `label_type_map`
 
