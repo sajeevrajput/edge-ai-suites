@@ -121,7 +121,7 @@ instructions.
 After installation, verify the Nx Witness REST API is accessible:
 
 ```bash
-curl -k -s -o /dev/null -w 'HTTP %{http_code}\n' https://10.223.22.40:7001/api/moduleInformation
+curl -k -s -o /dev/null -w 'HTTP %{http_code}\n' https://<NX_HOST_IP>:7001/api/moduleInformation
 ```
 You should get a response- `HTTP 200` to confirm REST API is up.
 
