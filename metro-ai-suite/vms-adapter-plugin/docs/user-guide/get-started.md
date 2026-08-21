@@ -14,7 +14,7 @@ This guide shows how to:
 - **Set up prerequisites**: Start LVC or DL Streamer vision analytics (Loitering Detection) before VAP,
   since VAP fetches their schemas at startup.
 - **Configure the environment**: Point VAP at your VMS and Analytics App services.
-- **Run the provider dashboard(Optional)**: Discover cameras, enable streams, and start analytics runs.
+- **Run the provider dashboard (Optional)**: Discover cameras, enable streams, and start analytics runs.
 
 ## Quick Start
 
