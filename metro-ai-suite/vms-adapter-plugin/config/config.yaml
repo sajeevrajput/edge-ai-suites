@@ -5,21 +5,50 @@
 # All ${ENV_VAR} references are resolved from environment variables at startup.
 
 vms_instances:
-  - name: nx-main
-    vendor: nx_witness
-    base_url: "https://${NX_HOST}:7001"
-    tls_verify: ${NX_TLS_VERIFY:-false}
-    tls_ca_bundle: "${NX_CA_BUNDLE:-}"
-    auth:
-      username: "${NX_USERNAME}"
-      password: "${NX_PASSWORD}"
-      auth_type: digest
+  # - name: nx-main
+  #   vendor: nx_witness
+  #   base_url: "https://${NX_HOST}:7001"
+  #   tls_verify: ${NX_TLS_VERIFY:-false}
+  #   tls_ca_bundle: "${NX_CA_BUNDLE:-}"
+  #   auth:
+  #     username: "${NX_USERNAME}"
+  #     password: "${NX_PASSWORD}"
+  #     auth_type: digest
+
+  # Milestone XProtect via Milestone AI Bridge. Set AIB_* in .env.
+  # AI Bridge must already be deployed and attached to XProtect. On startup the
+  # plugin discovers every attached XProtect system and registers each analytics
+  # app configured below as its own IVA app, choosing the topic format from the
+  # app's `type` (object_detection -> ONVIF metadata, live_captioning -> events).
+  - name: milestone
+    vendor: milestone
+    base_url: "http://${AIB_HOST}:${AIB_GRAPHQL_PORT:-4000}"
+    tls_verify: ${AIB_TLS_VERIFY:-false}
+    tls_ca_bundle: "${AIB_CA_BUNDLE:-}"
+    vendor_options:
+      # GraphQL endpoint; defaults to <base_url>/api/bridge/graphql.
+      graphql_url: "http://${AIB_HOST}:${AIB_GRAPHQL_PORT:-4000}/api/bridge/graphql"
+      # VAP dashboard URL. XProtect Management Client renders this as the
+      # configuration page of each registered app, so it must be resolvable
+      # from the XProtect host.
+      dashboard_url: "https://${AIB_APP_HOSTNAME}:${UI_HTTPS_PORT:-3443}"
+      # Optional: pin one XProtect system. When omitted, every system attached
+      # to this AI Bridge is registered with.
+      # vms_id: ""
+      # Optional: pin app GUIDs. Derived deterministically from the VMS name
+      # and analytics app id when omitted.
+      # app_ids:
+      #   dls_vision: "00000000-0000-0000-0000-000000000000"
+      #   live_captioning: "00000000-0000-0000-0000-000000000000"
+      # Metadata format for object_detection apps. Event-based apps
+      # (live_captioning) always use ANALYTICS_EVENT.
+      metadata_format: ONVIF_ANALYTICS_FRAME
 
 analytics_apps:
-  - type: live_captioning
-    display_name: "Live Video Captioning"
-    base_url: "http://${LVC_HOST:-host.docker.internal}:${LVC_PORT:-4173}"
-    mediamtx_url: "http://${MEDIAMTX_HOST:-host.docker.internal}:${MEDIAMTX_PORT:-8889}"
+  # - type: live_captioning
+  #   display_name: "Live Video Captioning"
+  #   base_url: "http://${LVC_HOST:-host.docker.internal}:${LVC_PORT:-4173}"
+  #   mediamtx_url: "http://${MEDIAMTX_HOST:-host.docker.internal}:${MEDIAMTX_PORT:-8889}"
 
   - type: object_detection
     app_id: "dls_vision"

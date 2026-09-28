@@ -9,7 +9,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -74,6 +74,11 @@ class VmsInstanceConfig(BaseModel):
     # Expected keys: integrationManifest, engineManifest, deviceAgentManifest, pinCode.
     # Used only by the nx_witness vendor.
     analytics_manifest_path: str | None = None
+    # Free-form vendor-specific settings. Preferred over adding new per-vendor
+    # top-level fields. Each shim documents the keys it consumes; e.g. the
+    # ``milestone`` shim reads ``graphql_url``, ``app_id``, ``app_url``,
+    # ``metadata_topic``, ``event_topic``.
+    vendor_options: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("vendor")
     @classmethod

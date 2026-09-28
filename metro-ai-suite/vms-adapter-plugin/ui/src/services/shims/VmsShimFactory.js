@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { FrigateShim } from './FrigateShim';
+import { MilestoneShim } from './MilestoneShim';
 import { NxWitnessShim } from './NxWitnessShim';
 import { VmsShimBase } from './VmsShimBase';
 
@@ -9,6 +10,7 @@ import { VmsShimBase } from './VmsShimBase';
 const _instances = {
   frigate:    new FrigateShim(),
   nx_witness: new NxWitnessShim(),
+  milestone:  new MilestoneShim(),
 };
 
 /**
@@ -26,7 +28,7 @@ export class VmsShimFactory {
    * Returns the singleton shim for the given vendor.
    * Falls back to a generic VmsShimBase for unknown vendors.
    *
-   * @param {string} vendor  — 'frigate' | 'nx_witness'
+   * @param {string} vendor  — 'frigate' | 'nx_witness' | 'milestone'
    * @returns {VmsShimBase}
    */
   static create(vendor) {

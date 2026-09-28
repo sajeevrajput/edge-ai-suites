@@ -35,8 +35,7 @@ async def receive_analysis_results(
 
     vms_shim = None
     for ss in shim_sets:
-        prefix = "nx:" if ss.config.vendor == "nx_witness" else f"{ss.config.vendor}:"
-        if event.camera_id.startswith(prefix):
+        if event.camera_id.startswith(ss.vms_shim.camera_id_prefix):
             vms_shim = ss.vms_shim
             break
 

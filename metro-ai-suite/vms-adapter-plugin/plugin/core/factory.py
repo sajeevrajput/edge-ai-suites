@@ -16,6 +16,7 @@ import structlog
 from plugin.base.interfaces import IAnalyticsAppShim, IVmsShim
 from plugin.core.config import AppConfig, AnyCorAppConfig, VmsInstanceConfig
 from vms_shim.frigate.shim import FrigateVmsShim
+from vms_shim.milestone.shim import MilestoneVmsShim
 from vms_shim.nxwitness.shim import NxWitnessVmsShim
 from analytics_app_shim.lvc import LiveCaptioningAnalyticsAppShim
 from analytics_app_shim.object_detection import ObjectDetectionAnalyticsAppShim
@@ -29,6 +30,7 @@ AnalyticsAppShimBuilder = Callable[[AnyCorAppConfig], IAnalyticsAppShim]
 _VMS_REGISTRY: dict[str, VmsShimBuilder] = {
     "frigate": FrigateVmsShim,
     "nx_witness": NxWitnessVmsShim,
+    "milestone": MilestoneVmsShim,
 }
 
 _ANALYTICS_APP_REGISTRY: dict[str, AnalyticsAppShimBuilder] = {

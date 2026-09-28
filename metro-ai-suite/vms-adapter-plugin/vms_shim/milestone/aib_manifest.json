@@ -1,0 +1,30 @@
+{
+  "apps": [
+    {
+      "id": "${APP_ID}",
+      "url": "${APP_BASE_URL}",
+      "name": "${APP_NAME}",
+      "version": "${APP_VERSION}",
+      "description": "${APP_DESCRIPTION}",
+      "manufacturer": {
+        "name": "${MANUFACTURER_NAME}"
+      },
+      "eventTopics": [
+        {
+          "url": "${APP_BASE_URL}?topic=${EVENT_TOPIC}",
+          "name": "${EVENT_TOPIC}",
+          "description": "Analytics events produced by the VMS Adapter Plugin",
+          "eventFormat": "ANALYTICS_EVENT"
+        }
+      ],
+      "metadataTopics": [
+        {
+          "url": "${APP_BASE_URL}?topic=${METADATA_TOPIC}",
+          "name": "${METADATA_TOPIC}",
+          "description": "Object detections as ONVIF frame metadata",
+          "metadataFormat": "${METADATA_FORMAT}"
+        }
+      ]
+    }
+  ]
+}

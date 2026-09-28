@@ -7,13 +7,16 @@ Subscribes to the MQTT broker and routes incoming DL Streamer inference
 metadata to the appropriate VMS shim for analytics push.
 
 Topic convention: ``/{vms_name}/{analytics_app_id}/{camera_id}``
-Example:         ``/nx-main/dls_vision/abc123-device-uuid``
+Examples:
+  - Nx:        ``/nx-main/dls_vision/abc123-device-uuid``
+  - Milestone: ``/milestone/dls_vision/{deviceId}/{streamId}`` (camera_id has "/")
 
 On each message:
-1. Parse vms_name, analytics_app_id, camera_id from topic.
+1. Parse vms_name, analytics_app_id, camera_id from topic (camera_id may contain "/").
 2. Look up the VMS shim by vms_name.
-3. Translate DLS metadata to Nx object-push format.
-4. Call ``vms_shim.push_analytics_objects(device_id, objects, timestamp_ms)``.
+3. Route to the shim's push method:
+   - Milestone: ``push_detection_metadata`` (raw payload -> ONVIF -> AI Bridge).
+   - Nx:        translate to objects -> ``push_analytics_objects``.
 """
 
 from __future__ import annotations
@@ -57,7 +60,9 @@ class MqttSubscriber:
     ) -> None:
         """Subscribe to MQTT and dispatch messages until cancelled.
 
-        Topic wildcard: ``+/{analytics_app_id}/+`` (matches ``/{vms_name}/{analytics_app_id}/{camera_id}``)
+        Topic wildcard: ``+/{analytics_app_id}/#`` (matches ``/{vms_name}/{analytics_app_id}/{camera_id}``).
+        The trailing ``#`` also matches a camera_id that contains ``/`` — e.g. the
+        Milestone composite ``{deviceId}/{streamId}``.
         Leading slash is optional — both ``/nx-main/dls_vision/device`` and ``nx-main/dls_vision/device`` are
         handled by stripping the leading slash before splitting.
         """
@@ -74,8 +79,9 @@ class MqttSubscriber:
         shim_map: dict[str, Any] = {ss.name: ss.vms_shim for ss in vms_shim_sets}
         _label_map: dict[str, str] = {k.lower(): v for k, v in (label_type_map or {}).items()}
 
-        # Wildcard: single-level + matches any vms_name; trailing + matches any camera_id
-        topic_filter = f"+/{analytics_app_id}/+"
+        # Wildcard: single-level + matches any vms_name; trailing # matches a
+        # camera_id that may itself contain "/" (Milestone "{deviceId}/{streamId}").
+        topic_filter = f"+/{analytics_app_id}/#"
 
         logger.info(
             "mqtt_subscriber_starting",
@@ -121,13 +127,16 @@ class MqttSubscriber:
         """Parse topic, translate payload, and dispatch to VMS shim."""
         import json
 
-        # Normalise: strip optional leading slash, split into parts
+        # Normalise: strip optional leading slash, split into parts. camera_id is
+        # everything after "{vms_name}/{analytics_app_id}/" and may itself contain
+        # "/" (Milestone composite "{deviceId}/{streamId}").
         parts = topic.lstrip("/").split("/")
-        if len(parts) != 3:  # noqa: PLR2004
+        if len(parts) < 3:  # noqa: PLR2004
             logger.warning("mqtt_unexpected_topic_format", topic=topic)
             return
 
-        vms_name, _, camera_id = parts
+        vms_name = parts[0]
+        camera_id = "/".join(parts[2:])
 
         # Exact match first (e.g. "nx-main"), then prefix match (e.g. "nx" → "nx-main")
         shim = shim_map.get(vms_name) or next(
@@ -149,6 +158,29 @@ class MqttSubscriber:
         # accommodate DLS envelope {"metadata": {...}, "blob": ""} as well as just {},
         # as seen in DLS pipelines with appsink based destination vs gvametapublish based destination
         metadata = data.get("metadata", data)
+
+        # Milestone-style shims translate the raw DLS payload to ONVIF themselves
+        # and consume the composite camera id; Nx-style shims want pre-translated
+        # objects and the bare device id.
+        push_raw = getattr(shim, "push_detection_metadata", None)
+        if callable(push_raw):
+            if not (isinstance(metadata, dict) and metadata.get("objects")):
+                logger.debug("mqtt_no_objects_in_frame", topic=topic)
+                return
+            camera_ref = f"{getattr(shim, 'camera_id_prefix', '')}{camera_id}"
+            ok = await push_raw(
+                camera_ref,
+                metadata,
+                analytics_app_id,
+                label_class_map=label_type_map or None,
+                timestamp_offset_ms=timestamp_offset_ms,
+            )
+            if not ok:
+                logger.warning("mqtt_push_failed", vms_name=vms_name, camera_id=camera_id)
+            else:
+                logger.debug("mqtt_pushed_metadata", vms_name=vms_name, camera_id=camera_id)
+            return
+
         objects, timestamp_ms = translate_dls_metadata(metadata, label_type_map, timestamp_offset_ms)
         if not objects:
             logger.debug("mqtt_no_objects_in_frame", topic=topic)
