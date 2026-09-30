@@ -32,14 +32,19 @@ FROM nginx:1.31.5-trixie
 
 ARG COPYLEFT_SOURCES=false
 
-# Security update for krb5 runtime libs (fixes CVE-2026-40356) and bsdutils (fixes util-linux CVE)
+# Security update for krb5 runtime libs (fixes CVE-2026-40356), bsdutils (fixes util-linux CVE)
+# and perl (fixes CVE-2026-42496, CVE-2026-8376, CVE-2026-13221 via 5.40.1-6+deb13u1)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --only-upgrade \
       libkrb5support0 \
       libkrb5-3 \
       libgssapi-krb5-2 \
       libk5crypto3 \
-      bsdutils && \
+      bsdutils \
+      perl-base \
+      perl \
+      perl-modules-5.40 \
+      libperl5.40 && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy built assets from builder stage
