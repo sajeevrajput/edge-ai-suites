@@ -14,6 +14,8 @@ Step-by-step guides for common VAP workflows and integrations.
 
 - [Run Both Applications Simultaneously](./how-to-guides/run-simultaneous-apps.md) — Bring up both Live Video Captioning and Loitering Detection applications on the same host as VAP, with proper configuration for each application to avoid port conflicts.
 
+- [Milestone XProtect via Milestone AI Bridge](./how-to-guides/milestone-ai-bridge.md) — Configure VAP as an IVA app on Milestone AI Bridge: prerequisites, `vendor_options` reference, camera discovery, IVA registration, and the capability matrix for this VMS.
+
 <!--hide_directive
 :::{toctree}
 :hidden:
@@ -22,6 +24,7 @@ Tutorial: LVC with NX Witness <./how-to-guides/lvc-with-nx-witness.md>
 Tutorial: Loitering Detection with NX Witness <./how-to-guides/dls-vision-with-nx-witness.md>
 Run Simultaneous Applications <./how-to-guides/run-simultaneous-apps.md>
 TLS and Certificates <./how-to-guides/tls-and-certificates.md>
+Milestone AI Bridge <./how-to-guides/milestone-ai-bridge.md>
 
 :::
 hide_directive-->
