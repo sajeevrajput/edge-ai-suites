@@ -32,26 +32,13 @@ FROM nginx:1.31.5-trixie
 
 ARG COPYLEFT_SOURCES=false
 
-# Security update for krb5 runtime libs (fixes CVE-2026-40356), bsdutils (fixes util-linux CVE),
-# perl (fixes CVE-2026-42496, CVE-2026-8376, CVE-2026-13221 via 5.40.1-6+deb13u1),
-# gzip (CVE-2026-41992), libde265 (CVE-2026-33164), pcre2 (CVE-2026-86145, CVE-2026-89157,
-# CVE-2026-89161), sqlite3 (CVE-2026-11822, CVE-2026-11824) and libssh2 (CVE-2026-58050)
+# Apply all available Debian security updates to remediate CVEs inherited from the base
+# image (perl, openssl, pcre2, sqlite3, libssh2, libde265, gzip, krb5, util-linux, etc.).
+# A full upgrade is used instead of a hand-maintained package list so point-release
+# security fixes are picked up automatically on every rebuild.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends --only-upgrade \
-      libkrb5support0 \
-      libkrb5-3 \
-      libgssapi-krb5-2 \
-      libk5crypto3 \
-      bsdutils \
-      perl-base \
-      perl \
-      perl-modules-5.40 \
-      libperl5.40 \
-      gzip \
-      libde265-0 \
-      libpcre2-8-0 \
-      libsqlite3-0 \
-      libssh2-1t64 && \
+    DEBIAN_FRONTEND=noninteractive apt-get -y upgrade && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy built assets from builder stage
