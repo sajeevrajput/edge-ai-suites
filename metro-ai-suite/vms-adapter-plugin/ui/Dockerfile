@@ -32,8 +32,10 @@ FROM nginx:1.31.5-trixie
 
 ARG COPYLEFT_SOURCES=false
 
-# Security update for krb5 runtime libs (fixes CVE-2026-40356), bsdutils (fixes util-linux CVE)
-# and perl (fixes CVE-2026-42496, CVE-2026-8376, CVE-2026-13221 via 5.40.1-6+deb13u1)
+# Security update for krb5 runtime libs (fixes CVE-2026-40356), bsdutils (fixes util-linux CVE),
+# perl (fixes CVE-2026-42496, CVE-2026-8376, CVE-2026-13221 via 5.40.1-6+deb13u1),
+# gzip (CVE-2026-41992), libde265 (CVE-2026-33164), pcre2 (CVE-2026-86145, CVE-2026-89157,
+# CVE-2026-89161), sqlite3 (CVE-2026-11822, CVE-2026-11824) and libssh2 (CVE-2026-58050)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --only-upgrade \
       libkrb5support0 \
@@ -44,7 +46,12 @@ RUN apt-get update && \
       perl-base \
       perl \
       perl-modules-5.40 \
-      libperl5.40 && \
+      libperl5.40 \
+      gzip \
+      libde265-0 \
+      libpcre2-8-0 \
+      libsqlite3-0 \
+      libssh2-1t64 && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy built assets from builder stage
