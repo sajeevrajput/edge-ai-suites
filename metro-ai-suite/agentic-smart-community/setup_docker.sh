@@ -62,6 +62,93 @@ is_vllm_healthy() {
   curl -s --max-time 5 "$VLLM_HEALTH_URL" 2>/dev/null | grep -q '"id"'
 }
 
+is_external_serving_reachable() {
+  local status
+  status="$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' "$VLLM_ENDPOINT" 2>/dev/null || true)"
+  [ "$status" != "000" ] && [ -n "$status" ]
+}
+
+# Resolve each role against the standard OpenAI /v1/models response. The
+# requested name must match an advertised ID; never select by list order.
+resolve_model_name() {
+  local role="$1" base_url="$2" api_key="$3" requested="$4" models selected
+  models="$(curl -fsS --connect-timeout 3 --max-time 10 \
+    -H "Authorization: Bearer ${api_key}" "${base_url%/}/models" 2>/dev/null \
+    | python3 -c 'import json, sys; print("\\n".join(str(item["id"]) for item in json.load(sys.stdin).get("data", []) if isinstance(item, dict) and item.get("id")))' 2>/dev/null || true)"
+  if [ -z "$models" ]; then
+    if [ -n "$requested" ]; then
+      echo -e "${YELLOW}Warning: ${role} serving did not return a usable model list from ${base_url%/}/models; using configured model '${requested}' without validation.${NC}" >&2
+      printf '%s' "$requested"
+      return 0
+    fi
+    echo -e "${RED}Error: ${role} serving did not return a usable model from ${base_url%/}/models.${NC}" >&2
+    return 1
+  fi
+  if [ -z "$requested" ]; then
+    echo -e "${RED}Error: ${role} model is not configured; set ${role}_MODEL_NAME to an advertised model ID.${NC}" >&2
+    printf 'Available %s models:\n%s\n' "$role" "$models" >&2
+    return 1
+  elif grep -Fqx -- "$requested" <<<"$models"; then
+    selected="$requested"
+    echo "${role} model verified: ${selected}" >&2
+  else
+    echo -e "${RED}Error: configured ${role} model '${requested}' is not served by ${base_url%/}/models.${NC}" >&2
+    printf 'Available %s models:\n%s\n' "$role" "$models" >&2
+    return 1
+  fi
+  printf '%s' "$selected"
+}
+
+resolve_serving_models() {
+  local vlm_discovery_url="$VLM_BASE_URL" llm_discovery_url="$LLM_BASE_URL"
+  if [ "$USE_LOCAL_VLLM" = true ]; then
+    # The service name is resolvable only inside app-network; discovery runs on
+    # the host before MLVU/MCP containers are created.
+    vlm_discovery_url="http://localhost:${VLLM_SERVICE_PORT}/v1"
+    llm_discovery_url="$vlm_discovery_url"
+  fi
+  VLM_MODEL_NAME="$(resolve_model_name VLM "$vlm_discovery_url" "${VLM_API_KEY:-EMPTY}" "${VLM_MODEL_NAME:-}")" || return 1
+  LLM_MODEL_NAME="$(resolve_model_name LLM "$llm_discovery_url" "${LLM_API_KEY:-EMPTY}" "${LLM_MODEL_NAME:-}")" || return 1
+  export VLM_MODEL_NAME LLM_MODEL_NAME
+}
+
+# Published MCP images read a concrete YAML file and do not expand shell-style
+# placeholders. Render the two VLM placeholders after model discovery so both
+# direct setup and demo launchers produce the same runtime configuration.
+prepare_mcp_config() {
+  local config_path template_path temporary_path content mcp_vlm_url
+  local url_placeholder='${VLM_BASE_URL:-http://localhost:41091/v1}'
+  local model_placeholder='${VLM_MODEL_NAME:-Qwen/Qwen3.6-35B-A3B}'
+
+  config_path="${SMART_COMMUNITY_DATA_DIR}/config.yaml"
+  template_path="${SCRIPT_DIR}/config.yaml.example"
+  mkdir -p "${SMART_COMMUNITY_DATA_DIR}"
+  if [[ ! -e "$config_path" ]]; then
+    cp -- "$template_path" "$config_path"
+    echo "Created runtime MCP configuration: ${config_path}"
+  fi
+  [[ ! -L "$config_path" && -f "$config_path" ]] || {
+    echo -e "${RED}Error: MCP configuration must be a regular file: ${config_path}${NC}" >&2
+    return 1
+  }
+
+  content="$(<"$config_path")"
+  if [[ "$content" != *"$url_placeholder"* && "$content" != *"$model_placeholder"* ]]; then
+    return 0
+  fi
+
+  mcp_vlm_url="$VLM_BASE_URL"
+  if [[ "$mcp_vlm_url" == "http://vllm-ipex-serving:8000/v1" ]]; then
+    mcp_vlm_url="http://localhost:${VLLM_SERVICE_PORT}/v1"
+  fi
+  content="${content//"$url_placeholder"/"$mcp_vlm_url"}"
+  content="${content//"$model_placeholder"/"$VLM_MODEL_NAME"}"
+  temporary_path="$(mktemp "${SMART_COMMUNITY_DATA_DIR}/.config.yaml.XXXXXX")"
+  printf '%s' "$content" > "$temporary_path"
+  mv -- "$temporary_path" "$config_path"
+  echo "Rendered VLM settings in runtime MCP configuration: ${config_path}"
+}
+
 # --- serving startup recovery --------------------------------------------------
 # compose.yaml gives vllm-ipex-serving `restart: always`, and multilevel/mcp-server
 # depend on it with `condition: service_healthy`. If the serving dies mid-weight-load
@@ -110,44 +197,41 @@ vllm_hit_gpu_fault() {
     | grep -qE 'UR_RESULT_ERROR_DEVICE_LOST|DEVICE_LOST|level_zero backend failed|exec queue reset'
 }
 
+vllm_failure_description() {
+  local logs
+  logs="$(docker logs --tail 400 "$VLLM_CONTAINER" 2>&1 || true)"
+
+  if grep -qiE 'UR_RESULT_ERROR_DEVICE_LOST|DEVICE_LOST|level_zero backend failed|exec queue reset' <<<"$logs"; then
+    echo "The serving lost access to the GPU. Release other GPU users or reset the xe driver."
+  elif grep -qiE 'out of memory|OOM|Cannot allocate memory|Killed' <<<"$logs"; then
+    echo "Model loading ran out of memory. Add swap or lower GPU_MEM_UTIL and MAX_MODEL_LEN."
+  elif grep -qiE 'RepositoryNotFound|GatedRepoError|401 Client Error|403 Client Error|authentication.*failed|Invalid username or password' <<<"$logs"; then
+    echo "Model download was denied. Check LLM_MODEL and any required Hugging Face access token."
+  elif grep -qiE 'not a local folder and is not a valid model identifier|Incorrect path_or_model_id|Invalid.*model|model.*not found' <<<"$logs"; then
+    echo "Model configuration is invalid. Check LLM_MODEL in docker/set_env.sh."
+  elif grep -qiE 'Couldn.t connect|ConnectionError|ConnectTimeout|ReadTimeout|Max retries exceeded|Network is unreachable|Name or service not known|Temporary failure in name resolution|offline mode.*local files' <<<"$logs"; then
+    echo "Model download is unavailable. Check network access and HF_ENDPOINT, or pre-populate the Hugging Face cache."
+  else
+    echo "The model serving process did not become healthy. Review the vLLM log excerpt below for the first error."
+  fi
+}
+
+cleanup_failed_stack() {
+  echo "Stopping the failed stack to prevent further vLLM restart attempts..."
+  if ! $DOCKER_CMD down --remove-orphans; then
+    echo -e "${YELLOW}Warning: failed to fully clean up the stack; run '$0 --down' manually.${NC}"
+  fi
+}
+
 show_vllm_logs() {
   echo "---- docker logs --tail 40 ${VLLM_CONTAINER} ----"
   docker logs --tail 40 "$VLLM_CONTAINER" 2>&1 | sed 's/^/  /' || true
   echo "------------------------------------------------"
 }
 
-vllm_recovery_hints() {
+show_vllm_failure() {
   echo
-  echo "How to recover:"
-  if vllm_hit_gpu_fault; then
-    cat <<EOF
-  The serving lost the GPU (level-zero UR_RESULT_ERROR_DEVICE_LOST) while transferring
-  weights. Confirm the driver-side reset on the host:
-      dmesg -T | grep -iE 'xe .*(exec queue reset|VM worker error)'
-  This fault is usually transient and clears on the next attempt. If it keeps repeating:
-    * Release the GPU from other users:  sudo fuser -v /dev/dri/renderD128
-    * Lower the peak memory of the transfer in docker/set_env.sh, then re-source it:
-        export GPU_MEM_UTIL=0.6       # default 0.7
-        export MAX_MODEL_LEN=32768    # default 61440
-    * Confirm at least 32 GB of swap is active ('free -h');
-      see docs/user-guide/how-to-guides/add-swap.md
-    * If the GPU stays wedged across restarts, reboot the host to reset the xe driver.
-EOF
-  else
-    cat <<EOF
-  Read the serving log above for the first error, then check the usual causes:
-    * Weights still downloading or the Hugging Face endpoint is unreachable (HF_ENDPOINT).
-    * Not enough RAM + swap for ${LLM_MODEL:-the model} — see docs/user-guide/how-to-guides/add-swap.md
-    * GPU not visible in the container: ls -l /dev/dri, and check VIDEO_GROUP_ID / RENDER_GROUP_ID.
-EOF
-  fi
-  cat <<EOF
-
-  Full serving log:          docker logs -f ${VLLM_CONTAINER}
-  Re-check readiness:        curl -fsS ${VLLM_HEALTH_URL}
-  Resume once it is warm:    bash $0 --light
-  Start over:                bash $0
-EOF
+  echo -e "${RED}Failure: $(vllm_failure_description)${NC}"
 }
 
 # Poll until the serving reports healthy, or Docker stops retrying, or we run out
@@ -199,8 +283,9 @@ compose_up() {
   show_vllm_logs
 
   if [ "$VLLM_RETRY_TIMEOUT" -le 0 ] || ! vllm_retry_pending; then
-    echo -e "${RED}'${VLLM_CONTAINER}' is not being restarted — the stack is down.${NC}"
-    vllm_recovery_hints
+    echo -e "${RED}Giving up on '${VLLM_CONTAINER}'.${NC}"
+    show_vllm_failure
+    cleanup_failed_stack
     return 1
   fi
 
@@ -220,7 +305,8 @@ compose_up() {
     echo
     echo -e "${RED}'${VLLM_CONTAINER}' did not become healthy within $(human_duration "$VLLM_RETRY_TIMEOUT").${NC}"
     show_vllm_logs
-    vllm_recovery_hints
+    show_vllm_failure
+    cleanup_failed_stack
     return 1
   fi
 
@@ -433,21 +519,37 @@ if [ "$UP_CONTAINERS" = true ]; then
   if [ "$LIGHT_MODE" = true ]; then
     # Reuse an already-warm serving; start only the app + analytics.
     if is_vllm_healthy; then
+      resolve_serving_models || exit 1
+      prepare_mcp_config || exit 1
       echo "Model serving already healthy at ${VLLM_HEALTH_URL} — starting multilevel + videostream-analytics + smart-community-mcp-server only."
       compose_up --no-deps multilevel-video-understanding videostream-analytics smart-community-mcp-server || exit 1
     elif [ "$USE_LOCAL_VLLM" = true ]; then
-      echo "Local vllm-ipex-serving not healthy yet — starting the full stack instead."
+      echo "Local vllm-ipex-serving not healthy yet — starting it before the app tier."
       echo "(first run pulls/compiles the model — this can take about 30 mins)"
-      compose_up || exit 1
-    else
-      echo "Warning: external serving not reachable at ${VLLM_HEALTH_URL}; starting multilevel + videostream-analytics + smart-community-mcp-server anyway (they retry at runtime)."
+      compose_up vllm-ipex-serving || exit 1
+      wait_for_vllm_healthy || { show_vllm_failure; exit 1; }
+      resolve_serving_models || exit 1
+      prepare_mcp_config || exit 1
       compose_up --no-deps multilevel-video-understanding videostream-analytics smart-community-mcp-server || exit 1
+    elif is_external_serving_reachable; then
+      resolve_serving_models || exit 1
+      prepare_mcp_config || exit 1
+      echo "External model serving is reachable but does not expose a usable model list — starting multilevel + videostream-analytics + smart-community-mcp-server with the configured model IDs."
+      compose_up --no-deps multilevel-video-understanding videostream-analytics smart-community-mcp-server || exit 1
+    else
+      echo -e "${RED}Error: external serving is not reachable at ${VLLM_HEALTH_URL}.${NC}" >&2
+      exit 1
     fi
   else
-    # End-to-end: bring up serving + app + analytics together.
-    echo "Starting all three services..."
+    # End-to-end: wait for the serving, resolve its advertised model, then start
+    # the services that require a concrete VLM/LLM model ID.
+    echo "Starting model serving..."
     echo "(first run pulls/compiles the model in vllm-ipex-serving — this can take about 30 mins)"
-    compose_up || exit 1
+    compose_up vllm-ipex-serving || exit 1
+    wait_for_vllm_healthy || { show_vllm_failure; exit 1; }
+    resolve_serving_models || exit 1
+    prepare_mcp_config || exit 1
+    compose_up --no-deps multilevel-video-understanding videostream-analytics smart-community-mcp-server || exit 1
   fi
 
   echo -e "${GREEN}==== Setup complete! ====${NC}"

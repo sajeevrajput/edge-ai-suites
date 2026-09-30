@@ -42,6 +42,12 @@ export interface UIState {
   autoSwitched: boolean;
   autoSwitchedToMindmap: boolean;
   sessionId: string | null;
+  /**
+   * Whether the backend has a row for `sessionId`. The stage-driven chain reads
+   * that row to decide when to start segmentation, so without a row there is
+   * nothing to poll and it must not try.
+   */
+  sessionRegistered: boolean;
   videoSessionId: string | null;
   uploadedAudioPath: string | null;
   shouldStartSummary: boolean;
@@ -49,7 +55,6 @@ export interface UIState {
   reportStatus: ReportStatus;
   reportError: string | null;
   shouldStartReport: boolean;
-  projectLocation: string;
   frontCamera: string;
   backCamera: string;
   boardCamera: string;
@@ -111,6 +116,7 @@ const initialState: UIState = {
   autoSwitched: false,
   autoSwitchedToMindmap: false,
   sessionId: null,
+  sessionRegistered: false,
   videoSessionId: null,
   uploadedAudioPath: null,
   shouldStartSummary: false,
@@ -119,7 +125,6 @@ const initialState: UIState = {
   shouldStartReport: false,
   shouldStartMindmap: false,
   transcriptionDone: false,
-  projectLocation: 'storage/',
   activeStream: null,
   frontCamera: storedCameras.front,
   backCamera: storedCameras.back,
@@ -180,6 +185,7 @@ const uiSlice = createSlice({
       state.autoSwitched = false;
       state.autoSwitchedToMindmap = false;
       state.sessionId = null;
+      state.sessionRegistered = false;
       state.uploadedAudioPath = null;
       state.shouldStartSummary = false;
       state.shouldStartMindmap = false;
@@ -282,8 +288,16 @@ const uiSlice = createSlice({
     setSessionId(state, action: PayloadAction<string | null>) {
       const v = action.payload;
       if (typeof v === 'string' && v.trim().length > 0) {
+        // A fresh id has not been registered yet. Clearing the flag here rather
+        // than leaving it to the caller means the chain can never poll a new
+        // session on the strength of the previous one's registration.
+        if (v !== state.sessionId) state.sessionRegistered = false;
         state.sessionId = v;
       }
+    },
+
+    setSessionRegistered(state, action: PayloadAction<boolean>) {
+      state.sessionRegistered = action.payload;
     },
 
     setVideoSessionId(state, action: PayloadAction<string | null>) {
@@ -356,10 +370,6 @@ const uiSlice = createSlice({
  
     setActiveTab(state, action: PayloadAction<Tab>) {
       state.activeTab = action.payload;
-    },
-    
-    setProjectLocation(state, action: PayloadAction<string>) {
-      state.projectLocation = action.payload;
     },
     
     setFrontCamera(state, action: PayloadAction<string>) {
@@ -655,6 +665,7 @@ export const {
   summaryStreamComplete,
   setUploadedAudioPath,
   setSessionId,
+  setSessionRegistered,
   setVideoSessionId,
   setActiveStream,
   resetStream,
@@ -669,7 +680,6 @@ export const {
   mindmapImageDone,
   clearMindmapStartRequest,
   setActiveTab,
-  setProjectLocation,
   resetFlow,
   setFrontCamera, 
   setBackCamera, 

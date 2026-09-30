@@ -9,50 +9,57 @@ import ServicesScreen from './components/Services/ServicesScreen';
 import ConfigScreen from './components/Settings/ConfigScreen';
 import SetupScreen from './components/Settings/SetupScreen';
 import GetStartedScreen from './components/Settings/GetStartedScreen';
+import HistoryPanel from './components/History/HistoryPanel';
 import './App.css';
 import './assets/css/HeaderBar.css';
 import MetricsPoller from './components/common/MetricsPoller';
-import { getSettings, pingBackend } from './services/api';
+import { pingBackend } from './services/api';
 import { isServiceManagerAvailable, useReloadOnBackendRestart, useServices } from './services/serviceManager';
 import { useSetup } from './services/setupManager';
 import { useVideoPipelineMonitor } from "../src/redux/videoMonitor";
 import { useAudioPipeline } from './redux/useAudioPipeline';
+import { useSessionAbortBeacon } from './redux/useSessionAbortBeacon';
+import { useStageDrivenChain } from './redux/useStageDrivenChain';
 import { useTranslation } from 'react-i18next';
 import { useFeatureConfig } from './hooks/useFeatureConfig';
 import { FeatureGuard } from './utils/featureGuards';
   
 const App: React.FC = () => {
   const { t } = useTranslation();
-  const [projectName, setProjectName] = useState<string>('');
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
   const [activeScreen, setActiveScreen] = useState<'main' | 'content-search' | 'grading' | 'services' | 'config' | 'setup' | 'ready'>('main');
   const [isReportOpen, setIsReportOpen] = useState(false);
+  // Both slide over the workspace rather than replacing it, so looking up last
+  // week's class does not take the teacher away from the one recording now.
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [focusTarget, setFocusTarget] = useState<string | null>(null);
   useVideoPipelineMonitor();
   // Both pipelines are driven from here, not from the panels that display them,
   // so they keep running while the user moves around the UI.
   useAudioPipeline();
+  // Closes out the session in the history if the page goes away mid-run.
+  useSessionAbortBeacon();
 
   // Load feature configuration
   const { guard, loaded: featuresLoaded, loading: featuresLoading, error: featuresError } = useFeatureConfig();
 
+  // Starts segmentation and then the report off the backend's stage table.
+  // Here rather than in LeftPanel, where the old trigger lived, because the
+  // chain has to keep running whatever the user is looking at.
+  useStageDrivenChain(guard);
+
   // Check if any main features are enabled
-  const hasMainFeatures = featuresLoaded && guard ? 
-    ['asr', 'summary', 'mindmap', 'topic_segmentation', 'video_analytics', 'report'].some(f => guard.hasFeature(f)) : 
+  const hasMainFeatures = featuresLoaded && guard ?
+    guard.hasAnyFeatureForScreen('main') :
     true; // Default to true during loading
 
   // Auto-switch to content-search or grading screen if only those features are enabled
   useEffect(() => {
     if (!featuresLoaded || !guard) return;
 
-    const mainFeatures = ['asr', 'summary', 'mindmap', 'topic_segmentation', 'video_analytics', 'report'];
-    const contentSearchFeatures = ['content_search', 'qa'];
-    const gradingFeatures = ['grading'];
-
-    const hasMainFeature = mainFeatures.some(f => guard.hasFeature(f));
-    const hasContentSearchFeature = contentSearchFeatures.some(f => guard.hasFeature(f));
-    const hasGradingFeature = gradingFeatures.some(f => guard.hasFeature(f));
+    const hasMainFeature = guard.hasAnyFeatureForScreen('main');
+    const hasContentSearchFeature = guard.hasAnyFeatureForScreen('content_search');
+    const hasGradingFeature = guard.hasAnyFeatureForScreen('grading');
 
     // If main features are disabled, auto-switch based on what's available
     if (!hasMainFeature) {
@@ -101,28 +108,20 @@ const App: React.FC = () => {
   // session on screen that the new backend has never heard of.
   useReloadOnBackendRestart(backendService);
   const setupChecked = setupSteps.some((step) => step.status !== 'unknown');
-  const setupBlocking = setupSteps.some((step) => step.status === 'missing' || step.status === 'failed');
+  const setupNeedsAttention = setupSteps.some((step) =>
+    ['missing', 'failed', 'outdated'].includes(step.status)
+  );
   const firstRunScreen =
-    setupChecked && !setupBlocking && backendService?.runnable !== false ? 'services' : 'ready';
+    setupChecked && !setupNeedsAttention && backendService?.runnable !== false ? 'services' : 'ready';
 
-  // Both are memoised so the effects below can depend on them by name without
-  // re-running on every render.
-  const loadSettings = useCallback(async () => {
-    try {
-      const settings = await getSettings();
-      if (settings.projectName) setProjectName(settings.projectName);
-    } catch {
-      console.warn('Failed to fetch project settings');
-    }
-  }, []);
-
+  // Memoised so the effects below can depend on it by name without re-running on
+  // every render.
   const checkBackendHealth = useCallback(async () => {
     try {
       const isHealthy = await pingBackend();
 
       if (isHealthy) {
         setBackendStatus('available');
-        loadSettings();
         return;
       }
 
@@ -130,7 +129,7 @@ const App: React.FC = () => {
     } catch {
       setBackendStatus('unavailable');
     }
-  }, [loadSettings]);
+  }, []);
 
   useEffect(() => {
     checkBackendHealth();
@@ -189,17 +188,12 @@ const App: React.FC = () => {
       return (
         <div className="app">
           <TopPanel
-            projectName={projectName}
-            setProjectName={setProjectName}
-            isSettingsOpen={isSettingsOpen}
-            setIsSettingsOpen={setIsSettingsOpen}
             activeScreen={screen}
             setActiveScreen={openScreen}
             // No features are known until the backend answers, so every
             // feature-gated nav entry renders disabled.
             featureGuard={new FeatureGuard([])}
             hasMainFeatures={false}
-            onViewReport={() => {}}
           />
           <div className="main-content">{renderToolScreen(screen)}</div>
           <Footer />
@@ -249,18 +243,17 @@ const App: React.FC = () => {
     <div className="app">
       <MetricsPoller />
       <TopPanel
-        projectName={projectName}
-        setProjectName={setProjectName}
-        isSettingsOpen={isSettingsOpen}
-        setIsSettingsOpen={setIsSettingsOpen}
         activeScreen={activeScreen}
         setActiveScreen={openScreen}
         featureGuard={guard}
         hasMainFeatures={hasMainFeatures}
-        onViewReport={() => setIsReportOpen(true)}
       />
       <div style={{ display: activeScreen === 'main' ? 'contents' : 'none' }}>
-        <HeaderBar projectName={projectName} setProjectName={setProjectName} featureGuard={guard} />
+        <HeaderBar
+          featureGuard={guard}
+          onViewReport={() => setIsReportOpen(true)}
+          onViewHistory={() => setIsHistoryOpen(true)}
+        />
       </div>
       {activeScreen === 'content-search' && (
         <div className="content-search-subheader">
@@ -269,7 +262,7 @@ const App: React.FC = () => {
       )}
       <div style={{ display: activeScreen === 'grading' || isToolScreen ? 'none' : 'contents' }}>
         <div className="main-content">
-          <Body isModalOpen={isSettingsOpen} activeScreen={isToolScreen ? 'main' : activeScreen} featureGuard={guard} hasMainFeatures={hasMainFeatures} />
+          <Body activeScreen={isToolScreen ? 'main' : activeScreen} featureGuard={guard} hasMainFeatures={hasMainFeatures} />
         </div>
       </div>
       {activeScreen === 'grading' && (
@@ -288,6 +281,9 @@ const App: React.FC = () => {
         onClose={() => setIsReportOpen(false)}
         featureGuard={guard}
       />
+
+      {/* Session history — same slide-over surface as the report panel. */}
+      <HistoryPanel isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
     </div>
   );
 };

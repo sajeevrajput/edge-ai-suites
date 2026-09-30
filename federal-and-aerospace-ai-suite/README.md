@@ -8,8 +8,8 @@ AI-enabled applications and supporting components for aerospace and defense edge
 
 The Handheld Multi-Modal application is a full-stack AI inference and observability
 platform for handheld scenarios. It is deployed on top of the
-[Edge Node Infrastructure software](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-federal-and-aerospace/edge-node-infrastructure-blueprint/index.html)
-\- an edge computing platform, which enables hardware acceleration capabilities.
+Edge Node Infrastructure software - an edge computing platform, which enables hardware
+acceleration capabilities. See [Infrastructure Setup](handheld-multi-modal/docs/user-guide/infrastructure-setup.md) for build and provisioning steps.
 
 The application combines LLM inference capability served through the OpenVINO
 Model Server platform, speech-to-text transcription through the Whisper service,
@@ -27,7 +27,7 @@ See [`handheld-multi-modal/`](handheld-multi-modal/README.md).
 
 ### UAV Vision Analytics
 
-[UAV Vision Analytics](uav-vision-analytics) : An AI-powered UAV object detection application with live telemetry overlay, built on Intel DL Streamer Pipeline Server. It processes video from a UAV-mounted camera (or simulated video file), runs YOLOv8n-VisDrone inference across ten object classes, and overlays correlated MAVLink telemetry (GPS, altitude, speed, heading) on the output RTSP stream. Supports standalone (pymavlink + PX4 SITL) and UAV Mission Compute SDK deployment modes.
+[UAV Vision Analytics](uav-vision-analytics) : An AI-powered UAV object detection application with live telemetry overlay, built on Intel DL Streamer Pipeline Server. It processes video from a UAV-mounted camera (or simulated video file), runs YOLO11s inference across 80 object classes, and overlays correlated MAVLink telemetry (GPS, altitude, speed, heading) on the output RTSP stream. Supports standalone (pymavlink + PX4 SITL) and UAV Mission Compute SDK deployment modes.
 
 See [`/uav-vision-analytics/docs/user-guide`](./uav-vision-analytics/docs/user-guide/index.md).
 

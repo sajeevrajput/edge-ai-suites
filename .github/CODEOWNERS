@@ -9,6 +9,12 @@ CODE_OF_CONDUCT.md @xwu2intel
 SECURITY.md        @xwu2intel
 README.md          @xwu2intel @open-edge-platform/open-edge-platform-docs-write
 
+# ============================================================================
+# Retail-AI Suite
+# ============================================================================
+
+/retail-ai-suite/                                                  @avinash-palleti @sumanaga @vkb1 @sathyendranv @xwu2intel @pooja-intel
+/retail-ai-suite/digital-signage                                   @vkb1 @sathyendranv @pooja-intel @tanvidhola-ux
 
 # ============================================================================
 # Education-AI Suite
@@ -182,6 +188,6 @@ README.md          @xwu2intel @open-edge-platform/open-edge-platform-docs-write
 /federal-and-aerospace-ai-suite/uav-vision-analytics/docs/                   @rrajore @sugnanprabhu @ajagadi1 @xwu2intel @pperycz @open-edge-platform/open-edge-platform-docs-write
 /federal-and-aerospace-ai-suite/uav-vision-analytics/README.md               @rrajore @sugnanprabhu @ajagadi1 @xwu2intel @pperycz @open-edge-platform/open-edge-platform-docs-write
 
-/federal-and-aerospace-ai-suite/uav-mission-compute-sdk                      @k-mochi @nathsudi @rranjan3 @pperycz
-/federal-and-aerospace-ai-suite/uav-mission-compute-sdk/docs/                @k-mochi @nathsudi @rranjan3 @pperycz @open-edge-platform/open-edge-platform-docs-write
-/federal-and-aerospace-ai-suite/uav-mission-compute-sdk/README.md            @k-mochi @nathsudi @rranjan3 @pperycz @open-edge-platform/open-edge-platform-docs-write
+/federal-and-aerospace-ai-suite/uav-mission-compute-sdk                      @k-mochi @nathsudi @rranjan3 @pperycz @abjyoti
+/federal-and-aerospace-ai-suite/uav-mission-compute-sdk/docs/                @k-mochi @nathsudi @rranjan3 @pperycz @abjyoti @open-edge-platform/open-edge-platform-docs-write
+/federal-and-aerospace-ai-suite/uav-mission-compute-sdk/README.md            @k-mochi @nathsudi @rranjan3 @pperycz @abjyoti @open-edge-platform/open-edge-platform-docs-write

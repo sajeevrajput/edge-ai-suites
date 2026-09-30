@@ -39,13 +39,14 @@ across a reboot:
   tuning you must restore the config (see
   [What persists across a reboot](#what-persists-across-a-reboot)).
 
-> **Note:** These tools are tuned for Intel Panther Lake (Core Ultra). On other
+> [!NOTE]
+> These tools are tuned for Intel Panther Lake (Core Ultra). On other
 > Intel silicon they still run, but the Config-TDP (cTDP) levels and the
 > platform (psys/SysWatt) domain may differ or be unavailable.
 
 ## Prerequisites
 
-- An Intel `x86_64` host (Core Ultra / Panther Lake recommended).
+- An Intel `x86_64` host (Panther Lake recommended).
 - A CPU frequency governor can conflict with `intel_lpmd`. The `performance` and
   `ondemand` governors override the daemon's low-power intent, so either switch
   to `powersave` — which cooperates with `intel_lpmd` — or disable the governor
@@ -58,10 +59,10 @@ across a reboot:
   # Option 2: disable the governor service
   sudo systemctl disable --now powersave.service
   ```
+
 - Linux ships several competing power-management daemons. Stop and disable any
   that are running — for example `tlp`, `tuned`, `cpufreqd`, or `ondemand` — so
   they will conflict with `intel_lpmd` for control of CPU power and frequency.
-  -
 - BIOS settings that hand CPU power/frequency control to the OS. The power
   limits and EPP/EPB tuning only take effect when the OS (not firmware) owns
   these controls — verify them **before** applying a profile, or the script may
@@ -98,7 +99,8 @@ A profile is a package-power (PkgWatt) budget plus a default burst ratio. The
 package cap is enforceable on every platform; on silicon that also exposes the
 psys (SysWatt) domain, a matching whole-platform cap is added automatically.
 
-> **Note:** The table below is a reference recommendation. The values can be
+> [!NOTE]
+> The table below is a reference recommendation. The values can be
 > overridden with command-line parameters (e.g. `--pkgWatt`, `--sysWatt`,
 > `--burstRatio`, `--pl1Tau`) for further tuning — see
 > [Set an Explicit Power Envelope](#set-an-explicit-power-envelope).
@@ -193,7 +195,8 @@ sudo tools/power-tuning/set_power_profile.sh --pkgWatt 15 --pl1Tau 10
 
 ## Monitor Power and Temperature
 
-> **Note:** `pt_mon.sh` is provided as a *reference* monitor. You can use it,
+> [!NOTE]
+> `pt_mon.sh` is provided as a *reference* monitor. You can use it,
 > or any other power-monitoring tool you prefer (e.g. `turbostat`, `powertop`,
 > `intel_gpu_top`, a BMC/OEM utility, or reading
 > `/sys/class/powercap/intel-rapl*`). The power profile and stress steps are
@@ -227,7 +230,8 @@ sudo turbostat -S --interval 1 --num_iterations 60 \
 
 ## Stress the Platform Under Load
 
-> **Note:** `stress_gen.sh` provides a *simulated* load for evaluation purposes.
+> [!NOTE]
+> `stress_gen.sh` provides a *simulated* load for evaluation purposes.
 > You can use it, or run the **actual workload** you want to evaluate — apply the
 > power profile, start the monitor, and drive the platform with either the
 > simulated stress below or your real application. The monitor reacts the same
@@ -361,7 +365,8 @@ sudo cp -a /usr/local/etc/intel_lpmd/intel_lpmd_config_F6_M204.xml.orig \
 sudo systemctl restart intel_lpmd.service
 ```
 
-> **Note:** Only overridden *model-specific* files get an `.orig` backup. The
+> [!NOTE]
+> Only overridden *model-specific* files get an `.orig` backup. The
 > generic `intel_lpmd_config.xml` the script writes has no backup if no config
 > existed there before.
 
@@ -382,29 +387,14 @@ To drive them by natural language on a provisioned node, install an agent CLI on
 the target host and open it in the developer source tree (`/opt/edge/developer`),
 where the `skills/` directory and `tools/power-tuning/` scripts already live.
 
-### Install the Claude Code CLI on the Target Host (Ubuntu)
+### Using the skill on the Target Host
 
-```bash
-# Install Claude Code
-curl -fsSL https://claude.ai/install.sh | sh
-
-# If Node.js is already installed, you can instead use npm:
-# npm install -g @anthropic-ai/claude-code
-
-# Ensure the install location is on PATH (add to ~/.bashrc to persist)
-export PATH="$HOME/.local/bin:$PATH"
-
-# Verify
-claude --version
-```
-Sign in to your Claude account on first launch to use the latest models.
-
-Then launch the agent from the developer source tree so it can discover the
+Launch the agent from the developer source tree so it can discover the
 skills and scripts:
 
 ```bash
 cd /opt/edge/developer
-claude
+copilot # or any other agent CLI which you installed and logged-in
 ```
 
 From there, prompt in natural language — e.g. *"switch this node to the

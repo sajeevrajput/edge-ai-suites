@@ -155,7 +155,8 @@ List available source videos:
 curl http://localhost:8080/api/detection/videos
 ```
 
-> Note: this release runs one bounded detect-then-reason cycle per click over
+> [!NOTE]
+> This release runs one bounded detect-then-reason cycle per click over
 > a finite source video. True live and continuous background detection
 > (independent of the "Run Pipeline" click) is a possible future direction;
 > see the scalable architecture diagram (`docs/apm-scalable-arch.drawio`) for
@@ -220,7 +221,7 @@ docker exec apm-mqtt-broker mosquitto_sub -t 'apm/batch-complete'
 }
 ```
 
-See the [agent-service integration guide](agent-service-integration-guide.md)
+See the [agent-service integration guide](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/agent-quality-handler/agent-service-integration-guide.html)
 for the full contract any application needs to satisfy for plugging its own
 detection layer into the agent-service, or vice versa.
 
