@@ -33,7 +33,7 @@ FROM nginx:1.31.5-trixie
 ARG COPYLEFT_SOURCES=false
 
 # Apply all available Debian security updates to remediate CVEs inherited from the base
-# image (perl, openssl, pcre2, sqlite3, libssh2, libde265, gzip, krb5, util-linux, etc.).
+# image.
 # A full upgrade is used instead of a hand-maintained package list so point-release
 # security fixes are picked up automatically on every rebuild.
 RUN apt-get update && \
